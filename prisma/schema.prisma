@@ -1,0 +1,14 @@
+generator client { provider = "prisma-client-js" }
+
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+model Organization { id String @id @default(cuid()) name String slug String @unique plan Plan @default(BASIC) centers Center[] createdAt DateTime @default(now()) }
+model Center { id String @id @default(cuid()) organizationId String name String slug String @unique city String province String category String phone String? whatsapp String? published Boolean @default(false) organization Organization @relation(fields:[organizationId], references:[id]) services Service[] staff Staff[] bookings Booking[] }
+model Service { id String @id @default(cuid()) centerId String name String durationMinutes Int priceCents Int active Boolean @default(true) center Center @relation(fields:[centerId], references:[id]) bookings Booking[] }
+model Staff { id String @id @default(cuid()) centerId String name String role String active Boolean @default(true) center Center @relation(fields:[centerId], references:[id]) bookings Booking[] }
+model Customer { id String @id @default(cuid()) name String email String? phone String bookings Booking[] createdAt DateTime @default(now()) }
+model Booking { id String @id @default(cuid()) centerId String serviceId String staffId String? customerId String startAt DateTime endAt DateTime status BookingStatus @default(PENDING) source BookingSource @default(WEB) center Center @relation(fields:[centerId], references:[id]) service Service @relation(fields:[serviceId], references:[id]) staff Staff? @relation(fields:[staffId], references:[id]) customer Customer @relation(fields:[customerId], references:[id]) createdAt DateTime @default(now()) @@index([centerId,startAt,endAt]) }
+
+enum Plan { BASIC PRO GROWTH PREMIUM }
+enum BookingStatus { PENDING CONFIRMED CANCELLED COMPLETED NO_SHOW }
+enum BookingSource { WEB MARKETPLACE ADMIN }
