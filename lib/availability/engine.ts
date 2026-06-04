@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db/client'
-import { addMinutes, format, parseISO, isBefore, isAfter, startOfDay, endOfDay } from 'date-fns'
+import { addMinutes, format, parseISO, isAfter, startOfDay, endOfDay } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 
 const TIMEZONE = 'Europe/Madrid'
@@ -56,7 +56,6 @@ export async function getAvailableSlots(query: AvailabilityQuery): Promise<TimeS
     const slots = await getSlotsForStaff({
       centerId,
       staffId,
-      date,
       dayOfWeek,
       localDate,
       totalDuration,
@@ -77,7 +76,6 @@ export async function getAvailableSlots(query: AvailabilityQuery): Promise<TimeS
 async function getSlotsForStaff({
   centerId,
   staffId,
-  date,
   dayOfWeek,
   localDate,
   totalDuration,
@@ -85,7 +83,6 @@ async function getSlotsForStaff({
 }: {
   centerId: string
   staffId: string
-  date: string
   dayOfWeek: number
   localDate: Date
   totalDuration: number

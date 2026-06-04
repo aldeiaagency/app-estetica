@@ -1,0 +1,191 @@
+'use server'
+
+import { prisma } from '@/lib/db/client'
+import { z } from 'zod'
+import { sendBookingConfirmation } from '@/lib/notifications/email'
+
+const createBookingSchema = z.object({
+  centerId: z.string().cuid(),
+  serviceId: z.string().cuid(),
+  staffId: z.string().nullable(),
+  startAt: z.string().datetime(),
+  endAt: z.string().datetime(),
+  customerName: z.string().min(2).max(100),
+  customerEmail: z.string().email(),
+  customerPhone: z.string().optional(),
+  consentGiven: z.boolean().refine(v => v === true, 'Debes aceptar la política de privacidad'),
+  marketingConsent: z.boolean().default(false),
+})
+
+export type CreateBookingInput = z.infer<typeof createBookingSchema>
+
+export async function createBookingAction(input: unknown): Promise<
+  { success: true; confirmationCode: string } | { success: false; error: string }
+> {
+  const parsed = createBookingSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  }
+
+  const { centerId, serviceId, staffId, startAt, endAt, customerName, customerEmail, customerPhone, marketingConsent } = parsed.data
+
+  // Validar centro publicado
+  const center = await prisma.center.findFirst({
+    where: { id: centerId, published: true },
+  })
+  if (!center) return { success: false, error: 'Centro no encontrado o no disponible' }
+
+  // Validar servicio
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, centerId, active: true },
+  })
+  if (!service) return { success: false, error: 'Servicio no disponible' }
+
+  // Validar staff
+  if (staffId) {
+    const staff = await prisma.staff.findFirst({
+      where: { id: staffId, centerId, active: true },
+    })
+    if (!staff) return { success: false, error: 'Profesional no disponible' }
+  }
+
+  const startDate = new Date(startAt)
+  const endDate = new Date(endAt)
+
+  // Crear reserva con bloqueo transaccional
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-verificar disponibilidad dentro de la transacción
+      const conflicts = await tx.booking.count({
+        where: {
+          centerId,
+          ...(staffId ? { staffId } : {}),
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          AND: [
+            { startAt: { lt: endDate } },
+            { endAt: { gt: startDate } },
+          ],
+        },
+      })
+
+      if (conflicts > 0) {
+        throw new Error('SLOT_TAKEN')
+      }
+
+      // Crear/actualizar cliente
+      const customer = await tx.customer.upsert({
+        where: { email_centerId: { email: customerEmail, centerId } },
+        create: {
+          centerId,
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone ?? null,
+          consentGivenAt: new Date(),
+          marketingConsent,
+          marketingConsentDate: marketingConsent ? new Date() : null,
+        },
+        update: {
+          name: customerName,
+          phone: customerPhone ?? null,
+          ...(marketingConsent ? { marketingConsent, marketingConsentDate: new Date() } : {}),
+        },
+      })
+
+      // Generar código único
+      const confirmationCode = generateConfirmationCode()
+
+      // Crear reserva
+      const booking = await tx.booking.create({
+        data: {
+          confirmationCode,
+          centerId,
+          serviceId,
+          staffId: staffId ?? null,
+          customerId: customer.id,
+          startAt: startDate,
+          endAt: endDate,
+          status: 'CONFIRMED',
+          source: 'WEB',
+        },
+        include: {
+          service: true,
+          staff: true,
+          center: true,
+          customer: true,
+        },
+      })
+
+      return booking
+    })
+
+    // Enviar email (no bloquea si falla)
+    sendBookingConfirmation({
+      to: result.customer.email,
+      customerName: result.customer.name,
+      centerName: result.center.name,
+      serviceName: result.service.name,
+      staffName: result.staff?.name,
+      startAt: result.startAt,
+      confirmationCode: result.confirmationCode,
+      centerSlug: result.center.slug,
+    }).catch(err => console.error('[email] Failed to send confirmation:', err))
+
+    return { success: true, confirmationCode: result.confirmationCode }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'SLOT_TAKEN') {
+      return { success: false, error: 'Lo sentimos, este horario acaba de ser ocupado. Por favor elige otro.' }
+    }
+    console.error('[booking] Error creating booking:', err)
+    return { success: false, error: 'Error al crear la reserva. Inténtalo de nuevo.' }
+  }
+}
+
+export async function cancelBookingAction(
+  confirmationCode: string,
+  customerEmail: string,
+  reason?: string
+): Promise<{ success: boolean; error?: string }> {
+  const booking = await prisma.booking.findFirst({
+    where: {
+      confirmationCode,
+      customer: { email: customerEmail },
+    },
+    include: { customer: true, service: true, center: true },
+  })
+
+  if (!booking) {
+    return { success: false, error: 'Reserva no encontrada. Comprueba el código y el email.' }
+  }
+
+  if (['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(booking.status)) {
+    return { success: false, error: 'Esta reserva ya no se puede cancelar.' }
+  }
+
+  // Política de cancelación: 24h antes por defecto
+  const now = new Date()
+  const hoursUntilStart = (booking.startAt.getTime() - now.getTime()) / (1000 * 60 * 60)
+
+  if (hoursUntilStart < 24) {
+    return {
+      success: false,
+      error: `La cancelación debe realizarse con al menos 24 horas de antelación. Tu cita es a las ${booking.startAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} del ${booking.startAt.toLocaleDateString('es-ES')}.`,
+    }
+  }
+
+  await prisma.booking.update({
+    where: { id: booking.id },
+    data: {
+      status: 'CANCELLED',
+      cancelledAt: now,
+      cancelledBy: 'CUSTOMER',
+      cancellationReason: reason ?? null,
+    },
+  })
+
+  return { success: true }
+}
+
+function generateConfirmationCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}

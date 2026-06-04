@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle2, XCircle, Clock, Building2, Users, CalendarDays } from 'lucide-react'
+import { CheckCircle2, Clock, Building2, Users, CalendarDays } from 'lucide-react'
 
 export default async function AdminPage() {
   const session = await auth()
