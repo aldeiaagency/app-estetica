@@ -6,11 +6,13 @@ export const metadata: Metadata = {
   robots: { index: false },
 }
 
-export default function SignInPage({
+export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: { callbackUrl?: string; error?: string }
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>
 }) {
+  const { error } = await searchParams
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#fffaf7] px-4">
       <div className="w-full max-w-md">
@@ -22,7 +24,7 @@ export default function SignInPage({
           <p className="mt-2 text-sm text-[#756b6b]">Entra en tu cuenta</p>
         </div>
 
-        {searchParams.error && (
+        {error && (
           <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
             Error al iniciar sesión. Comprueba tus credenciales.
           </div>

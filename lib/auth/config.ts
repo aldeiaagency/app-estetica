@@ -19,8 +19,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   providers: [
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      clientId: process.env.AUTH_GOOGLE_ID ?? '',
+      clientSecret: process.env.AUTH_GOOGLE_SECRET ?? '',
     }),
     Credentials({
       async authorize(credentials) {
@@ -37,7 +37,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // const isValid = await bcrypt.compare(parsed.data.password, user.password)
         // if (!isValid) return null
 
-        return user
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name ?? undefined,
+          image: user.image ?? undefined,
+          role: user.role,
+          organizationId: user.organizationId ?? undefined,
+        }
       },
     }),
   ],

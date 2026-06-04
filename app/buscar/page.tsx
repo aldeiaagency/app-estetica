@@ -3,42 +3,41 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Buscar centros de belleza',
-  robots: { index: false }, // resultados dinámicos por query params
+  robots: { index: false },
 }
 
-export default function BuscarPage({
+export default async function BuscarPage({
   searchParams,
 }: {
-  searchParams: { q?: string; ciudad?: string; categoria?: string }
+  searchParams: Promise<{ q?: string; ciudad?: string; categoria?: string }>
 }) {
+  const { q, ciudad, categoria } = await searchParams
+
   return (
     <div className="min-h-screen bg-[#fffaf7]">
       <div className="mx-auto max-w-[1180px] px-4 py-12">
         <h1 className="mb-2 text-3xl font-black tracking-tight">
-          Centros de belleza
-          {searchParams.ciudad ? ` en ${searchParams.ciudad}` : ''}
+          Centros de belleza{ciudad ? ` en ${ciudad}` : ''}
         </h1>
         <p className="mb-8 text-[#756b6b]">
           Busca y reserva en los mejores centros cerca de ti
         </p>
 
-        {/* Filtros */}
         <div className="mb-8 flex flex-wrap gap-3">
           <input
             type="text"
             placeholder="Servicio o tipo de negocio"
-            defaultValue={searchParams.q}
+            defaultValue={q}
             className="rounded-xl border border-[#eadfdc] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#9d5c63]"
           />
           <input
             type="text"
             placeholder="Ciudad"
-            defaultValue={searchParams.ciudad}
+            defaultValue={ciudad}
             className="rounded-xl border border-[#eadfdc] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#9d5c63]"
           />
         </div>
 
-        {/* Resultados placeholder */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <CenterCardSkeleton key={i} />

@@ -6,12 +6,13 @@ export const metadata: Metadata = {
   robots: { index: false },
 }
 
-export default function SignUpPage({
+export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: { tipo?: string }
+  searchParams: Promise<{ tipo?: string }>
 }) {
-  const isBusiness = searchParams.tipo === 'negocio'
+  const { tipo } = await searchParams
+  const isBusiness = tipo === 'negocio'
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#fffaf7] px-4 py-12">
@@ -30,7 +31,6 @@ export default function SignUpPage({
           </p>
         </div>
 
-        {/* Tipo de cuenta */}
         {!isBusiness && (
           <div className="mb-6 grid grid-cols-2 gap-3">
             <Link
@@ -99,14 +99,9 @@ export default function SignUpPage({
               <input type="checkbox" required className="mt-0.5 h-4 w-4 accent-[#9d5c63]" />
               <label className="text-xs text-[#756b6b]">
                 Acepto los{' '}
-                <Link href="/legal/terminos" className="underline">
-                  términos y condiciones
-                </Link>{' '}
-                y la{' '}
-                <Link href="/legal/privacidad" className="underline">
-                  política de privacidad
-                </Link>
-                .
+                <Link href="/legal/terminos" className="underline">términos y condiciones</Link>
+                {' '}y la{' '}
+                <Link href="/legal/privacidad" className="underline">política de privacidad</Link>.
               </label>
             </div>
             <button

@@ -152,12 +152,12 @@ async function getSlotsForStaff({
     select: { startAt: true, endAt: true },
   })
 
-  const occupiedBlocks = [
+  const occupiedBlocks: { start: Date; end: Date }[] = [
     ...existingBookings.map((b) => ({
       start: addMinutes(b.startAt, -service.bufferMinutesBefore),
       end: b.endAt,
     })),
-    ...manualBlocks,
+    ...manualBlocks.map((b) => ({ start: b.startAt, end: b.endAt })),
   ]
 
   // d. Generar slots candidatos
