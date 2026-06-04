@@ -3,7 +3,8 @@
 ## Proyecto
 
 SaaS + marketplace hiperlocal para belleza, estética y bienestar no médico.
-Stack: Next.js 15 · TypeScript · PostgreSQL · Prisma · Tailwind CSS · Auth.js
+Stack: Next.js 15 · TypeScript · Supabase (PostgreSQL) · Prisma · Tailwind CSS · Auth.js · Stripe · Resend
+Deploy: Vercel (app) · Supabase (DB) · Cloudflare R2 (imágenes)
 
 ## Reglas de trabajo
 
@@ -14,6 +15,7 @@ Stack: Next.js 15 · TypeScript · PostgreSQL · Prisma · Tailwind CSS · Auth.
 - No uses `bypassPermissions`.
 - No guardes credenciales ni secretos. Usa `.env.example` como plantilla.
 - No inventes que algo funciona si no lo has probado.
+- Prisma + Supabase: usa `DATABASE_URL` (pooled, puerto 6543) para queries y `DIRECT_URL` (puerto 5432) para migraciones. Ver `docs/tecnico/infraestructura.md`.
 - Prisma: ejecuta `npx prisma generate` tras cambios de schema. No modifiques `schema.prisma` sin considerar migraciones.
 - Multi-tenant: todo dato de negocio lleva `centerId` u `organizationId`. Sin excepciones.
 - Nunca expongas datos de un tenant a otro.

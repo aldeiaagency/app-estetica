@@ -11,12 +11,12 @@ Plataforma SaaS + marketplace hiperlocal para negocios de belleza, estética, pe
 ## Stack
 
 - **Frontend / Full-stack**: Next.js 15 (App Router) + TypeScript
-- **Base de datos**: PostgreSQL + Prisma ORM
+- **Base de datos**: Supabase (PostgreSQL) + Prisma ORM
 - **Auth**: Auth.js v5
 - **Pagos**: Stripe
 - **Email**: Resend
 - **Estilos**: Tailwind CSS
-- **Deploy**: Vercel / Railway
+- **Deploy**: Vercel (app) + Supabase (DB) + Cloudflare R2 (imágenes)
 
 ## Arquitectura rápida
 
