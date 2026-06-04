@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
+import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db/client'
 import { z } from 'zod'
 
@@ -33,9 +34,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user?.password) return null
 
-        // TODO: use bcrypt.compare when bcrypt is installed
-        // const isValid = await bcrypt.compare(parsed.data.password, user.password)
-        // if (!isValid) return null
+        const isValid = await bcrypt.compare(parsed.data.password, user.password)
+        if (!isValid) return null
 
         return {
           id: user.id,
