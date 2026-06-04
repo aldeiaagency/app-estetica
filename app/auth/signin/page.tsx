@@ -1,83 +1,133 @@
-import { Metadata } from 'next'
+'use client'
+
+import { useState } from 'react'
+import { signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Sparkles, Eye, EyeOff, Loader2 } from 'lucide-react'
 
-export const metadata: Metadata = {
-  title: 'Entrar',
-  robots: { index: false },
-}
+export default function SignInPage() {
+  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-export default async function SignInPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ callbackUrl?: string; error?: string }>
-}) {
-  const { error } = await searchParams
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    const form = e.currentTarget
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value
+    const password = (form.elements.namedItem('password') as HTMLInputElement).value
+
+    const result = await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    })
+
+    setLoading(false)
+
+    if (result?.error) {
+      setError('Email o contraseña incorrectos')
+      return
+    }
+
+    // Redirigir según el rol (el router lo resuelve con el middleware)
+    router.push('/dashboard')
+    router.refresh()
+  }
+
+  async function handleGoogle() {
+    await signIn('google', { callbackUrl: '/dashboard' })
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fffaf7] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-md">
+        {/* Logo */}
         <div className="mb-8 text-center">
-          <Link href="/" className="text-2xl font-black">
-            Belleza<span className="text-[#9d5c63]">Local</span>
+          <Link href="/" className="inline-flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-600">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <span className="text-xl font-bold text-slate-900">BellezaLocal</span>
           </Link>
-          <h1 className="mt-6 text-2xl font-black tracking-tight">Bienvenido de vuelta</h1>
-          <p className="mt-2 text-sm text-[#756b6b]">Entra en tu cuenta</p>
+          <h1 className="mt-6 text-2xl font-bold tracking-tight text-slate-900">Bienvenido de nuevo</h1>
+          <p className="mt-1 text-sm text-slate-500">Entra en tu cuenta para continuar</p>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-            Error al iniciar sesión. Comprueba tus credenciales.
-          </div>
-        )}
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          {error && (
+            <div className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+              {error}
+            </div>
+          )}
 
-        <div className="rounded-2xl border border-[#eadfdc] bg-white p-8">
-          <form className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="mb-1.5 block text-sm font-bold">Email</label>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Email</label>
               <input
                 type="email"
                 name="email"
                 required
                 autoComplete="email"
-                className="w-full rounded-xl border border-[#eadfdc] px-4 py-3 text-sm outline-none focus:border-[#9d5c63]"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
                 placeholder="tu@email.com"
               />
             </div>
+
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-sm font-bold">Contraseña</label>
-                <Link href="/auth/forgot-password" className="text-xs text-[#9d5c63] hover:underline">
+                <label className="text-sm font-semibold text-slate-700">Contraseña</label>
+                <Link href="/auth/forgot-password" className="text-xs text-rose-600 hover:text-rose-700">
                   ¿Olvidaste tu contraseña?
                 </Link>
               </div>
-              <input
-                type="password"
-                name="password"
-                required
-                autoComplete="current-password"
-                className="w-full rounded-xl border border-[#eadfdc] px-4 py-3 text-sm outline-none focus:border-[#9d5c63]"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  required
+                  autoComplete="current-password"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-11 text-sm text-slate-900 outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-100"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
+
             <button
               type="submit"
-              className="w-full rounded-xl bg-[#9d5c63] py-3 font-bold text-white hover:bg-[#7a4650]"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 py-3 font-semibold text-white hover:bg-rose-700 disabled:opacity-60 transition-colors"
             >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Entrar
             </button>
           </form>
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#eadfdc]" />
+              <div className="w-full border-t border-slate-100" />
             </div>
-            <div className="relative flex justify-center text-xs text-[#756b6b]">
-              <span className="bg-white px-2">o</span>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-3 text-xs text-slate-400">o continúa con</span>
             </div>
           </div>
 
-          <button className="flex w-full items-center justify-center gap-3 rounded-xl border border-[#eadfdc] py-3 text-sm font-bold hover:bg-[#fffaf7]">
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
+          <button
+            onClick={handleGoogle}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -87,9 +137,9 @@ export default async function SignInPage({
           </button>
         </div>
 
-        <p className="mt-6 text-center text-sm text-[#756b6b]">
+        <p className="mt-6 text-center text-sm text-slate-500">
           ¿No tienes cuenta?{' '}
-          <Link href="/auth/signup" className="font-bold text-[#9d5c63] hover:underline">
+          <Link href="/auth/signup" className="font-semibold text-rose-600 hover:text-rose-700">
             Regístrate gratis
           </Link>
         </p>
