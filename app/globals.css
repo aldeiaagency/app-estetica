@@ -1,1 +1,29 @@
-body{margin:0;background:#fffaf7;color:#211b1c;font-family:Arial,sans-serif}a{text-decoration:none;color:inherit}.container{width:min(1180px,92vw);margin:0 auto}.nav{border-bottom:1px solid #eadfdc;background:#fffaf7}.nav-inner{height:72px;display:flex;align-items:center;justify-content:space-between}.logo{font-weight:900;font-size:24px}.logo span{color:#9d5c63}.nav-links{display:flex;gap:20px;color:#756b6b}.btn{display:inline-flex;border-radius:999px;padding:12px 18px;font-weight:800}.btn-primary{background:#211b1c;color:#fff}.btn-brand{background:#9d5c63;color:#fff}.hero{padding:80px 0 50px}.grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center}.eyebrow{display:inline-flex;background:#fff;border:1px solid #eadfdc;border-radius:999px;padding:8px 12px;color:#3d7b73;font-weight:800}h1{font-size:clamp(42px,7vw,76px);line-height:.95;letter-spacing:-.06em;margin:20px 0}h2{font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.04em;margin:0 0 16px}.lead{font-size:20px;line-height:1.55;color:#756b6b}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}.panel,.card,.kpi{background:#fff;border:1px solid #eadfdc;border-radius:26px;padding:24px}.section{padding:62px 0}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.pricing{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.muted{color:#756b6b;line-height:1.55}.pill{display:inline-flex;background:#f6ebe7;border-radius:999px;padding:7px 10px;color:#9d5c63;font-weight:800;font-size:12px}.price{font-size:36px;font-weight:900}.dash{display:grid;grid-template-columns:260px 1fr;min-height:100vh}.sidebar{background:#211b1c;color:white;padding:24px}.side-link{display:block;padding:12px 14px;border-radius:14px;color:#eadfdc}.side-link.active{background:#3a3031;color:white}.main{padding:30px}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.table{width:100%;border-collapse:collapse;background:white}.table th,.table td{text-align:left;padding:14px;border-bottom:1px solid #eadfdc}.footer{padding:42px 0;border-top:1px solid #eadfdc;color:#756b6b}@media(max-width:900px){.grid-2,.cards,.pricing,.kpis{grid-template-columns:1fr}.nav-links{display:none}.dash{grid-template-columns:1fr}}
+@import "tailwindcss";
+
+:root {
+  --background: #fffaf7;
+  --foreground: #211b1c;
+  --muted: #756b6b;
+  --border: #eadfdc;
+  --brand: #9d5c63;
+  --brand-dark: #7a4650;
+  --accent: #3d7b73;
+  --surface: #ffffff;
+}
+
+@theme {
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-surface: var(--surface);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}

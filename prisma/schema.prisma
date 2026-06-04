@@ -1,14 +1,634 @@
-generator client { provider = "prisma-client-js" }
+generator client {
+  provider = "prisma-client-js"
+}
 
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-model Organization { id String @id @default(cuid()) name String slug String @unique plan Plan @default(BASIC) centers Center[] createdAt DateTime @default(now()) }
-model Center { id String @id @default(cuid()) organizationId String name String slug String @unique city String province String category String phone String? whatsapp String? published Boolean @default(false) organization Organization @relation(fields:[organizationId], references:[id]) services Service[] staff Staff[] bookings Booking[] }
-model Service { id String @id @default(cuid()) centerId String name String durationMinutes Int priceCents Int active Boolean @default(true) center Center @relation(fields:[centerId], references:[id]) bookings Booking[] }
-model Staff { id String @id @default(cuid()) centerId String name String role String active Boolean @default(true) center Center @relation(fields:[centerId], references:[id]) bookings Booking[] }
-model Customer { id String @id @default(cuid()) name String email String? phone String bookings Booking[] createdAt DateTime @default(now()) }
-model Booking { id String @id @default(cuid()) centerId String serviceId String staffId String? customerId String startAt DateTime endAt DateTime status BookingStatus @default(PENDING) source BookingSource @default(WEB) center Center @relation(fields:[centerId], references:[id]) service Service @relation(fields:[serviceId], references:[id]) staff Staff? @relation(fields:[staffId], references:[id]) customer Customer @relation(fields:[customerId], references:[id]) createdAt DateTime @default(now()) @@index([centerId,startAt,endAt]) }
+// ─────────────────────────────────────────────────────
+// AUTH (Auth.js v5 adapter)
+// ─────────────────────────────────────────────────────
 
-enum Plan { BASIC PRO GROWTH PREMIUM }
-enum BookingStatus { PENDING CONFIRMED CANCELLED COMPLETED NO_SHOW }
-enum BookingSource { WEB MARKETPLACE ADMIN }
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(CUSTOMER)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────
+// ORGANIZACIÓN Y CENTROS
+// ─────────────────────────────────────────────────────
+
+model Organization {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  plan              Plan      @default(BASIC)
+  planExpiresAt     DateTime?
+  stripeCustomerId  String?   @unique
+  stripeSubscriptionId String? @unique
+  maxCenters        Int       @default(1)
+
+  users    User[]
+  centers  Center[]
+  addOns   OrganizationAddOn[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Center {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  slug           String   @unique
+  description    String?
+  descriptionLong String?
+
+  category     CenterCategory
+  phone        String?
+  whatsapp     String?
+  email        String?
+  website      String?
+
+  addressStreet     String  @default("")
+  addressCity       String
+  addressProvince   String
+  addressPostalCode String  @default("")
+  addressLat        Decimal? @db.Decimal(9, 6)
+  addressLng        Decimal? @db.Decimal(9, 6)
+
+  coverImage    String?
+  galleryImages String[] @default([])
+
+  published   Boolean   @default(false)
+  approvedAt  DateTime?
+  approvedBy  String?
+  seoNoindex  Boolean   @default(false)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  services        Service[]
+  staff           Staff[]
+  resources       Resource[]
+  bookings        Booking[]
+  customers       Customer[]
+  scheduleRules   ScheduleRule[]
+  exceptions      ScheduleException[]
+  manualBlocks    ManualBlock[]
+  bonos           Bono[]
+  products        Product[]
+  promotions      Promotion[]
+  reviews         Review[]
+  featuredListings FeaturedListing[]
+  waitlistEntries WaitlistEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([addressCity, category])
+  @@index([published])
+}
+
+// ─────────────────────────────────────────────────────
+// CATEGORÍAS Y SERVICIOS
+// ─────────────────────────────────────────────────────
+
+model ServiceCategory {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+  icon        String?
+  order       Int     @default(0)
+
+  services Service[]
+}
+
+model Service {
+  id         String  @id @default(cuid())
+  centerId   String
+  categoryId String?
+
+  name               String
+  description        String?
+  durationMinutes    Int
+  priceCents         Int
+  bufferMinutesBefore Int    @default(0)
+  bufferMinutesAfter  Int    @default(10)
+  maxCapacity        Int     @default(1)
+  active             Boolean @default(true)
+  order              Int     @default(0)
+
+  center   Center           @relation(fields: [centerId], references: [id])
+  category ServiceCategory? @relation(fields: [categoryId], references: [id])
+
+  serviceStaff ServiceStaff[]
+  bookings     Booking[]
+  bonos        Bono[]
+  promotions   Promotion[]
+
+  createdAt DateTime @default(now())
+
+  @@index([centerId])
+}
+
+model ServiceStaff {
+  serviceId String
+  staffId   String
+
+  service Service @relation(fields: [serviceId], references: [id])
+  staff   Staff   @relation(fields: [staffId], references: [id])
+
+  @@id([serviceId, staffId])
+}
+
+// ─────────────────────────────────────────────────────
+// STAFF Y RECURSOS
+// ─────────────────────────────────────────────────────
+
+model Staff {
+  id       String @id @default(cuid())
+  centerId String
+
+  name   String
+  role   String?
+  bio    String?
+  image  String?
+  active Boolean @default(true)
+  order  Int     @default(0)
+
+  center       Center         @relation(fields: [centerId], references: [id])
+  bookings     Booking[]
+  serviceStaff ServiceStaff[]
+  scheduleRules ScheduleRule[]
+  exceptions   ScheduleException[]
+  manualBlocks ManualBlock[]
+
+  createdAt DateTime @default(now())
+
+  @@index([centerId])
+}
+
+model Resource {
+  id       String @id @default(cuid())
+  centerId String
+
+  name     String
+  type     String?
+  capacity Int     @default(1)
+  active   Boolean @default(true)
+
+  center   Center    @relation(fields: [centerId], references: [id])
+  bookings Booking[]
+
+  @@index([centerId])
+}
+
+// ─────────────────────────────────────────────────────
+// HORARIOS
+// ─────────────────────────────────────────────────────
+
+model ScheduleRule {
+  id       String  @id @default(cuid())
+  centerId String?
+  staffId  String?
+
+  dayOfWeek Int
+  openTime  String
+  closeTime String
+  active    Boolean @default(true)
+
+  center Center? @relation(fields: [centerId], references: [id])
+  staff  Staff?  @relation(fields: [staffId], references: [id])
+
+  @@index([centerId, dayOfWeek])
+  @@index([staffId, dayOfWeek])
+}
+
+model ScheduleException {
+  id       String  @id @default(cuid())
+  centerId String?
+  staffId  String?
+
+  date      DateTime
+  isClosed  Boolean  @default(false)
+  openTime  String?
+  closeTime String?
+  reason    String?
+
+  center Center? @relation(fields: [centerId], references: [id])
+  staff  Staff?  @relation(fields: [staffId], references: [id])
+
+  @@index([centerId, date])
+  @@index([staffId, date])
+}
+
+model ManualBlock {
+  id       String  @id @default(cuid())
+  centerId String
+  staffId  String?
+
+  startAt DateTime
+  endAt   DateTime
+  reason  String?
+
+  center Center @relation(fields: [centerId], references: [id])
+  staff  Staff? @relation(fields: [staffId], references: [id])
+
+  @@index([centerId, startAt, endAt])
+}
+
+// ─────────────────────────────────────────────────────
+// CLIENTES Y RESERVAS
+// ─────────────────────────────────────────────────────
+
+model Customer {
+  id       String  @id @default(cuid())
+  userId   String?
+  centerId String
+
+  name                 String
+  email                String
+  phone                String?
+  noShowCount          Int       @default(0)
+  marketingConsent     Boolean   @default(false)
+  marketingConsentDate DateTime?
+  consentGivenAt       DateTime  @default(now())
+
+  center   Center    @relation(fields: [centerId], references: [id])
+  bookings Booking[]
+  bonoInstances BonoInstance[]
+  waitlistEntries WaitlistEntry[]
+  reviews  Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email, centerId])
+  @@index([centerId])
+}
+
+model Booking {
+  id               String @id @default(cuid())
+  confirmationCode String @unique
+
+  centerId   String
+  serviceId  String
+  staffId    String?
+  resourceId String?
+  customerId String
+
+  startAt DateTime
+  endAt   DateTime
+  status  BookingStatus @default(PENDING)
+  source  BookingSource @default(WEB)
+
+  depositCents          Int?
+  depositPaid           Boolean @default(false)
+  stripePaymentIntentId String?
+
+  notes            String?
+  internalNotes    String?
+  reminderSentAt   DateTime?
+  noShowAt         DateTime?
+  cancelledAt      DateTime?
+  cancelledBy      CancelledBy?
+  cancellationReason String?
+
+  center   Center    @relation(fields: [centerId], references: [id])
+  service  Service   @relation(fields: [serviceId], references: [id])
+  staff    Staff?    @relation(fields: [staffId], references: [id])
+  resource Resource? @relation(fields: [resourceId], references: [id])
+  customer Customer  @relation(fields: [customerId], references: [id])
+  review   Review?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([centerId, startAt, endAt])
+  @@index([centerId, status])
+  @@index([customerId])
+  @@index([staffId, startAt, endAt])
+}
+
+model WaitlistEntry {
+  id         String @id @default(cuid())
+  centerId   String
+  serviceId  String
+  staffId    String?
+  customerId String
+
+  requestedDate DateTime
+  notifiedAt    DateTime?
+  status        WaitlistStatus @default(WAITING)
+
+  center   Center   @relation(fields: [centerId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([centerId, status])
+}
+
+// ─────────────────────────────────────────────────────
+// COMERCIO (plan Pro)
+// ─────────────────────────────────────────────────────
+
+model Bono {
+  id       String @id @default(cuid())
+  centerId String
+
+  name         String
+  description  String?
+  sessions     Int
+  validityDays Int
+  priceCents   Int
+  serviceId    String?
+  active       Boolean @default(true)
+
+  center    Center       @relation(fields: [centerId], references: [id])
+  service   Service?     @relation(fields: [serviceId], references: [id])
+  instances BonoInstance[]
+
+  createdAt DateTime @default(now())
+
+  @@index([centerId])
+}
+
+model BonoInstance {
+  id         String @id @default(cuid())
+  bonoId     String
+  customerId String
+  centerId   String
+
+  sessionsRemaining Int
+  purchasedAt       DateTime @default(now())
+  activatedAt       DateTime?
+  expiresAt         DateTime?
+  stripePaymentId   String?
+
+  bono     Bono     @relation(fields: [bonoId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([centerId])
+}
+
+model Product {
+  id       String @id @default(cuid())
+  centerId String
+
+  name        String
+  description String?
+  brand       String?
+  priceCents  Int
+  stock       Int?
+  image       String?
+  active      Boolean @default(true)
+
+  center Center @relation(fields: [centerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([centerId])
+}
+
+model Promotion {
+  id       String @id @default(cuid())
+  centerId String
+
+  title         String
+  description   String?
+  discountType  DiscountType
+  discountValue Int
+  serviceId     String?
+  startsAt      DateTime
+  endsAt        DateTime
+  active        Boolean @default(true)
+
+  center  Center   @relation(fields: [centerId], references: [id])
+  service Service? @relation(fields: [serviceId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([centerId, active])
+}
+
+// ─────────────────────────────────────────────────────
+// RESEÑAS (plan Pro)
+// ─────────────────────────────────────────────────────
+
+model Review {
+  id         String @id @default(cuid())
+  centerId   String
+  bookingId  String @unique
+  customerId String
+
+  rating      Int
+  comment     String?
+  publishedAt DateTime?
+  approved    Boolean @default(false)
+  moderatedBy String?
+  reply       String?
+  repliedAt   DateTime?
+
+  center   Center   @relation(fields: [centerId], references: [id])
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([centerId, approved])
+}
+
+// ─────────────────────────────────────────────────────
+// BILLING Y PLANES
+// ─────────────────────────────────────────────────────
+
+model OrganizationAddOn {
+  id             String @id @default(cuid())
+  organizationId String
+  centerId       String?
+
+  addOnType              AddOnType
+  activeFrom             DateTime
+  activeTo               DateTime?
+  stripeSubscriptionItemId String?
+  active                 Boolean @default(true)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, active])
+}
+
+// ─────────────────────────────────────────────────────
+// SEO Y MARKETPLACE
+// ─────────────────────────────────────────────────────
+
+model FeaturedListing {
+  id       String @id @default(cuid())
+  centerId String
+
+  city     String
+  category CenterCategory?
+  service  String?
+  priority Int     @default(0)
+  startsAt DateTime
+  endsAt   DateTime
+  active   Boolean @default(true)
+
+  center Center @relation(fields: [centerId], references: [id])
+
+  @@index([city, category, active])
+}
+
+// ─────────────────────────────────────────────────────
+// AUDITORÍA
+// ─────────────────────────────────────────────────────
+
+model AdminAuditLog {
+  id      String @id @default(cuid())
+  actorId String
+
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+}
+
+// ─────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  BUSINESS
+  BUSINESS_ADMIN
+  PLATFORM_ADMIN
+}
+
+enum Plan {
+  BASIC
+  PRO
+  GROWTH
+  PREMIUM
+}
+
+enum CenterCategory {
+  PELUQUERIA
+  ESTETICA
+  UNAS
+  CEJAS_PESTANAS
+  DEPILACION
+  MASAJES
+  SPA
+  COSMETICA
+  BELLEZA_INTEGRAL
+  OTRO
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum BookingSource {
+  WEB
+  MARKETPLACE
+  DASHBOARD
+  API
+}
+
+enum CancelledBy {
+  CUSTOMER
+  BUSINESS
+  SYSTEM
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  BOOKED
+  EXPIRED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum AddOnType {
+  WHATSAPP
+  SMS
+  AI_RECEPTIONIST
+  REBOOKING
+  FEATURED_LISTING
+  CUSTOM_DOMAIN
+  ADVANCED_ANALYTICS
+  PRIORITY_SUPPORT
+  DATA_MIGRATION
+  ASSISTED_ONBOARDING
+}

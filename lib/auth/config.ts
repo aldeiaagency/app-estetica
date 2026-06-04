@@ -1,0 +1,62 @@
+import NextAuth from 'next-auth'
+import { PrismaAdapter } from '@auth/prisma-adapter'
+import Credentials from 'next-auth/providers/credentials'
+import Google from 'next-auth/providers/google'
+import { prisma } from '@/lib/db/client'
+import { z } from 'zod'
+
+const signInSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+})
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: 'jwt' },
+  pages: {
+    signIn: '/auth/signin',
+    error: '/auth/error',
+  },
+  providers: [
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID!,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+    }),
+    Credentials({
+      async authorize(credentials) {
+        const parsed = signInSchema.safeParse(credentials)
+        if (!parsed.success) return null
+
+        const user = await prisma.user.findUnique({
+          where: { email: parsed.data.email },
+        })
+
+        if (!user?.password) return null
+
+        // TODO: use bcrypt.compare when bcrypt is installed
+        // const isValid = await bcrypt.compare(parsed.data.password, user.password)
+        // if (!isValid) return null
+
+        return user
+      },
+    }),
+  ],
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+        token.role = (user as { role?: string }).role
+        token.organizationId = (user as { organizationId?: string }).organizationId
+      }
+      return token
+    },
+    session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string
+        session.user.role = token.role as string
+        session.user.organizationId = token.organizationId as string | undefined
+      }
+      return session
+    },
+  },
+})
