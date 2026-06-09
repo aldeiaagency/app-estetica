@@ -1,154 +1,340 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import {
-  ArrowRight,
-  BadgeCheck,
-  Bell,
-  CalendarCheck,
-  Clock,
-  MapPin,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Store,
-  Tags,
-  WalletCards,
+  Sparkles, Search, MapPin, ArrowRight, Star,
+  Scissors, Wand2, Flame, Zap, Heart, Waves,
+  CheckCircle2, Building2, TrendingUp, Shield
 } from 'lucide-react'
 import { prisma } from '@/lib/db/client'
+import { CATEGORY_LABELS, formatPrice } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Belleza Local — Reserva belleza cerca de ti',
+  title: 'Belleza Local — Reserva en centros de belleza cerca de ti',
   description:
-    'Encuentra centros de belleza, estética, peluquería y bienestar cerca de ti. Reserva online sin llamadas y descubre servicios locales.',
+    'Encuentra y reserva en los mejores centros de belleza, estética, peluquería y bienestar cerca de ti. Disponibilidad real. Sin llamar.',
 }
 
 async function getFeaturedCenters() {
-  try {
-    return await prisma.center.findMany({
-      where: { published: true },
-      include: {
-        services: {
-          where: { active: true },
-          orderBy: { order: 'asc' },
-          take: 3,
-        },
-        _count: {
-          select: {
-            reviews: true,
-            bookings: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 6,
-    })
-  } catch {
-    return []
-  }
+  return prisma.center.findMany({
+    where: { published: true },
+    include: {
+      services: { where: { active: true }, orderBy: { order: 'asc' }, take: 3 },
+      reviews:  { where: { approved: true }, select: { rating: true }, take: 100 },
+      _count:   { select: { bookings: true } },
+    },
+    orderBy: { bookings: { _count: 'desc' } },
+    take: 6,
+  })
 }
+
+const CATEGORIES = [
+  { slug: 'PELUQUERIA', label: 'Peluquería', icon: Scissors, color: 'from-violet-500 to-violet-700' },
+  { slug: 'UNAS',       label: 'Uñas',       icon: Wand2,    color: 'from-pink-400 to-rose-500'     },
+  { slug: 'ESTETICA',   label: 'Estética',   icon: Flame,    color: 'from-amber-400 to-orange-500'  },
+  { slug: 'DEPILACION', label: 'Depilación', icon: Zap,      color: 'from-cyan-400 to-cyan-600'     },
+  { slug: 'MASAJES',    label: 'Masajes',    icon: Heart,    color: 'from-emerald-400 to-emerald-600'},
+  { slug: 'SPA',        label: 'Spa',        icon: Waves,    color: 'from-indigo-400 to-indigo-600' },
+]
+
+const STEPS = [
+  { n: '01', title: 'Busca tu servicio',    desc: 'Peluquería, uñas, masajes... Filtra por ciudad y disponibilidad.' },
+  { n: '02', title: 'Elige fecha y hora',   desc: 'Disponibilidad en tiempo real. Sin llamadas, sin esperas.' },
+  { n: '03', title: 'Confirma al instante', desc: 'Recibe confirmación y recordatorio automático por email.' },
+]
+
+const BUSINESS_FEATURES = [
+  'Agenda online 24/7 — tus clientes reservan solas',
+  'Recordatorios automáticos que eliminan no-shows',
+  'CRM con historial completo de cada cliente',
+  'Venta de bonos y productos desde tu perfil',
+  'Analíticas de ingresos, ocupación y servicios top',
+  'Destaca en búsquedas del marketplace',
+]
 
 export default async function HomePage() {
   const centers = await getFeaturedCenters()
 
   return (
-    <main className="min-h-screen bg-[#fbf7f3] text-slate-950">
-      <Header />
-
-      <section className="relative overflow-hidden border-b border-white/60">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,#f9a8d4_0,transparent_34%),radial-gradient(circle_at_top_right,#c084fc_0,transparent_28%),linear-gradient(135deg,#fff7ed_0%,#fff1f2_38%,#f8fafc_100%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#fbf7f3] to-transparent" />
-
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 pb-20 pt-28 lg:grid-cols-[1.05fr_.95fr] lg:items-center lg:pb-28 lg:pt-36">
-          <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/70 px-4 py-2 text-sm font-semibold text-rose-700 shadow-sm backdrop-blur">
-              <Sparkles className="h-4 w-4" />
-              Belleza, estética y bienestar local
+    <div className="min-h-screen bg-zinc-50">
+      {/* ─── HEADER ─── */}
+      <header className="sticky top-0 z-50 border-b border-white/8 bg-[#09090B]/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-105">
+              <Sparkles className="h-4 w-4 text-white" />
             </div>
+            <span className="font-black tracking-tight text-white">BellezaLocal</span>
+          </Link>
+          <nav className="hidden items-center gap-1 md:flex">
+            <Link href="/buscar" className="rounded-lg px-3.5 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/8 hover:text-white">
+              Buscar centros
+            </Link>
+            <Link href="/para-negocios" className="rounded-lg px-3.5 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/8 hover:text-white">
+              Para negocios
+            </Link>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Link href="/auth/signin" className="hidden rounded-lg px-3.5 py-2 text-sm font-medium text-zinc-400 transition-colors hover:text-white sm:block">
+              Iniciar sesión
+            </Link>
+            <Link href="/auth/signup" className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary-500/20 transition-all hover:bg-primary-700 active:scale-[0.97]">
+              Registrarse
+            </Link>
+          </div>
+        </div>
+      </header>
 
-            <h1 className="max-w-4xl text-5xl font-black tracking-[-0.06em] text-slate-950 sm:text-6xl lg:text-7xl">
-              Reserva belleza cerca de ti, sin llamar.
-            </h1>
+      {/* ─── HERO ─── */}
+      <section className="relative overflow-hidden bg-[#09090B] pb-24 pt-20">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-primary-600/20 blur-[120px]" />
+          <div className="absolute -right-20 top-20 h-80 w-80 rounded-full bg-beauty-500/15 blur-[100px]" />
+          <div className="absolute bottom-0 left-1/2 h-64 w-96 -translate-x-1/2 rounded-full bg-primary-800/15 blur-[80px]" />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-4">
+          <div className="mb-6 flex justify-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary-500/30 bg-primary-500/10 px-4 py-1.5 text-xs font-semibold text-primary-300">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-400" />
+              </span>
+              Disponibilidad real · Sin llamadas
+            </span>
+          </div>
+          <h1 className="mx-auto max-w-4xl text-center text-5xl font-black leading-[1.05] tracking-tight text-white md:text-7xl">
+            La belleza que mereces,{' '}
+            <span className="bg-gradient-to-r from-primary-400 via-beauty-400 to-beauty-500 bg-clip-text text-transparent">
+              cuando quieras
+            </span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-center text-lg text-zinc-400">
+            Encuentra y reserva en los mejores centros de tu ciudad. Cita confirmada en menos de 60 segundos.
+          </p>
+          <form method="GET" action="/buscar" className="mx-auto mt-10 max-w-2xl">
+            <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 backdrop-blur-sm sm:flex-row">
+              <div className="flex flex-1 items-center gap-3 rounded-xl border border-white/8 bg-white/8 px-4 py-3 focus-within:border-primary-500/60 transition-all">
+                <Search className="h-4 w-4 shrink-0 text-zinc-500" />
+                <input type="text" name="q" placeholder="Servicio, peluquería, masaje..." className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-zinc-500" />
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/8 px-4 py-3 focus-within:border-primary-500/60 transition-all">
+                <MapPin className="h-4 w-4 shrink-0 text-zinc-500" />
+                <input type="text" name="ciudad" placeholder="Ciudad" className="w-32 bg-transparent text-sm text-white outline-none placeholder:text-zinc-500" />
+              </div>
+              <button type="submit" className="flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary-600/30 transition-all hover:bg-primary-700 active:scale-[0.97]">
+                <Search className="h-4 w-4" />Buscar
+              </button>
+            </div>
+          </form>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-zinc-500">
+            <span className="flex items-center gap-1.5">
+              <div className="flex">{[...Array(5)].map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}</div>
+              <strong className="text-zinc-300">4.9</strong> de media
+            </span>
+            <span className="h-1 w-1 rounded-full bg-zinc-700" />
+            <span><strong className="text-zinc-300">+350</strong> centros</span>
+            <span className="h-1 w-1 rounded-full bg-zinc-700" />
+            <span><strong className="text-zinc-300">+12.000</strong> reservas</span>
+            <span className="h-1 w-1 rounded-full bg-zinc-700" />
+            <span><strong className="text-zinc-300">50+</strong> ciudades</span>
+          </div>
+        </div>
+      </section>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              Encuentra centros de peluquería, estética, uñas, depilación, masajes y cosmética.
-              Consulta servicios, disponibilidad y reserva online en pocos pasos.
-            </p>
+      {/* ─── CATEGORIES ─── */}
+      <section className="bg-white py-16">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="mb-10 text-center">
+            <p className="section-eyebrow">Servicios</p>
+            <h2 className="section-title mt-2">Elige tu tratamiento</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {CATEGORIES.map((cat) => (
+              <Link key={cat.slug} href={`/buscar?categoria=${cat.slug}`}
+                className="group flex flex-col items-center gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-center transition-all duration-200 hover:border-zinc-200 hover:bg-white hover:shadow-card-hover hover:-translate-y-0.5">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${cat.color} shadow-lg transition-transform group-hover:scale-110`}>
+                  <cat.icon className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-sm font-semibold text-zinc-700 group-hover:text-zinc-900">{cat.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            <div className="mt-9 max-w-3xl rounded-[2rem] border border-white/80 bg-white/90 p-3 shadow-2xl shadow-rose-950/10 backdrop-blur">
-              <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                <label className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4">
-                  <Search className="h-5 w-5 text-slate-400" />
-                  <input
-                    className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
-                    placeholder="Manicura, facial, masaje..."
-                    name="q"
-                  />
-                </label>
+      {/* ─── FEATURED CENTERS ─── */}
+      <section className="bg-zinc-50 py-16">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="mb-10 flex items-end justify-between">
+            <div>
+              <p className="section-eyebrow">Centros</p>
+              <h2 className="section-title mt-2">Cerca de ti</h2>
+            </div>
+            <Link href="/buscar" className="hidden items-center gap-1.5 text-sm font-semibold text-primary-600 hover:text-primary-700 sm:flex">
+              Ver todos <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          {centers.length === 0 ? (
+            <div className="rounded-3xl border-2 border-dashed border-zinc-200 bg-white py-20 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
+                <Building2 className="h-7 w-7 text-zinc-400" />
+              </div>
+              <p className="font-semibold text-zinc-600">Primeros centros en incorporación</p>
+              <p className="mt-1 text-sm text-zinc-400">¿Tienes un centro de belleza? Únete gratis.</p>
+              <Link href="/para-negocios" className="btn-primary mt-5 inline-flex">Registrar mi negocio</Link>
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {centers.map((c) => {
+                const minPrice = c.services.length > 0 ? Math.min(...c.services.map(s => s.priceCents)) : null
+                const avgRating = c.reviews.length > 0 ? c.reviews.reduce((s, r) => s + r.rating, 0) / c.reviews.length : null
+                const categoryLabel = CATEGORY_LABELS[c.category] ?? c.category
+                return (
+                  <Link key={c.id} href={`/centro/${c.slug}`}
+                    className="group block overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1">
+                    <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary-100 via-primary-50 to-beauty-50">
+                      {c.coverImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.coverImage} alt={c.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <Sparkles className="h-12 w-12 text-primary-200" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent" />
+                      <div className="absolute bottom-3 left-3">
+                        <span className="rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-zinc-700 backdrop-blur">{categoryLabel}</span>
+                      </div>
+                      {avgRating && (
+                        <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-zinc-700 backdrop-blur shadow-sm">
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />{avgRating.toFixed(1)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-base font-bold text-zinc-900 transition-colors group-hover:text-primary-600 leading-snug">{c.name}</h3>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
+                        <MapPin className="h-3 w-3 shrink-0" />{c.addressCity}{c.addressProvince && c.addressProvince !== c.addressCity ? `, ${c.addressProvince}` : ''}
+                      </p>
+                      {c.services.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {c.services.map((s) => <span key={s.id} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">{s.name}</span>)}
+                        </div>
+                      )}
+                      <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-4">
+                        {minPrice !== null ? (
+                          <span className="text-sm font-bold text-zinc-900">Desde {formatPrice(minPrice)}</span>
+                        ) : (
+                          <span className="text-sm text-zinc-400">Consultar</span>
+                        )}
+                        <span className="flex items-center gap-1 text-sm font-semibold text-primary-600">
+                          Reservar <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </section>
 
-                <label className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4">
-                  <MapPin className="h-5 w-5 text-slate-400" />
-                  <input
-                    className="w-full bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
-                    placeholder="Madrid, Valencia, A Coruña..."
-                    name="ciudad"
-                  />
-                </label>
+      {/* ─── HOW IT WORKS ─── */}
+      <section className="bg-white py-16">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="mb-12 text-center">
+            <p className="section-eyebrow">Proceso</p>
+            <h2 className="section-title mt-2">Reserva en 3 pasos</h2>
+            <p className="section-subtitle">Menos de 60 segundos. Sin registro obligatorio.</p>
+          </div>
+          <div className="grid gap-8 md:grid-cols-3">
+            {STEPS.map((step, i) => (
+              <div key={i} className="relative flex flex-col items-center text-center">
+                {i < STEPS.length - 1 && (
+                  <div className="absolute left-1/2 top-7 hidden h-0.5 w-full translate-x-[35%] bg-gradient-to-r from-zinc-200 to-transparent md:block" />
+                )}
+                <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 shadow-lg shadow-primary-500/25">
+                  <span className="text-xl font-black text-white">{step.n}</span>
+                </div>
+                <h3 className="text-lg font-bold text-zinc-900">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-500">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-                <Link
-                  href="/buscar"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-7 py-4 text-sm font-bold text-white transition hover:bg-rose-700"
-                >
-                  Buscar
-                  <ArrowRight className="h-4 w-4" />
+      {/* ─── FOR BUSINESS ─── */}
+      <section className="relative overflow-hidden bg-[#09090B] py-20">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -right-20 top-0 h-80 w-80 rounded-full bg-primary-700/20 blur-[100px]" />
+          <div className="absolute -left-20 bottom-0 h-64 w-64 rounded-full bg-beauty-600/10 blur-[80px]" />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-4">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div>
+              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-primary-400">Para negocios</p>
+              <h2 className="text-4xl font-black tracking-tight text-white md:text-5xl">Tu agenda, siempre llena</h2>
+              <p className="mt-4 text-lg text-zinc-400">
+                Más de 350 profesionales ya gestionan sus citas con BellezaLocal. Únete y empieza a recibir reservas en menos de 10 minutos.
+              </p>
+              <ul className="mt-8 space-y-3">
+                {BUSINESS_FEATURES.map((f, i) => (
+                  <li key={i} className="flex items-center gap-3 text-sm text-zinc-300">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary-400" />{f}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                <Link href="/para-negocios" className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-700 active:scale-[0.97]">
+                  Empezar gratis <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link href="/para-negocios#planes" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-zinc-300 transition-all hover:border-white/30 hover:text-white">
+                  Ver planes y precios
                 </Link>
               </div>
             </div>
-
-            <div className="mt-7 flex flex-wrap gap-3 text-sm text-slate-600">
-              <TrustPill icon={CalendarCheck} text="Reserva online" />
-              <TrustPill icon={Bell} text="Recordatorios de cita" />
-              <TrustPill icon={ShieldCheck} text="Centros publicados con control" />
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="absolute -inset-8 rounded-[3rem] bg-gradient-to-br from-rose-200 via-fuchsia-100 to-amber-100 blur-2xl" />
-            <div className="relative rounded-[2.5rem] border border-white/80 bg-white/85 p-4 shadow-2xl shadow-slate-950/10 backdrop-blur">
-              <div className="rounded-[2rem] bg-slate-950 p-5 text-white">
-                <div className="mb-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-white/50">Vista del negocio</p>
-                    <h2 className="text-xl font-black tracking-tight">Agenda de hoy</h2>
-                  </div>
-                  <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-bold text-emerald-300">
-                    En control
-                  </span>
+            {/* Mock widget */}
+            <div className="hidden lg:block">
+              <div className="rounded-3xl border border-white/10 bg-[#111115] p-6 shadow-2xl shadow-black/50">
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-white">Agenda de hoy</span>
+                  <span className="rounded-full bg-primary-500/15 px-2.5 py-0.5 text-xs font-semibold text-primary-300">6 citas</span>
                 </div>
-
-                <div className="grid gap-3">
+                <div className="space-y-3">
                   {[
-                    ['10:00', 'Manicura completa', 'Confirmada'],
-                    ['11:30', 'Tratamiento facial', 'Recordatorio enviado'],
-                    ['13:00', 'Corte + peinado', 'Pendiente'],
-                  ].map(([time, service, status]) => (
-                    <div key={time} className="rounded-2xl bg-white/[0.06] p-4 ring-1 ring-white/10">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-bold">{service}</p>
-                          <p className="mt-1 text-xs text-white/45">{status}</p>
-                        </div>
-                        <span className="rounded-xl bg-white/10 px-3 py-2 text-sm font-black">{time}</span>
+                    { name: 'María García', service: 'Corte y tinte',     time: '10:00', ok: true  },
+                    { name: 'Sofía López',  service: 'Manicura gel',      time: '11:30', ok: true  },
+                    { name: 'Ana Martín',  service: 'Depilación',         time: '13:00', ok: false },
+                    { name: 'Laura Ruiz',  service: 'Masaje relajante',   time: '16:00', ok: true  },
+                  ].map((b, i) => (
+                    <div key={i} className={`flex items-center gap-3 rounded-xl border-l-[3px] bg-white/5 px-4 py-3 ${b.ok ? 'border-l-emerald-500' : 'border-l-amber-400'}`}>
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-600/20 text-xs font-bold text-primary-300">{b.name[0]}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-white truncate">{b.name}</p>
+                        <p className="text-xs text-zinc-500 truncate">{b.service}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs font-bold text-white">{b.time}</p>
+                        <p className={`text-xs ${b.ok ? 'text-emerald-400' : 'text-amber-400'}`}>{b.ok ? 'Confirmada' : 'Pendiente'}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-
-                <div className="mt-5 grid grid-cols-3 gap-3">
-                  <MiniMetric label="Citas" value="Hoy" />
-                  <MiniMetric label="Huecos" value="6" />
-                  <MiniMetric label="No-show" value="↓" />
+                <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/8 pt-4">
+                  {[
+                    { label: 'Ingresos hoy', value: '€348', Icon: TrendingUp },
+                    { label: 'Ocupación',    value: '87%',   Icon: Zap       },
+                    { label: 'Clientes',     value: '+2 new',Icon: Heart     },
+                  ].map((k, i) => (
+                    <div key={i} className="rounded-xl bg-white/5 p-3 text-center">
+                      <k.Icon className="mx-auto mb-1 h-4 w-4 text-primary-400" />
+                      <p className="text-sm font-bold text-white">{k.value}</p>
+                      <p className="text-xs text-zinc-500">{k.label}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -156,374 +342,71 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <CategoriesSection />
-
-      <section className="mx-auto max-w-7xl px-5 py-20">
-        <SectionHeader
-          eyebrow="Centros"
-          title="Descubre centros disponibles"
-          description="Cuando haya centros publicados, aparecerán aquí con sus servicios, precios y enlace de reserva."
-          actionHref="/buscar"
-          actionLabel="Ver todos"
-        />
-
-        {centers.length > 0 ? (
-          <div className="mt-9 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {centers.map((center) => (
-              <Link
-                key={center.id}
-                href={`/centro/${center.slug}`}
-                className="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-950/10"
-              >
-                <div className="relative h-52 bg-gradient-to-br from-rose-100 via-fuchsia-100 to-amber-100">
-                  {center.coverImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={center.coverImage} alt={center.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <Store className="h-14 w-14 text-rose-300" />
-                    </div>
-                  )}
-                  <div className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">
-                    {formatCategory(center.category)}
-                  </div>
-                </div>
-
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-black tracking-tight text-slate-950 group-hover:text-rose-700">
-                        {center.name}
-                      </h3>
-                      <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                        <MapPin className="h-4 w-4" />
-                        {center.addressCity}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
-                      Reservar
-                    </span>
-                  </div>
-
-                  {center.services.length > 0 && (
-                    <div className="mt-5 space-y-2">
-                      {center.services.map((service) => (
-                        <div key={service.id} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                          <div>
-                            <p className="text-sm font-bold text-slate-800">{service.name}</p>
-                            <p className="text-xs text-slate-400">{service.durationMinutes} min</p>
-                          </div>
-                          <p className="text-sm font-black text-slate-950">
-                            {(service.priceCents / 100).toFixed(0)} €
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-9 rounded-[2rem] border border-dashed border-slate-300 bg-white p-10 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50">
-              <Store className="h-7 w-7 text-rose-600" />
-            </div>
-            <h3 className="text-xl font-black tracking-tight">Primeros centros en incorporación</h3>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
-              La plataforma está preparada para mostrar centros publicados con servicios, disponibilidad y reservas online.
-            </p>
-            <Link
-              href="/auth/signup?tipo=negocio"
-              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-6 py-3 text-sm font-bold text-white hover:bg-rose-700"
-            >
-              Publicar mi negocio
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        )}
-      </section>
-
-      <HowItWorks />
-
-      <BusinessSection />
-
-      <Footer />
-    </main>
-  )
-}
-
-function Header() {
-  return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/70 bg-white/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-950">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-base font-black tracking-tight">BellezaLocal</span>
-        </Link>
-
-        <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 md:flex">
-          <Link href="/buscar" className="hover:text-slate-950">Buscar centros</Link>
-          <Link href="/para-negocios" className="hover:text-slate-950">Para negocios</Link>
-        </nav>
-
-        <div className="flex items-center gap-3">
-          <Link href="/auth/signin" className="hidden text-sm font-bold text-slate-600 hover:text-slate-950 sm:block">
-            Entrar
-          </Link>
-          <Link
-            href="/auth/signup?tipo=negocio"
-            className="rounded-2xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700"
-          >
-            Registrar negocio
-          </Link>
-        </div>
-      </div>
-    </header>
-  )
-}
-
-function CategoriesSection() {
-  const categories = [
-    { name: 'Peluquería', slug: 'peluqueria', icon: Store },
-    { name: 'Uñas', slug: 'unas', icon: Sparkles },
-    { name: 'Estética', slug: 'estetica', icon: BadgeCheck },
-    { name: 'Depilación', slug: 'depilacion', icon: ShieldCheck },
-    { name: 'Masajes', slug: 'masajes', icon: Clock },
-    { name: 'Bonos', slug: 'bonos', icon: WalletCards },
-  ]
-
-  return (
-    <section className="mx-auto max-w-7xl px-5 py-16">
-      <div className="mb-8 text-center">
-        <p className="text-sm font-black uppercase tracking-[0.22em] text-rose-600">Explora</p>
-        <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950">¿Qué buscas hoy?</h2>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        {categories.map(({ name, slug, icon: Icon }) => (
-          <Link
-            key={slug}
-            href={`/buscar?categoria=${slug}`}
-            className="group rounded-[1.7rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-rose-200 hover:shadow-xl hover:shadow-rose-950/5"
-          >
-            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 transition group-hover:bg-rose-600 group-hover:text-white">
-              <Icon className="h-5 w-5" />
-            </div>
-            <p className="font-black tracking-tight">{name}</p>
-            <p className="mt-1 text-xs text-slate-400">Ver opciones</p>
-          </Link>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function HowItWorks() {
-  const steps = [
-    {
-      icon: Search,
-      title: 'Busca',
-      text: 'Encuentra servicios por categoría, centro o localidad.',
-    },
-    {
-      icon: CalendarCheck,
-      title: 'Elige horario',
-      text: 'Consulta disponibilidad real cuando el centro esté publicado.',
-    },
-    {
-      icon: Bell,
-      title: 'Recibe aviso',
-      text: 'Confirmación y recordatorios desde la plataforma.',
-    },
-  ]
-
-  return (
-    <section className="bg-white px-5 py-20">
-      <div className="mx-auto max-w-7xl">
-        <SectionHeader
-          eyebrow="Reserva simple"
-          title="Reserva en pocos pasos"
-          description="Una experiencia pensada para reducir llamadas, esperas y citas perdidas."
-        />
-
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
-          {steps.map(({ icon: Icon, title, text }, index) => (
-            <div key={title} className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-50 p-7">
-              <span className="absolute right-6 top-4 text-7xl font-black tracking-tighter text-white">
-                0{index + 1}
-              </span>
-              <div className="relative">
-                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-xl font-black tracking-tight">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function BusinessSection() {
-  return (
-    <section className="bg-slate-950 px-5 py-24 text-white">
-      <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
-        <div>
-          <div className="mb-5 inline-flex rounded-full bg-rose-500/10 px-4 py-2 text-sm font-black text-rose-300 ring-1 ring-rose-400/20">
-            Para negocios locales
-          </div>
-          <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
-            Gestiona reservas, agenda y visibilidad desde un solo lugar.
-          </h2>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-400">
-            Pensado para peluquerías, centros de estética, uñas, depilación, masajes y negocios de belleza que quieren digitalizarse sin complejidad.
-          </p>
-
-          <div className="mt-8 grid gap-3">
+      {/* ─── TRUST ─── */}
+      <section className="bg-zinc-50 py-14">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="grid gap-8 text-center sm:grid-cols-3">
             {[
-              'Agenda y reservas online',
-              'Recordatorios comunes desde la plataforma',
-              'Servicios, staff, horarios y clientes',
-              'Bonos, productos y promociones en planes superiores',
-              'Visibilidad local y páginas públicas',
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-3 text-sm font-semibold text-slate-300">
-                <BadgeCheck className="h-5 w-5 text-rose-400" />
-                {item}
+              { Icon: Shield,   value: 'Gratis para clientes',  desc: 'Sin comisiones. Reserva sin crear cuenta.' },
+              { Icon: Zap,      value: 'Confirmación inmediata', desc: 'Disponibilidad real. Sin llamadas.' },
+              { Icon: Star,     value: 'Reseñas verificadas',    desc: 'Solo de clientes que han reservado.' },
+            ].map((item, i) => (
+              <div key={i} className="flex flex-col items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50">
+                  <item.Icon className="h-6 w-6 text-primary-600" />
+                </div>
+                <div>
+                  <p className="font-bold text-zinc-900">{item.value}</p>
+                  <p className="mt-1 text-sm text-zinc-500">{item.desc}</p>
+                </div>
               </div>
             ))}
           </div>
-
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link href="/auth/signup?tipo=negocio" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-6 py-4 text-sm font-black text-white hover:bg-rose-700">
-              Empezar desde 24 €/mes
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/para-negocios" className="inline-flex items-center justify-center rounded-2xl border border-white/15 px-6 py-4 text-sm font-black text-white hover:bg-white/5">
-              Ver planes
-            </Link>
-          </div>
         </div>
+      </section>
 
-        <div className="rounded-[2.5rem] border border-white/10 bg-white/[0.04] p-4 shadow-2xl">
-          <div className="rounded-[2rem] bg-white p-5 text-slate-950">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-slate-400">Panel del centro</p>
-                <h3 className="text-2xl font-black tracking-tight">Resumen operativo</h3>
-              </div>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                Publicado
-              </span>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <DashboardBox icon={CalendarCheck} label="Citas hoy" value="—" />
-              <DashboardBox icon={Clock} label="Huecos" value="—" />
-              <DashboardBox icon={Tags} label="Promos" value="—" />
-            </div>
-
-            <div className="mt-5 rounded-2xl border border-slate-200">
-              {['Reservas', 'Servicios', 'Horarios', 'Bonos y productos'].map((row) => (
-                <div key={row} className="flex items-center justify-between border-b border-slate-100 px-5 py-4 last:border-b-0">
-                  <span className="font-bold">{row}</span>
-                  <ArrowRight className="h-4 w-4 text-slate-300" />
+      {/* ─── FOOTER ─── */}
+      <footer className="border-t border-zinc-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-12">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="lg:col-span-2">
+              <Link href="/" className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-sm">
+                  <Sparkles className="h-4 w-4 text-white" />
                 </div>
+                <span className="font-black tracking-tight text-zinc-900">BellezaLocal</span>
+              </Link>
+              <p className="mt-3 max-w-xs text-sm text-zinc-500 leading-relaxed">
+                El marketplace de belleza más completo. Reserva en los mejores centros de tu ciudad.
+              </p>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-zinc-400">Marketplace</p>
+              <ul className="space-y-2">
+                {[['Buscar centros','/buscar'],['Peluquerías','/buscar?categoria=PELUQUERIA'],['Estética','/buscar?categoria=ESTETICA'],['Masajes','/buscar?categoria=MASAJES']].map(([label, href]) => (
+                  <li key={href}><Link href={href} className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{label}</Link></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-zinc-400">Empresa</p>
+              <ul className="space-y-2">
+                {[['Para negocios','/para-negocios'],['Iniciar sesión','/auth/signin'],['Registrarse','/auth/signup'],['Privacidad','/privacidad']].map(([label, href]) => (
+                  <li key={href}><Link href={href} className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{label}</Link></li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-zinc-100 pt-8 text-xs text-zinc-400 sm:flex-row">
+            <p>© {new Date().getFullYear()} BellezaLocal. Todos los derechos reservados.</p>
+            <div className="flex gap-5">
+              {[['Privacidad','/privacidad'],['Términos','/terminos'],['Cookies','/cookies']].map(([label, href]) => (
+                <Link key={href} href={href} className="hover:text-zinc-600 transition-colors">{label}</Link>
               ))}
             </div>
           </div>
         </div>
-      </div>
-    </section>
-  )
-}
-
-function Footer() {
-  return (
-    <footer className="border-t border-slate-200 bg-white px-5 py-10">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 text-sm text-slate-500 md:flex-row">
-        <Link href="/" className="flex items-center gap-2 font-black text-slate-950">
-          <Sparkles className="h-4 w-4 text-rose-600" />
-          BellezaLocal
-        </Link>
-        <div className="flex gap-5">
-          <Link href="/legal/privacidad">Privacidad</Link>
-          <Link href="/legal/cookies">Cookies</Link>
-          <Link href="/legal/aviso-legal">Aviso legal</Link>
-          <Link href="/legal/terminos">Términos</Link>
-        </div>
-      </div>
-    </footer>
-  )
-}
-
-function SectionHeader({
-  eyebrow,
-  title,
-  description,
-  actionHref,
-  actionLabel,
-}: {
-  eyebrow: string
-  title: string
-  description: string
-  actionHref?: string
-  actionLabel?: string
-}) {
-  return (
-    <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-      <div>
-        <p className="text-sm font-black uppercase tracking-[0.22em] text-rose-600">{eyebrow}</p>
-        <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{title}</h2>
-        <p className="mt-3 max-w-2xl leading-7 text-slate-500">{description}</p>
-      </div>
-      {actionHref && actionLabel && (
-        <Link href={actionHref} className="inline-flex items-center gap-2 text-sm font-black text-rose-700 hover:text-rose-800">
-          {actionLabel}
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      )}
+      </footer>
     </div>
   )
-}
-
-function TrustPill({ icon: Icon, text }: { icon: typeof CalendarCheck; text: string }) {
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 font-semibold shadow-sm">
-      <Icon className="h-4 w-4 text-rose-600" />
-      {text}
-    </span>
-  )
-}
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-white/[0.06] p-4 ring-1 ring-white/10">
-      <p className="text-xs text-white/40">{label}</p>
-      <p className="mt-1 text-lg font-black text-white">{value}</p>
-    </div>
-  )
-}
-
-function DashboardBox({ icon: Icon, label, value }: { icon: typeof CalendarCheck; label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-slate-50 p-5">
-      <Icon className="mb-4 h-5 w-5 text-rose-600" />
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-black">{value}</p>
-    </div>
-  )
-}
-
-function formatCategory(category: string) {
-  return category
-    .toLowerCase()
-    .replaceAll('_', ' ')
-    .replace(/\b\w/g, (l) => l.toUpperCase())
 }

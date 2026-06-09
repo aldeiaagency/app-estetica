@@ -328,6 +328,137 @@ const centerSchema = z.object({
   addressPostalCode: z.string().optional(),
 })
 
+// ─────────────────────────────────────────────────────
+// BONOS
+// ─────────────────────────────────────────────────────
+
+const bonoSchema = z.object({
+  name:          z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  description:   z.string().optional(),
+  sessions:      z.number().int().positive('Debe tener al menos 1 sesión'),
+  validityDays:  z.number().int().positive('Debe tener al menos 1 día de validez'),
+  priceCents:    z.number().int().min(0, 'El precio no puede ser negativo'),
+  serviceId:     z.string().optional(),
+})
+
+export async function createBonoAction(
+  data: {
+    name: string
+    description?: string
+    sessions: number
+    validityDays: number
+    priceCents: number
+    serviceId?: string
+  },
+  orgId: string
+): Promise<{ success: boolean; error?: string; bonoId?: string }> {
+  const parsed = bonoSchema.safeParse(data)
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+
+  try {
+    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    if (!center) return { success: false, error: 'Centro no encontrado' }
+
+    const bono = await prisma.bono.create({
+      data: {
+        centerId:     center.id,
+        name:         parsed.data.name,
+        description:  parsed.data.description || null,
+        sessions:     parsed.data.sessions,
+        validityDays: parsed.data.validityDays,
+        priceCents:   parsed.data.priceCents,
+        serviceId:    parsed.data.serviceId || null,
+      },
+    })
+
+    revalidatePath('/dashboard/bonos')
+    return { success: true, bonoId: bono.id }
+  } catch {
+    return { success: false, error: 'Error al crear el bono' }
+  }
+}
+
+export async function toggleBonoActiveAction(
+  bonoId: string,
+  orgId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const bono = await prisma.bono.findFirst({ where: { id: bonoId }, include: { center: true } })
+    if (!bono) return { success: false, error: 'Bono no encontrado' }
+    if (bono.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+
+    await prisma.bono.update({ where: { id: bonoId }, data: { active: !bono.active } })
+    revalidatePath('/dashboard/bonos')
+    return { success: true }
+  } catch {
+    return { success: false, error: 'Error al actualizar el bono' }
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// PRODUCTOS
+// ─────────────────────────────────────────────────────
+
+const productSchema = z.object({
+  name:        z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  description: z.string().optional(),
+  brand:       z.string().optional(),
+  priceCents:  z.number().int().min(0, 'El precio no puede ser negativo'),
+  stock:       z.number().int().min(0).optional(),
+})
+
+export async function createProductAction(
+  data: {
+    name: string
+    description?: string
+    brand?: string
+    priceCents: number
+    stock?: number
+  },
+  orgId: string
+): Promise<{ success: boolean; error?: string; productId?: string }> {
+  const parsed = productSchema.safeParse(data)
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+
+  try {
+    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    if (!center) return { success: false, error: 'Centro no encontrado' }
+
+    const product = await prisma.product.create({
+      data: {
+        centerId:    center.id,
+        name:        parsed.data.name,
+        description: parsed.data.description || null,
+        brand:       parsed.data.brand || null,
+        priceCents:  parsed.data.priceCents,
+        stock:       parsed.data.stock ?? null,
+      },
+    })
+
+    revalidatePath('/dashboard/productos')
+    return { success: true, productId: product.id }
+  } catch {
+    return { success: false, error: 'Error al crear el producto' }
+  }
+}
+
+export async function toggleProductActiveAction(
+  productId: string,
+  orgId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const product = await prisma.product.findFirst({ where: { id: productId }, include: { center: true } })
+    if (!product) return { success: false, error: 'Producto no encontrado' }
+    if (product.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+
+    await prisma.product.update({ where: { id: productId }, data: { active: !product.active } })
+    revalidatePath('/dashboard/productos')
+    return { success: true }
+  } catch {
+    return { success: false, error: 'Error al actualizar el producto' }
+  }
+}
+
 export async function upsertCenterAction(
   data: {
     name: string
