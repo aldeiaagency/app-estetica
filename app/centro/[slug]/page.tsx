@@ -208,14 +208,12 @@ export default async function CenterPage({ params }: Props) {
                         </div>
                         <span className="font-bold text-primary-600">{formatPrice(bono.priceCents)}</span>
                       </div>
-                      <button
-                        type="button"
-                        disabled
-                        title="La compra de bonos estará disponible próximamente"
-                        className="mt-3 w-full cursor-not-allowed rounded-xl border border-primary-200 py-2 text-center text-xs font-semibold text-primary-400"
+                      <Link
+                        href={`/bono/${bono.id}`}
+                        className="mt-3 flex w-full items-center justify-center rounded-xl bg-primary-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
                       >
-                        Comprar bono — Próximamente
-                      </button>
+                        Comprar bono
+                      </Link>
                     </div>
                   ))}
                 </div>

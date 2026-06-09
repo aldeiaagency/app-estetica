@@ -1,0 +1,108 @@
+'use server'
+
+import { prisma } from '@/lib/db/client'
+import { z } from 'zod'
+
+const purchaseBonoSchema = z.object({
+  bonoId:        z.string().cuid(),
+  customerName:  z.string().min(2).max(100),
+  customerEmail: z.string().email(),
+  customerPhone: z.string().optional(),
+  consentGiven:  z.boolean().refine(v => v === true, 'Debes aceptar la política de privacidad'),
+})
+
+export type PurchaseBonoInput = z.infer<typeof purchaseBonoSchema>
+
+export async function purchaseBonoAction(input: unknown): Promise<
+  { success: true; instanceId: string } | { success: false; error: string }
+> {
+  const parsed = purchaseBonoSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  }
+
+  const { bonoId, customerName, customerEmail, customerPhone } = parsed.data
+
+  const bono = await prisma.bono.findFirst({
+    where: { id: bonoId, active: true },
+    include: { center: { select: { id: true, published: true } } },
+  })
+
+  if (!bono || !bono.center.published) {
+    return { success: false, error: 'Bono no disponible' }
+  }
+
+  const centerId = bono.center.id
+
+  try {
+    const instance = await prisma.$transaction(async (tx) => {
+      // find-or-create customer by (email, centerId)
+      let customer = await tx.customer.findUnique({
+        where: { email_centerId: { email: customerEmail.toLowerCase(), centerId } },
+      })
+
+      if (!customer) {
+        customer = await tx.customer.create({
+          data: {
+            centerId,
+            name:  customerName.trim(),
+            email: customerEmail.toLowerCase(),
+            phone: customerPhone?.trim() ?? null,
+            consentGivenAt: new Date(),
+          },
+        })
+      }
+
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + bono.validityDays)
+
+      return tx.bonoInstance.create({
+        data: {
+          bonoId:            bono.id,
+          customerId:        customer.id,
+          centerId,
+          sessionsRemaining: bono.sessions,
+          purchasedAt:       new Date(),
+          expiresAt,
+        },
+      })
+    })
+
+    return { success: true, instanceId: instance.id }
+  } catch (err) {
+    console.error('[bonos] Error purchasing bono:', err)
+    return { success: false, error: 'Error al procesar la compra. Inténtalo de nuevo.' }
+  }
+}
+
+// Dashboard: decrement sessions on a BonoInstance (business-side redemption)
+export async function redeemBonoSessionAction(
+  instanceId: string,
+  orgId: string
+): Promise<{ success: boolean; error?: string; sessionsRemaining?: number }> {
+  try {
+    const instance = await prisma.bonoInstance.findUnique({
+      where: { id: instanceId },
+      include: { bono: { include: { center: { select: { organizationId: true } } } } },
+    })
+
+    if (!instance) return { success: false, error: 'Instancia no encontrada' }
+    if (instance.bono.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+    if (instance.sessionsRemaining <= 0) return { success: false, error: 'El bono no tiene sesiones disponibles' }
+
+    const now = new Date()
+    if (instance.expiresAt && instance.expiresAt < now) {
+      return { success: false, error: 'El bono ha caducado' }
+    }
+
+    const updated = await prisma.bonoInstance.update({
+      where: { id: instanceId },
+      data: { sessionsRemaining: { decrement: 1 } },
+    })
+
+    return { success: true, sessionsRemaining: updated.sessionsRemaining }
+  } catch (err) {
+    console.error('[bonos] Error redeeming session:', err)
+    return { success: false, error: 'Error al redimir la sesión' }
+  }
+}

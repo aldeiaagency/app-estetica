@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import { createBonoAction, toggleBonoActiveAction } from '@/app/actions/dashboard'
-import { Gift, Clock, Tag } from 'lucide-react'
+import { redeemBonoSessionAction } from '@/app/actions/bonos'
+import { Gift, Clock, Tag, Users, CalendarCheck } from 'lucide-react'
 
 export default async function BonosPage() {
   const session = await auth()
@@ -16,7 +17,15 @@ export default async function BonosPage() {
   const [bonos, servicios] = await Promise.all([
     prisma.bono.findMany({
       where: { centerId: center.id },
-      include: { service: { select: { name: true } } },
+      include: {
+        service:   { select: { name: true } },
+        instances: {
+          orderBy: { purchasedAt: 'desc' },
+          take: 20,
+          include: { customer: { select: { name: true, email: true } } },
+        },
+        _count: { select: { instances: true } },
+      },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.service.findMany({
@@ -45,50 +54,107 @@ export default async function BonosPage() {
           <p className="mt-1 text-sm text-zinc-400">Crea tu primer bono y empieza a venderlo desde tu perfil.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-6">
           {bonos.map((bono) => (
-            <div key={bono.id} className={`rounded-2xl border p-5 shadow-sm transition-all ${bono.active ? 'border-zinc-200 bg-white' : 'border-zinc-100 bg-zinc-50'}`}>
-              <div className="mb-3 flex items-start justify-between gap-2">
+            <div key={bono.id} className={`overflow-hidden rounded-2xl border shadow-sm transition-all ${bono.active ? 'border-zinc-200 bg-white' : 'border-zinc-100 bg-zinc-50'}`}>
+              {/* Bono header */}
+              <div className="flex items-start gap-4 p-5">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
                   <Gift className="h-5 w-5 text-primary-600" />
                 </div>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${bono.active ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                  {bono.active ? 'Activo' : 'Inactivo'}
-                </span>
-              </div>
-              <h3 className="font-bold text-zinc-900">{bono.name}</h3>
-              {bono.description && <p className="mt-1 text-sm text-zinc-500 line-clamp-2">{bono.description}</p>}
-              <div className="mt-3 space-y-1.5">
-                <div className="flex items-center gap-2 text-xs text-zinc-500">
-                  <Tag className="h-3 w-3 text-zinc-400" />
-                  <span className="font-semibold text-zinc-700">{formatPrice(bono.priceCents)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-zinc-500">
-                  <Gift className="h-3 w-3 text-zinc-400" />
-                  {bono.sessions} sesion{bono.sessions !== 1 ? 'es' : ''}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-zinc-500">
-                  <Clock className="h-3 w-3 text-zinc-400" />
-                  Validez: {bono.validityDays} días
-                </div>
-                {bono.service && (
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
-                    <span className="h-3 w-3 text-zinc-400">✂</span>
-                    Servicio: {bono.service.name}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-zinc-900">{bono.name}</h3>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${bono.active ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                      {bono.active ? 'Activo' : 'Inactivo'}
+                    </span>
                   </div>
-                )}
+                  {bono.description && <p className="mt-0.5 text-sm text-zinc-500 line-clamp-1">{bono.description}</p>}
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-zinc-500">
+                    <span className="flex items-center gap-1"><Tag className="h-3 w-3" /><strong className="text-zinc-700">{formatPrice(bono.priceCents)}</strong></span>
+                    <span className="flex items-center gap-1"><Gift className="h-3 w-3" />{bono.sessions} sesiones</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{bono.validityDays}d validez</span>
+                    <span className="flex items-center gap-1"><Users className="h-3 w-3" />{bono._count.instances} vendidos</span>
+                    {bono.service && <span>✂ {bono.service.name}</span>}
+                  </div>
+                </div>
+                <form action={async () => { 'use server'; await toggleBonoActiveAction(bono.id, orgId) }}>
+                  <button type="submit"
+                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      bono.active
+                        ? 'border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                        : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    }`}
+                  >
+                    {bono.active ? 'Desactivar' : 'Activar'}
+                  </button>
+                </form>
               </div>
-              <form action={async () => { 'use server'; await toggleBonoActiveAction(bono.id, orgId) }} className="mt-4">
-                <button type="submit"
-                  className={`w-full rounded-xl py-2 text-xs font-semibold transition-colors ${
-                    bono.active
-                      ? 'border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-                      : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                  }`}
-                >
-                  {bono.active ? 'Desactivar' : 'Activar'}
-                </button>
-              </form>
+
+              {/* Instances table */}
+              {bono.instances.length > 0 && (
+                <div className="border-t border-zinc-100">
+                  <div className="flex items-center gap-2 bg-zinc-50 px-5 py-2.5">
+                    <CalendarCheck className="h-3.5 w-3.5 text-zinc-400" />
+                    <span className="text-xs font-semibold text-zinc-500">Bonos vendidos (últimos 20)</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-100 text-left text-xs text-zinc-400">
+                          <th className="px-5 py-2 font-semibold">Cliente</th>
+                          <th className="px-5 py-2 font-semibold">Sesiones restantes</th>
+                          <th className="px-5 py-2 font-semibold">Caduca</th>
+                          <th className="px-5 py-2 font-semibold">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-50">
+                        {bono.instances.map((inst) => {
+                          const expired = inst.expiresAt ? inst.expiresAt < new Date() : false
+                          const depleted = inst.sessionsRemaining <= 0
+                          return (
+                            <tr key={inst.id} className={expired || depleted ? 'opacity-50' : ''}>
+                              <td className="px-5 py-3">
+                                <p className="font-semibold text-zinc-900">{inst.customer.name}</p>
+                                <p className="text-xs text-zinc-400">{inst.customer.email}</p>
+                              </td>
+                              <td className="px-5 py-3">
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                  depleted ? 'bg-zinc-100 text-zinc-400' : 'bg-emerald-50 text-emerald-700'
+                                }`}>
+                                  {inst.sessionsRemaining} / {bono.sessions}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 text-xs text-zinc-500">
+                                {inst.expiresAt
+                                  ? inst.expiresAt.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+                                  : '—'}
+                                {expired && <span className="ml-1 text-red-500">(caducado)</span>}
+                              </td>
+                              <td className="px-5 py-3">
+                                {!depleted && !expired ? (
+                                  <form action={async () => {
+                                    'use server'
+                                    await redeemBonoSessionAction(inst.id, orgId)
+                                  }}>
+                                    <button type="submit"
+                                      className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100 transition-colors"
+                                    >
+                                      Usar sesión
+                                    </button>
+                                  </form>
+                                ) : (
+                                  <span className="text-xs text-zinc-300">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
