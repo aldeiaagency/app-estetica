@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import Link from 'next/link'
-import { Calendar, Users, TrendingUp, AlertCircle, Plus, Copy, ArrowUpRight, Zap, DollarSign } from 'lucide-react'
+import { Calendar, Users, TrendingUp, AlertCircle, Plus, Copy, ArrowUpRight, Zap, DollarSign, ShoppingCart } from 'lucide-react'
+import { formatPrice } from '@/lib/utils'
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -10,34 +11,34 @@ export default async function DashboardPage() {
   const center = orgId
     ? await prisma.center.findFirst({
         where: { organizationId: orgId },
-        include: { _count: { select: { bookings: true, services: true, customers: true } } },
+        include: { _count: { select: { bookings: true, customers: true } } },
       })
     : null
 
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
   const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999)
-
-  const todayBookings = center
-    ? await prisma.booking.findMany({
-        where: { centerId: center.id, startAt: { gte: todayStart, lte: todayEnd } },
-        include: { service: true, staff: true, customer: true },
-        orderBy: { startAt: 'asc' },
-      })
-    : []
-
-  // Revenue this month
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
-  const monthRevenue = center
-    ? await prisma.booking.aggregate({
-        where: { centerId: center.id, status: 'COMPLETED', startAt: { gte: monthStart } },
-        _sum: { depositCents: true },
-      })
-    : null
+
+  const [todayBookings, monthOrderRevenue, pendingOrders] = center
+    ? await Promise.all([
+        prisma.booking.findMany({
+          where: { centerId: center.id, startAt: { gte: todayStart, lte: todayEnd } },
+          include: { service: true, staff: true, customer: true },
+          orderBy: { startAt: 'asc' },
+        }),
+        prisma.order.aggregate({
+          where: { centerId: center.id, status: { in: ['CONFIRMED', 'DELIVERED'] }, createdAt: { gte: monthStart } },
+          _sum: { totalCents: true },
+        }),
+        prisma.order.count({ where: { centerId: center.id, status: 'PENDING' } }),
+      ])
+    : [[], null, 0]
 
   const bookingLink = center ? `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/centro/${center.slug}` : null
 
   const confirmedToday = todayBookings.filter(b => b.status === 'CONFIRMED').length
   const pendingToday   = todayBookings.filter(b => b.status === 'PENDING').length
+  const revenueThisMonth = monthOrderRevenue?._sum?.totalCents ?? 0
 
   return (
     <div className="space-y-8">
@@ -80,19 +81,19 @@ export default async function DashboardPage() {
           {/* KPIs */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { label: 'Citas hoy',        value: todayBookings.length, sub: `${confirmedToday} confirmadas · ${pendingToday} pendientes`, icon: Calendar,    color: 'bg-primary-50 text-primary-600' },
-              { label: 'Ingresos este mes', value: '—',                  sub: 'Completadas este mes',                                      icon: DollarSign,  color: 'bg-emerald-50 text-emerald-600' },
-              { label: 'Clientes totales',  value: center._count.customers,sub: 'En tu CRM',                                              icon: Users,       color: 'bg-beauty-50 text-beauty-600'   },
-              { label: 'Reservas totales',  value: center._count.bookings,  sub: 'Desde el inicio',                                        icon: TrendingUp,  color: 'bg-amber-50 text-amber-600'     },
+              { label: 'Citas hoy',        value: todayBookings.length,    sub: `${confirmedToday} confirmadas · ${pendingToday} pendientes`, icon: Calendar,     color: 'bg-primary-50 text-primary-600', href: '/dashboard/reservas' },
+              { label: 'Ingresos este mes', value: formatPrice(revenueThisMonth), sub: 'Pedidos confirmados/entregados',                       icon: DollarSign,   color: 'bg-emerald-50 text-emerald-600', href: '/dashboard/pedidos'  },
+              { label: 'Pedidos pendientes',value: pendingOrders,           sub: 'Requieren confirmación',                                    icon: ShoppingCart, color: pendingOrders > 0 ? 'bg-amber-50 text-amber-600' : 'bg-zinc-50 text-zinc-400', href: '/dashboard/pedidos?estado=PENDING' },
+              { label: 'Clientes totales',  value: center._count.customers, sub: 'En tu CRM',                                                 icon: Users,        color: 'bg-beauty-50 text-beauty-600',   href: '/dashboard/clientes' },
             ].map((kpi) => (
-              <div key={kpi.label} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <Link key={kpi.label} href={kpi.href} className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
                 <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${kpi.color}`}>
                   <kpi.icon className="h-5 w-5" />
                 </div>
                 <div className="text-3xl font-black tracking-tight text-zinc-900">{kpi.value}</div>
                 <div className="mt-1 text-sm font-medium text-zinc-700">{kpi.label}</div>
                 <div className="mt-0.5 text-xs text-zinc-400">{kpi.sub}</div>
-              </div>
+              </Link>
             ))}
           </div>
 
@@ -152,10 +153,10 @@ export default async function DashboardPage() {
                 <h3 className="mb-4 font-semibold text-zinc-900">Acciones rápidas</h3>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { label: 'Nueva reserva',   href: '/dashboard/reservas/nueva',   icon: Calendar,  color: 'bg-primary-50 text-primary-600' },
-                    { label: 'Añadir servicio', href: '/dashboard/servicios',         icon: Zap,       color: 'bg-emerald-50 text-emerald-600' },
-                    { label: 'Nuevo cliente',   href: '/dashboard/clientes',          icon: Users,     color: 'bg-beauty-50 text-beauty-600'   },
-                    { label: 'Ver analíticas',  href: '/dashboard/analitica',         icon: TrendingUp,color: 'bg-amber-50 text-amber-600'     },
+                    { label: 'Nueva reserva',  href: '/dashboard/reservas/nueva', icon: Calendar,     color: 'bg-primary-50 text-primary-600' },
+                    { label: 'Servicios',      href: '/dashboard/servicios',      icon: Zap,          color: 'bg-emerald-50 text-emerald-600' },
+                    { label: 'Clientes',       href: '/dashboard/clientes',       icon: Users,        color: 'bg-beauty-50 text-beauty-600'   },
+                    { label: 'Pedidos',        href: '/dashboard/pedidos',        icon: ShoppingCart, color: 'bg-amber-50 text-amber-600'     },
                   ].map((a) => (
                     <Link key={a.href} href={a.href}
                       className="flex flex-col items-center gap-2 rounded-xl border border-zinc-100 p-3 text-center transition-all hover:border-zinc-200 hover:shadow-sm hover:-translate-y-0.5">

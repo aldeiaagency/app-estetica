@@ -7,9 +7,9 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-09
-- **Fase actual:** Fase 7 — completada
-- **Última fase aprobada:** Fase 7
-- **Próxima fase pendiente:** Fase 8 — Dashboard negocio completo
+- **Fase actual:** Fase 8 — completada
+- **Última fase aprobada:** Fase 8
+- **Próxima fase pendiente:** Fase 9 — Admin plataforma
 
 ---
 
@@ -25,7 +25,7 @@
 | 5 — Cancelación/modificación | ✅ Aprobada | 2026-06-09 |
 | 6 — Ecommerce productos | ✅ Aprobada | 2026-06-09 |
 | 7 — Bonos y packs | ✅ Aprobada | 2026-06-09 |
-| 8 — Dashboard completo | 🔲 Pendiente | — |
+| 8 — Dashboard completo | ✅ Aprobada | 2026-06-09 |
 | 9 — Admin completo | 🔲 Pendiente | — |
 | 10 — Planes y monetización | 🔲 Pendiente | — |
 | 11 — IA premium | 🔲 Pendiente | — |

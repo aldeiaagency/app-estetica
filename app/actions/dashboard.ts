@@ -4,7 +4,33 @@ import { prisma } from '@/lib/db/client'
 import { slugify } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import type { BookingStatus, CenterCategory } from '@prisma/client'
+import type { BookingStatus, CenterCategory, OrderStatus } from '@prisma/client'
+
+const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+
+export async function updateOrderStatusAction(
+  orderId: string,
+  status: OrderStatus,
+  orgId: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!VALID_ORDER_STATUSES.includes(status)) {
+    return { success: false, error: 'Estado inválido' }
+  }
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: orderId },
+      include: { center: { select: { organizationId: true } } },
+    })
+    if (!order) return { success: false, error: 'Pedido no encontrado' }
+    if (order.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+
+    await prisma.order.update({ where: { id: orderId }, data: { status } })
+    revalidatePath('/dashboard/pedidos')
+    return { success: true }
+  } catch {
+    return { success: false, error: 'Error al actualizar el estado' }
+  }
+}
 
 export async function updateBookingStatusAction(
   bookingId: string,

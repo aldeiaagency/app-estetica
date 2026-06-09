@@ -3,29 +3,30 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Calendar, ClipboardList, Users,
+  LayoutDashboard, Calendar, Users,
   Scissors, UserCircle, Clock, Star, BarChart3,
-  Settings, Gift, Tag, Package, ShoppingBag, LogOut, Sparkles
+  Settings, Gift, Tag, Package, ShoppingBag, ShoppingCart, LogOut, Sparkles
 } from 'lucide-react'
 
 const NAV_GROUPS = [
   {
     label: 'Agenda',
     items: [
-      { href: '/dashboard',          label: 'Resumen',       icon: LayoutDashboard },
-      { href: '/dashboard/reservas', label: 'Reservas',      icon: Calendar        },
-      { href: '/dashboard/clientes', label: 'Clientes',      icon: Users           },
+      { href: '/dashboard',          label: 'Resumen',  icon: LayoutDashboard },
+      { href: '/dashboard/reservas', label: 'Reservas', icon: Calendar        },
+      { href: '/dashboard/clientes', label: 'Clientes', icon: Users           },
     ],
   },
   {
     label: 'Catálogo',
     items: [
-      { href: '/dashboard/servicios',   label: 'Servicios',   icon: Scissors    },
-      { href: '/dashboard/staff',       label: 'Staff',       icon: UserCircle  },
-      { href: '/dashboard/horarios',    label: 'Horarios',    icon: Clock       },
-      { href: '/dashboard/bonos',       label: 'Bonos',       icon: Gift        },
-      { href: '/dashboard/productos',   label: 'Productos',   icon: ShoppingBag },
-      { href: '/dashboard/promociones', label: 'Promociones', icon: Tag         },
+      { href: '/dashboard/servicios',   label: 'Servicios',   icon: Scissors     },
+      { href: '/dashboard/staff',       label: 'Staff',       icon: UserCircle   },
+      { href: '/dashboard/horarios',    label: 'Horarios',    icon: Clock        },
+      { href: '/dashboard/bonos',       label: 'Bonos',       icon: Gift         },
+      { href: '/dashboard/productos',   label: 'Productos',   icon: ShoppingBag  },
+      { href: '/dashboard/pedidos',     label: 'Pedidos',     icon: ShoppingCart },
+      { href: '/dashboard/promociones', label: 'Promociones', icon: Tag          },
     ],
   },
   {
