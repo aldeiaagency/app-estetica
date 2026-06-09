@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import { updateOrderStatusAction } from '@/app/actions/dashboard'
+import { StatusBadge } from '@/components/ui/badge'
 import { ShoppingBag, Package, ChevronRight } from 'lucide-react'
 import type { OrderStatus } from '@prisma/client'
 
@@ -13,14 +14,6 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   SHIPPED:   'Enviado',
   DELIVERED: 'Entregado',
   CANCELLED: 'Cancelado',
-}
-
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  PENDING:   'bg-amber-50 text-amber-700',
-  CONFIRMED: 'bg-emerald-50 text-emerald-700',
-  SHIPPED:   'bg-blue-50 text-blue-700',
-  DELIVERED: 'bg-zinc-100 text-zinc-600',
-  CANCELLED: 'bg-red-50 text-red-600',
 }
 
 // Allowed transitions for each status
@@ -160,9 +153,7 @@ export default async function PedidosPage({
                       <span className="font-mono text-xs font-bold text-zinc-400">
                         #{order.id.slice(-8).toUpperCase()}
                       </span>
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[order.status]}`}>
-                        {STATUS_LABELS[order.status]}
-                      </span>
+                      <StatusBadge status={order.status} />
                     </div>
                     <p className="mt-1 font-semibold text-zinc-900">{order.customerName}</p>
                     <p className="text-sm text-zinc-500">{order.customerEmail}</p>

@@ -1,8 +1,8 @@
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Users } from 'lucide-react'
 
 export default async function ClientesPage() {
@@ -42,23 +42,12 @@ export default async function ClientesPage() {
       </div>
 
       {clientes.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-white py-16 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
-            <Users className="h-7 w-7 text-zinc-400" />
-          </div>
-          <p className="mb-1 font-semibold text-zinc-700">Aún no tienes clientes</p>
-          <p className="mb-6 text-sm text-zinc-400">
-            Los clientes aparecerán aquí cuando realicen una reserva en tu centro.
-          </p>
-          <Link
-            href={bookingLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition-colors"
-          >
-            Ver página de reservas
-          </Link>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="Aún no tienes clientes"
+          description="Los clientes aparecerán aquí cuando realicen una reserva en tu centro."
+          action={{ label: 'Ver página de reservas', href: bookingLink }}
+        />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
           {/* Desktop table */}

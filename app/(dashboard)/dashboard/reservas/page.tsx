@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { formatDate, formatTime } from '@/lib/utils'
 import { updateBookingStatusAction } from '@/app/actions/dashboard'
 import { BookingCalendar, type CalendarBooking } from '@/components/dashboard/booking-calendar'
+import { StatusBadge } from '@/components/ui/badge'
 import type { BookingStatus } from '@prisma/client'
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
@@ -12,14 +13,6 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   CANCELLED:  'Cancelada',
   COMPLETED:  'Completada',
   NO_SHOW:    'No se presentó',
-}
-
-const STATUS_BADGE: Record<BookingStatus, string> = {
-  CONFIRMED: 'bg-emerald-50 text-emerald-700',
-  PENDING:   'bg-amber-50 text-amber-700',
-  CANCELLED: 'bg-red-50 text-red-600',
-  COMPLETED: 'bg-zinc-100 text-zinc-600',
-  NO_SHOW:   'bg-orange-50 text-orange-700',
 }
 
 const VALID_STATUSES: BookingStatus[] = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW']
@@ -183,9 +176,7 @@ export default async function ReservasPage({
                           <p className="text-xs text-zinc-400">{formatTime(booking.startAt)}</p>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_BADGE[booking.status]}`}>
-                            {STATUS_LABELS[booking.status]}
-                          </span>
+                          <StatusBadge status={booking.status} />
                         </td>
                         <td className="px-6 py-4 text-right">
                           <BookingActions bookingId={booking.id} status={booking.status} orgId={orgId} />
@@ -205,9 +196,7 @@ export default async function ReservasPage({
                         <p className="font-semibold text-zinc-900">{booking.customer.name}</p>
                         <p className="text-sm text-zinc-500">{booking.service.name}{booking.staff ? ` · ${booking.staff.name}` : ''}</p>
                       </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_BADGE[booking.status]}`}>
-                        {STATUS_LABELS[booking.status]}
-                      </span>
+                      <StatusBadge status={booking.status} />
                     </div>
                     <p className="mb-3 text-sm text-zinc-500">
                       {formatDate(booking.startAt, { day: 'numeric', month: 'short' })} · {formatTime(booking.startAt)}
