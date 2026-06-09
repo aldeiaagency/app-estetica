@@ -7,9 +7,9 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-09
-- **Fase actual:** Fase 1 — completada
-- **Última fase aprobada:** Fase 1
-- **Próxima fase pendiente:** Fase 2 — Perfil de negocio como web completa
+- **Fase actual:** Fase 2 — completada
+- **Última fase aprobada:** Fase 2
+- **Próxima fase pendiente:** Fase 3 — Búsqueda general e hiperlocal
 
 ---
 
@@ -19,7 +19,7 @@
 |---|---|---|
 | 0 — Auditoría integral | ✅ Aprobada | 2026-06-09 |
 | 1 — Home y claims honestos | ✅ Aprobada | 2026-06-09 |
-| 2 — Perfil negocio | 🔲 Pendiente | — |
+| 2 — Perfil negocio | ✅ Aprobada | 2026-06-09 |
 | 3 — Búsqueda | 🔲 Pendiente | — |
 | 4 — Reservas y calendario | 🔲 Pendiente | — |
 | 5 — Cancelación/modificación | 🔲 Pendiente | — |

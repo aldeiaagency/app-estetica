@@ -222,6 +222,35 @@ async function main() {
   const [laura, sofia, elena, patricia, carmen] = customers
   const [ana, maria, carlos, lauraSt] = staffMembers
 
+  // ── 9b. ServiceStaff — vincular staff a sus servicios ────────────────────
+  const serviceStaffMappings = [
+    // Ana García (Directora) → puede realizar todos los servicios
+    { staff: ana,     serviceNames: ['Corte y peinado', 'Coloración completa', 'Mechas o balayage', 'Tratamiento keratina', 'Manicura gel', 'Pedicura spa', 'Facial hidratación', 'Masaje relajante', 'Lavado y brushing'] },
+    // María López (Colorista) → servicios de color y peluquería
+    { staff: maria,   serviceNames: ['Corte y peinado', 'Coloración completa', 'Mechas o balayage', 'Lavado y brushing'] },
+    // Carlos Ruiz (Tratamientos) → tratamientos capilares y corporales
+    { staff: carlos,  serviceNames: ['Tratamiento keratina', 'Facial hidratación', 'Masaje relajante'] },
+    // Laura Sánchez (Manicurista) → manicura, pedicura
+    { staff: lauraSt, serviceNames: ['Manicura gel', 'Pedicura spa'] },
+  ]
+
+  let serviceStaffCreated = 0
+  for (const { staff, serviceNames } of serviceStaffMappings) {
+    if (!staff) continue
+    for (const name of serviceNames) {
+      const service = svc[name]
+      if (!service) continue
+      const existing = await prisma.serviceStaff.findFirst({
+        where: { serviceId: service.id, staffId: staff.id },
+      })
+      if (!existing) {
+        await prisma.serviceStaff.create({ data: { serviceId: service.id, staffId: staff.id } })
+        serviceStaffCreated++
+      }
+    }
+  }
+  console.log('✅ ServiceStaff:', serviceStaffCreated, 'vínculos creados (total esperado: 20)')
+
   // ── 10. Reservas ─────────────────────────────────────────────────────────
   // Spread across 3 months (past + future) for a rich calendar
   const bookingDefs = [

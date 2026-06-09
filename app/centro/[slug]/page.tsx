@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { prisma } from '@/lib/db/client'
 import { CATEGORY_LABELS, formatPrice, formatDuration } from '@/lib/utils'
+import { centerJsonLd } from '@/lib/seo/metadata'
 import { MapPin, Phone, Clock, Star, ArrowRight, ChevronRight, Sparkles, Gift, ShoppingBag, CheckCircle2 } from 'lucide-react'
 import { PublicHeader } from '@/components/ui/public-header'
 
@@ -19,12 +20,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const serviceNames  = center.services.map(s => s.name).join(', ')
   const categoryLabel = CATEGORY_LABELS[center.category] ?? center.category
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
   return {
     title: `${center.name} — ${center.addressCity} | BellezaLocal`,
     description: `${categoryLabel} en ${center.addressCity}. ${serviceNames ? `Servicios: ${serviceNames}.` : ''} Reserva online.`,
+    alternates: { canonical: `${appUrl}/centro/${slug}` },
     openGraph: {
       title: `${center.name} — ${center.addressCity}`,
       description: `${categoryLabel} en ${center.addressCity}. Reserva cita online.`,
+      url: `${appUrl}/centro/${slug}`,
       images: center.coverImage ? [{ url: center.coverImage }] : [],
     },
     robots: center.services.length === 0 ? { index: false } : { index: true },
@@ -56,7 +60,29 @@ export default async function CenterPage({ params }: Props) {
 
   const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
+  const SCHEMA_DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+  const openingHours = center.scheduleRules.map(
+    r => `${SCHEMA_DAYS[r.dayOfWeek]} ${r.openTime}-${r.closeTime}`
+  )
+  const jsonLd = centerJsonLd({
+    name:          center.name,
+    description:   center.description,
+    addressStreet: center.addressStreet ?? '',
+    addressCity:   center.addressCity   ?? '',
+    phone:         center.phone,
+    slug:          center.slug,
+    coverImage:    center.coverImage,
+    averageRating: avgRating ?? undefined,
+    reviewCount:   center._count.reviews > 0 ? center._count.reviews : undefined,
+    openingHours,
+  })
+
   return (
+    <>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
     <div className="min-h-screen bg-zinc-50">
       <PublicHeader />
 
@@ -173,7 +199,7 @@ export default async function CenterPage({ params }: Props) {
                 </div>
                 <div className="grid gap-4 p-6 sm:grid-cols-2">
                   {center.bonos.map((bono) => (
-                    <div key={bono.id} className="rounded-2xl border border-primary-100 bg-primary-50 p-4">
+                    <div key={bono.id} className="flex flex-col rounded-2xl border border-primary-100 bg-primary-50 p-4">
                       <p className="font-semibold text-zinc-900">{bono.name}</p>
                       {bono.description && <p className="mt-0.5 text-xs text-zinc-500 line-clamp-2">{bono.description}</p>}
                       <div className="mt-2 flex items-center justify-between">
@@ -182,6 +208,14 @@ export default async function CenterPage({ params }: Props) {
                         </div>
                         <span className="font-bold text-primary-600">{formatPrice(bono.priceCents)}</span>
                       </div>
+                      <button
+                        type="button"
+                        disabled
+                        title="La compra de bonos estará disponible próximamente"
+                        className="mt-3 w-full cursor-not-allowed rounded-xl border border-primary-200 py-2 text-center text-xs font-semibold text-primary-400"
+                      >
+                        Comprar bono — Próximamente
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -198,15 +232,32 @@ export default async function CenterPage({ params }: Props) {
                 </div>
                 <div className="grid gap-4 p-6 sm:grid-cols-2">
                   {center.products.map((p) => (
-                    <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-                        <ShoppingBag className="h-5 w-5 text-zinc-400" />
+                    <div key={p.id} className="flex flex-col rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                          <ShoppingBag className="h-5 w-5 text-zinc-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-zinc-900 truncate">{p.name}</p>
+                          {p.brand && <p className="text-xs text-zinc-400">{p.brand}</p>}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="font-bold text-zinc-900">{formatPrice(p.priceCents)}</p>
+                          {p.stock !== null && p.stock !== undefined && (
+                            <p className={`text-xs ${p.stock > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {p.stock > 0 ? `${p.stock} disponibles` : 'Agotado'}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-zinc-900 truncate">{p.name}</p>
-                        {p.brand && <p className="text-xs text-zinc-400">{p.brand}</p>}
-                      </div>
-                      <span className="shrink-0 font-bold text-zinc-900">{formatPrice(p.priceCents)}</span>
+                      <button
+                        type="button"
+                        disabled
+                        title="La tienda online estará disponible próximamente"
+                        className="mt-3 w-full cursor-not-allowed rounded-xl border border-zinc-200 py-2 text-center text-xs font-semibold text-zinc-400"
+                      >
+                        Ver producto — Próximamente
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -345,5 +396,6 @@ export default async function CenterPage({ params }: Props) {
         </div>
       </div>
     </div>
+    </>
   )
 }
