@@ -7,9 +7,9 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-09
-- **Fase actual:** Fase 0 — completada
-- **Última fase aprobada:** Fase 0
-- **Próxima fase pendiente:** Fase 1 — App pública abierta, home y claims honestos
+- **Fase actual:** Fase 1 — completada
+- **Última fase aprobada:** Fase 1
+- **Próxima fase pendiente:** Fase 2 — Perfil de negocio como web completa
 
 ---
 
@@ -18,7 +18,7 @@
 | Fase | Estado | Fecha |
 |---|---|---|
 | 0 — Auditoría integral | ✅ Aprobada | 2026-06-09 |
-| 1 — Home y claims honestos | ⏳ Esperando aprobación | — |
+| 1 — Home y claims honestos | ✅ Aprobada | 2026-06-09 |
 | 2 — Perfil negocio | 🔲 Pendiente | — |
 | 3 — Búsqueda | 🔲 Pendiente | — |
 | 4 — Reservas y calendario | 🔲 Pendiente | — |

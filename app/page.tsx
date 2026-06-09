@@ -29,6 +29,14 @@ async function getFeaturedCenters() {
   })
 }
 
+async function getHomeStats() {
+  const [centerCount, confirmedBookings] = await Promise.all([
+    prisma.center.count({ where: { published: true } }),
+    prisma.booking.count({ where: { status: { in: ['CONFIRMED', 'COMPLETED'] } } }),
+  ])
+  return { centerCount, confirmedBookings }
+}
+
 const CATEGORIES = [
   { slug: 'PELUQUERIA', label: 'Peluquería', icon: Scissors, color: 'from-violet-500 to-violet-700' },
   { slug: 'UNAS',       label: 'Uñas',       icon: Wand2,    color: 'from-pink-400 to-rose-500'     },
@@ -54,7 +62,7 @@ const BUSINESS_FEATURES = [
 ]
 
 export default async function HomePage() {
-  const centers = await getFeaturedCenters()
+  const [centers, stats] = await Promise.all([getFeaturedCenters(), getHomeStats()])
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -128,16 +136,24 @@ export default async function HomePage() {
             </div>
           </form>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-zinc-500">
+            {stats.centerCount > 0 ? (
+              <>
+                <span>
+                  <strong className="text-zinc-300">{stats.centerCount}</strong>{' '}
+                  {stats.centerCount === 1 ? 'centro activo' : 'centros activos'}
+                </span>
+                <span className="h-1 w-1 rounded-full bg-zinc-700" />
+              </>
+            ) : null}
             <span className="flex items-center gap-1.5">
-              <div className="flex">{[...Array(5)].map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}</div>
-              <strong className="text-zinc-300">4.9</strong> de media
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+              Confirmación inmediata
             </span>
             <span className="h-1 w-1 rounded-full bg-zinc-700" />
-            <span><strong className="text-zinc-300">+350</strong> centros</span>
-            <span className="h-1 w-1 rounded-full bg-zinc-700" />
-            <span><strong className="text-zinc-300">+12.000</strong> reservas</span>
-            <span className="h-1 w-1 rounded-full bg-zinc-700" />
-            <span><strong className="text-zinc-300">50+</strong> ciudades</span>
+            <span className="flex items-center gap-1.5">
+              <Shield className="h-3.5 w-3.5 text-primary-400" />
+              Sin comisiones para clientes
+            </span>
           </div>
         </div>
       </section>
@@ -278,7 +294,7 @@ export default async function HomePage() {
               <p className="mb-4 text-xs font-bold uppercase tracking-widest text-primary-400">Para negocios</p>
               <h2 className="text-4xl font-black tracking-tight text-white md:text-5xl">Tu agenda, siempre llena</h2>
               <p className="mt-4 text-lg text-zinc-400">
-                Más de 350 profesionales ya gestionan sus citas con BellezaLocal. Únete y empieza a recibir reservas en menos de 10 minutos.
+                Gestiona tu agenda, servicios, clientes y ventas desde un solo lugar. Empieza a recibir reservas online en menos de 10 minutos, sin llamadas.
               </p>
               <ul className="mt-8 space-y-3">
                 {BUSINESS_FEATURES.map((f, i) => (
@@ -325,13 +341,13 @@ export default async function HomePage() {
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/8 pt-4">
                   {[
-                    { label: 'Ingresos hoy', value: '€348', Icon: TrendingUp },
-                    { label: 'Ocupación',    value: '87%',   Icon: Zap       },
-                    { label: 'Clientes',     value: '+2 new',Icon: Heart     },
+                    { label: 'Ingresos', Icon: TrendingUp },
+                    { label: 'Ocupación', Icon: Zap       },
+                    { label: 'Clientes',  Icon: Heart     },
                   ].map((k, i) => (
                     <div key={i} className="rounded-xl bg-white/5 p-3 text-center">
                       <k.Icon className="mx-auto mb-1 h-4 w-4 text-primary-400" />
-                      <p className="text-sm font-bold text-white">{k.value}</p>
+                      <div className="mx-auto mb-1 h-3 w-10 rounded bg-white/10" />
                       <p className="text-xs text-zinc-500">{k.label}</p>
                     </div>
                   ))}
