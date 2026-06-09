@@ -343,6 +343,7 @@ export async function upsertScheduleRuleAction(
 const centerSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   description: z.string().optional(),
+  descriptionLong: z.string().optional(),
   category: z.string().min(1, 'Selecciona una categoría'),
   phone: z.string().optional(),
   whatsapp: z.string().optional(),
@@ -489,6 +490,7 @@ export async function upsertCenterAction(
   data: {
     name: string
     description?: string
+    descriptionLong?: string
     category: string
     phone?: string
     whatsapp?: string
@@ -512,6 +514,7 @@ export async function upsertCenterAction(
     const centerData = {
       name: parsed.data.name,
       description: parsed.data.description || null,
+      descriptionLong: parsed.data.descriptionLong || null,
       category: parsed.data.category as CenterCategory,
       phone: parsed.data.phone || null,
       whatsapp: parsed.data.whatsapp || null,

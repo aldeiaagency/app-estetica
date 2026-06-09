@@ -15,6 +15,7 @@ export interface PlanFeatures {
   hasFeaturedListing: boolean
   hasWhiteLabelOption: boolean
   hasApiAccess: boolean
+  hasAI: boolean
   notificationChannels: ('email' | 'sms' | 'whatsapp')[]
 }
 
@@ -34,11 +35,12 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     hasFeaturedListing: false,
     hasWhiteLabelOption: false,
     hasApiAccess: false,
+    hasAI: false,
     notificationChannels: ['email'],
   },
   PRO: {
     maxCenters: 1,
-    maxServicesPerCenter: -1, // unlimited
+    maxServicesPerCenter: -1,
     maxStaffPerCenter: -1,
     hasBookingDeposit: true,
     hasBonos: true,
@@ -51,6 +53,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     hasFeaturedListing: false,
     hasWhiteLabelOption: false,
     hasApiAccess: false,
+    hasAI: true,
     notificationChannels: ['email'],
   },
   GROWTH: {
@@ -68,6 +71,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     hasFeaturedListing: true,
     hasWhiteLabelOption: false,
     hasApiAccess: false,
+    hasAI: true,
     notificationChannels: ['email'],
   },
   PREMIUM: {
@@ -85,6 +89,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     hasFeaturedListing: true,
     hasWhiteLabelOption: true,
     hasApiAccess: true,
+    hasAI: true,
     notificationChannels: ['email', 'sms', 'whatsapp'],
   },
 }

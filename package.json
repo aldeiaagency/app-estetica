@@ -11,6 +11,7 @@
     "email": "email dev --dir emails --port 3001"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.82",
     "@auth/prisma-adapter": "^2.7.2",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-avatar": "^1.1.2",
@@ -27,6 +28,7 @@
     "@radix-ui/react-tabs": "^1.1.2",
     "@radix-ui/react-toast": "^1.2.4",
     "@react-email/components": "^0.0.28",
+    "ai": "^6.0.199",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
