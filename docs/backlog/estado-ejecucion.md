@@ -7,9 +7,9 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-09
-- **Fase actual:** Fase 3 — completada
-- **Última fase aprobada:** Fase 3
-- **Próxima fase pendiente:** Fase 4 — Reservas y calendario
+- **Fase actual:** Fase 4 — completada
+- **Última fase aprobada:** Fase 4
+- **Próxima fase pendiente:** Fase 5 — Cancelación y modificación
 
 ---
 
@@ -21,7 +21,7 @@
 | 1 — Home y claims honestos | ✅ Aprobada | 2026-06-09 |
 | 2 — Perfil negocio | ✅ Aprobada | 2026-06-09 |
 | 3 — Búsqueda | ✅ Aprobada | 2026-06-09 |
-| 4 — Reservas y calendario | 🔲 Pendiente | — |
+| 4 — Reservas y calendario | ✅ Aprobada | 2026-06-09 |
 | 5 — Cancelación/modificación | 🔲 Pendiente | — |
 | 6 — Ecommerce productos | 🔲 Pendiente | — |
 | 7 — Bonos y packs | 🔲 Pendiente | — |

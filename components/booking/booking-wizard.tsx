@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import {
   ArrowLeft, Clock, Loader2, Check, Users, Sparkles,
-  UserCircle, ChevronRight, CalendarDays, BadgeCheck,
+  ChevronRight, CalendarDays, BadgeCheck,
 } from 'lucide-react'
 import { createBookingAction } from '@/app/actions/booking'
 
@@ -115,14 +115,12 @@ export function BookingWizard({ centerId, centerSlug, centerName, services, preS
   const [slots,         setSlots]         = useState<SlotData[]>([])
   const [loadingSlots,  setLoadingSlots]  = useState(false)
   const [submitError,   setSubmitError]   = useState<string | null>(null)
-  const [bookingDone,   setBookingDone]   = useState(false)
-  const [confirmCode,   setConfirmCode]   = useState('')
 
-  // Pre-fill from session
+  // Pre-fill from session — functional updater form avoids reading state in effect
   useEffect(() => {
     if (!session?.user) return
-    if (session.user.name  && !custName)  setCustName(session.user.name)
-    if (session.user.email && !custEmail) setCustEmail(session.user.email)
+    if (session.user.name)  setCustName(n => n || session.user!.name!)
+    if (session.user.email) setCustEmail(e => e || session.user!.email!)
   }, [session])
 
   // Load staff on step 2
@@ -175,8 +173,6 @@ export function BookingWizard({ centerId, centerSlug, centerName, services, preS
         marketingConsent,
       })
       if (result.success) {
-        setConfirmCode(result.confirmationCode ?? '')
-        setBookingDone(true)
         router.push(`/reserva/confirmada/${result.confirmationCode}`)
       } else {
         setSubmitError(result.error)
