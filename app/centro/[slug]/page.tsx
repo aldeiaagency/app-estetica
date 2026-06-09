@@ -250,14 +250,12 @@ export default async function CenterPage({ params }: Props) {
                           )}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        disabled
-                        title="La tienda online estará disponible próximamente"
-                        className="mt-3 w-full cursor-not-allowed rounded-xl border border-zinc-200 py-2 text-center text-xs font-semibold text-zinc-400"
+                      <Link
+                        href={`/productos/${p.id}`}
+                        className="mt-3 flex w-full items-center justify-center rounded-xl bg-primary-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
                       >
-                        Ver producto — Próximamente
-                      </button>
+                        Ver producto
+                      </Link>
                     </div>
                   ))}
                 </div>

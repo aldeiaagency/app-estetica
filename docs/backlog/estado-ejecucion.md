@@ -7,9 +7,9 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-09
-- **Fase actual:** Fase 5 — completada
-- **Última fase aprobada:** Fase 5
-- **Próxima fase pendiente:** Fase 6 — Ecommerce de productos
+- **Fase actual:** Fase 6 — completada
+- **Última fase aprobada:** Fase 6
+- **Próxima fase pendiente:** Fase 7 — Bonos y packs
 
 ---
 
@@ -23,7 +23,7 @@
 | 3 — Búsqueda | ✅ Aprobada | 2026-06-09 |
 | 4 — Reservas y calendario | ✅ Aprobada | 2026-06-09 |
 | 5 — Cancelación/modificación | ✅ Aprobada | 2026-06-09 |
-| 6 — Ecommerce productos | 🔲 Pendiente | — |
+| 6 — Ecommerce productos | ✅ Aprobada | 2026-06-09 |
 | 7 — Bonos y packs | 🔲 Pendiente | — |
 | 8 — Dashboard completo | 🔲 Pendiente | — |
 | 9 — Admin completo | 🔲 Pendiente | — |

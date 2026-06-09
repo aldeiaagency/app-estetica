@@ -132,6 +132,7 @@ model Center {
   manualBlocks    ManualBlock[]
   bonos           Bono[]
   products        Product[]
+  orders          Order[]
   promotions      Promotion[]
   reviews         Review[]
   featuredListings FeaturedListing[]
@@ -442,11 +443,52 @@ model Product {
   image       String?
   active      Boolean @default(true)
 
-  center Center @relation(fields: [centerId], references: [id])
+  center     Center      @relation(fields: [centerId], references: [id])
+  orderItems OrderItem[]
 
   createdAt DateTime @default(now())
 
   @@index([centerId])
+}
+
+model Order {
+  id       String @id @default(cuid())
+  centerId String
+
+  customerName  String
+  customerEmail String
+  customerPhone String?
+
+  totalCents Int
+  status     OrderStatus @default(PENDING)
+  notes      String?
+
+  stripePaymentIntentId String?
+  paidAt                DateTime?
+
+  center Center      @relation(fields: [centerId], references: [id])
+  items  OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([centerId, status])
+  @@index([customerEmail])
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+
+  name       String
+  priceCents Int
+  quantity   Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
 }
 
 model Promotion {
@@ -619,6 +661,14 @@ enum WaitlistStatus {
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 enum AddOnType {
