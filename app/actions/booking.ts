@@ -185,6 +185,90 @@ export async function cancelBookingAction(
   return { success: true }
 }
 
+const rescheduleSchema = z.object({
+  confirmationCode: z.string().length(8),
+  customerEmail: z.string().email(),
+  newStartAt: z.string().datetime(),
+  newEndAt: z.string().datetime(),
+})
+
+export async function rescheduleBookingAction(input: unknown): Promise<
+  { success: true } | { success: false; error: string }
+> {
+  const parsed = rescheduleSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  }
+
+  const { confirmationCode, customerEmail, newStartAt, newEndAt } = parsed.data
+
+  const booking = await prisma.booking.findFirst({
+    where: { confirmationCode, customer: { email: customerEmail } },
+  })
+
+  if (!booking) {
+    return { success: false, error: 'Reserva no encontrada.' }
+  }
+
+  if (['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(booking.status)) {
+    return { success: false, error: 'Esta reserva no se puede modificar.' }
+  }
+
+  const now = new Date()
+  const hoursUntilStart = (booking.startAt.getTime() - now.getTime()) / (1000 * 60 * 60)
+  if (hoursUntilStart < 24) {
+    return { success: false, error: 'La modificación debe realizarse con al menos 24 horas de antelación.' }
+  }
+
+  const newStart = new Date(newStartAt)
+  const newEnd = new Date(newEndAt)
+
+  if (newStart <= now) {
+    return { success: false, error: 'La nueva fecha debe ser en el futuro.' }
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const conflicts = await tx.booking.count({
+        where: {
+          id: { not: booking.id },
+          ...(booking.staffId ? { staffId: booking.staffId } : { centerId: booking.centerId }),
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          AND: [{ startAt: { lt: newEnd } }, { endAt: { gt: newStart } }],
+        },
+      })
+
+      if (conflicts > 0) throw new Error('SLOT_TAKEN')
+
+      const prevDate = booking.startAt.toLocaleDateString('es-ES', {
+        day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid',
+      })
+      const prevTime = booking.startAt.toLocaleTimeString('es-ES', {
+        hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid',
+      })
+
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          startAt: newStart,
+          endAt: newEnd,
+          notes: booking.notes
+            ? `${booking.notes} | Reprogramada desde ${prevDate} ${prevTime}`
+            : `Reprogramada desde ${prevDate} ${prevTime}`,
+        },
+      })
+    })
+
+    return { success: true }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'SLOT_TAKEN') {
+      return { success: false, error: 'Ese horario ya está ocupado. Por favor elige otro.' }
+    }
+    console.error('[reschedule] Error:', err)
+    return { success: false, error: 'Error al modificar la reserva. Inténtalo de nuevo.' }
+  }
+}
+
 function generateConfirmationCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
