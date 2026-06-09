@@ -7,9 +7,9 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-09
-- **Fase actual:** Fase 11 — completada
-- **Última fase aprobada:** Fase 11
-- **Próxima fase pendiente:** Fase 12 — SEO programático
+- **Fase actual:** Fase 12 — completada
+- **Última fase aprobada:** Fase 12
+- **Próxima fase pendiente:** Fase 13 — UX/UI design system
 
 ---
 
@@ -29,7 +29,7 @@
 | 9 — Admin completo | ✅ Aprobada | 2026-06-09 |
 | 10 — Planes y monetización | ✅ Aprobada | 2026-06-10 |
 | 11 — IA premium | ✅ Aprobada | 2026-06-10 |
-| 12 — SEO programático | 🔲 Pendiente | — |
+| 12 — SEO programático | ✅ Aprobada | 2026-06-10 |
 | 13 — UX/UI design system | 🔲 Pendiente | — |
 | 14 — Seguridad/GDPR | 🔲 Pendiente | — |
 | 15 — Tests/QA/build/piloto | 🔲 Pendiente | — |

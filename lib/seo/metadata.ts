@@ -3,6 +3,57 @@ import type { Metadata } from 'next'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
 const SITE_NAME = 'Belleza Local'
 
+// ─── Slug helpers ────────────────────────────────────────────────────────────
+
+export function cityToSlug(city: string): string {
+  return city
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+}
+
+export function slugToCity(slug: string): string {
+  return slug
+    .split('-')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+export function categoryToSlug(category: string): string {
+  return category.toLowerCase().replace(/_/g, '-')
+}
+
+export function slugToCategory(slug: string): string {
+  return slug.toUpperCase().replace(/-/g, '_')
+}
+
+// ─── JSON-LD ──────────────────────────────────────────────────────────────────
+
+export function itemListJsonLd(params: {
+  name: string
+  url: string
+  items: { name: string; url: string; position: number }[]
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: params.name,
+    url: params.url,
+    numberOfItems: params.items.length,
+    itemListElement: params.items.map(item => ({
+      '@type': 'ListItem',
+      position: item.position,
+      item: {
+        '@type': 'BeautySalon',
+        name: item.name,
+        url: item.url,
+      },
+    })),
+  }
+}
+
 export function centerMetadata(center: {
   name: string
   description?: string | null

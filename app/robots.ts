@@ -7,7 +7,19 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/dashboard/', '/admin/', '/cuenta/', '/api/', '/centro/*/reservar'],
+      disallow: [
+        '/dashboard/',
+        '/admin/',
+        '/cuenta/',
+        '/api/',
+        '/auth/',
+        '/centro/*/reservar',
+        '/checkout',
+        '/carrito',
+        '/pedido/',
+        '/bono/confirmado/',
+        '/reserva/confirmada/',
+      ],
     },
     sitemap: `${BASE_URL}/sitemap.xml`,
   }
