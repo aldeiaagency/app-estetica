@@ -30,7 +30,7 @@
 | 10 — Planes y monetización | ✅ Aprobada | 2026-06-10 |
 | 11 — IA premium | ✅ Aprobada | 2026-06-10 |
 | 12 — SEO programático | ✅ Aprobada | 2026-06-10 |
-| 13 — UX/UI design system | 🔲 Pendiente | — |
+| 13 — UX/UI design system | ✅ Aprobada | 2026-06-10 |
 | 14 — Seguridad/GDPR | 🔲 Pendiente | — |
 | 15 — Tests/QA/build/piloto | 🔲 Pendiente | — |
 
