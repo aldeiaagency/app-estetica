@@ -7,9 +7,9 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-09
-- **Fase actual:** Fase 2 — completada
-- **Última fase aprobada:** Fase 2
-- **Próxima fase pendiente:** Fase 3 — Búsqueda general e hiperlocal
+- **Fase actual:** Fase 3 — completada
+- **Última fase aprobada:** Fase 3
+- **Próxima fase pendiente:** Fase 4 — Reservas y calendario
 
 ---
 
@@ -20,7 +20,7 @@
 | 0 — Auditoría integral | ✅ Aprobada | 2026-06-09 |
 | 1 — Home y claims honestos | ✅ Aprobada | 2026-06-09 |
 | 2 — Perfil negocio | ✅ Aprobada | 2026-06-09 |
-| 3 — Búsqueda | 🔲 Pendiente | — |
+| 3 — Búsqueda | ✅ Aprobada | 2026-06-09 |
 | 4 — Reservas y calendario | 🔲 Pendiente | — |
 | 5 — Cancelación/modificación | 🔲 Pendiente | — |
 | 6 — Ecommerce productos | 🔲 Pendiente | — |
@@ -42,7 +42,7 @@
 |---|---|---|---|
 | **ServiceStaff vacío** | Fase 4 | El seed no creó `ServiceStaff` — el engine devuelve 0 slots | Añadir ServiceStaff en Fase 2 o Fase 4 |
 | **Claims falsos** | Fase 1 | 5 métricas hardcodeadas falsas en `app/page.tsx` | Eliminar en Fase 1 |
-| **Bug OR/AND búsqueda** | Fase 3 | `q` y `ciudad` juntos devuelven resultados incorrectos | Corregir en Fase 3 |
+| ~~**Bug OR/AND búsqueda**~~ | ~~Fase 3~~ | ~~`q` y `ciudad` juntos devuelven resultados incorrectos~~ | ✅ Corregido en Fase 3 |
 | **Links legales 404** | Fase 1 | Footer enlaza a `/privacidad`, `/terminos`, `/cookies` que no existen | Crear páginas en Fase 14 o Fase 1 |
 
 ---

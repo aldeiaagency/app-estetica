@@ -16,31 +16,52 @@ const VALID_CATEGORIES = Object.values(CenterCategory)
 export default async function BuscarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; ciudad?: string; categoria?: string }>
+  searchParams: Promise<{ q?: string; ciudad?: string; categoria?: string; precioMax?: string }>
 }) {
-  const { q, ciudad, categoria } = await searchParams
+  const { q, ciudad, categoria, precioMax: precioMaxStr } = await searchParams
 
   const validCategory = categoria && VALID_CATEGORIES.includes(categoria.toUpperCase() as CenterCategory)
     ? (categoria.toUpperCase() as CenterCategory)
     : undefined
 
-  const whereBase: Prisma.CenterWhereInput = {
-    published: true,
-    ...(ciudad && {
+  const precioMaxCents = precioMaxStr && !isNaN(parseFloat(precioMaxStr))
+    ? Math.round(parseFloat(precioMaxStr) * 100)
+    : undefined
+
+  // Cada condición de filtrado va en su propio elemento del AND
+  // para evitar que dos OR al mismo nivel se sobreescriban mutuamente.
+  const andFilters: Prisma.CenterWhereInput[] = []
+
+  if (ciudad) {
+    andFilters.push({
       OR: [
         { addressCity:     { contains: ciudad, mode: 'insensitive' } },
         { addressProvince: { contains: ciudad, mode: 'insensitive' } },
       ],
-    }),
-    ...(validCategory && { category: validCategory }),
-    ...(q && {
+    })
+  }
+
+  if (q) {
+    andFilters.push({
       OR: [
         { name:        { contains: q, mode: 'insensitive' } },
         { description: { contains: q, mode: 'insensitive' } },
         { services: { some: { name:        { contains: q, mode: 'insensitive' }, active: true } } },
         { services: { some: { description: { contains: q, mode: 'insensitive' }, active: true } } },
       ],
-    }),
+    })
+  }
+
+  if (precioMaxCents) {
+    andFilters.push({
+      services: { some: { active: true, priceCents: { lte: precioMaxCents } } },
+    })
+  }
+
+  const whereBase: Prisma.CenterWhereInput = {
+    published: true,
+    ...(validCategory && { category: validCategory }),
+    ...(andFilters.length > 0 && { AND: andFilters }),
   }
 
   const centers = await prisma.center.findMany({
@@ -54,7 +75,7 @@ export default async function BuscarPage({
     orderBy: [{ bookings: { _count: 'desc' } }, { createdAt: 'desc' }],
   })
 
-  const hasFilters = !!(q || ciudad || validCategory)
+  const hasFilters = !!(q || ciudad || validCategory || precioMaxStr)
 
   return (
     <div className="min-h-screen bg-zinc-50">
