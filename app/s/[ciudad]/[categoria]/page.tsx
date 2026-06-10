@@ -7,6 +7,7 @@ import {
   categoryToSlug, slugToCategory, itemListJsonLd,
 } from '@/lib/seo/metadata'
 import { CATEGORY_LABELS } from '@/lib/utils'
+import Image from 'next/image'
 import { PublicHeader } from '@/components/ui/public-header'
 import { MapPin, Star, ArrowRight } from 'lucide-react'
 import type { CenterCategory } from '@prisma/client'
@@ -113,7 +114,7 @@ export default async function CiudadCategoriaPage({ params }: Props) {
               >
                 <div className="h-36 bg-gradient-to-br from-primary-100 to-beauty-100 relative overflow-hidden">
                   {center.coverImage ? (
-                    <img src={center.coverImage} alt={center.name} className="h-full w-full object-cover" />
+                    <Image src={center.coverImage} alt={center.name} fill className="object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-4xl">💆</div>
                   )}

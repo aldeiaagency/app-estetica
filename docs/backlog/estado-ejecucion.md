@@ -6,10 +6,10 @@
 
 ## Checkpoint actual
 
-- **Fecha/hora:** 2026-06-09
-- **Fase actual:** Fase 12 — completada
-- **Última fase aprobada:** Fase 12
-- **Próxima fase pendiente:** Fase 13 — UX/UI design system
+- **Fecha/hora:** 2026-06-10
+- **Fase actual:** Fase 15 — completada
+- **Última fase aprobada:** Fase 15
+- **Próxima fase pendiente:** Piloto privado (beta cerrada 3-5 negocios)
 
 ---
 
@@ -32,7 +32,7 @@
 | 12 — SEO programático | ✅ Aprobada | 2026-06-10 |
 | 13 — UX/UI design system | ✅ Aprobada | 2026-06-10 |
 | 14 — Seguridad/GDPR | ✅ Aprobada | 2026-06-10 |
-| 15 — Tests/QA/build/piloto | 🔲 Pendiente | — |
+| 15 — Tests/QA/build/piloto | ✅ Aprobada | 2026-06-10 |
 
 ---
 
@@ -83,7 +83,8 @@ npm run build       # Por ejecutar en Fase 15
 | Seed demo | ✅ Ejecutado | 9 servicios, 4 staff, 5 bonos, 7 productos, 31 reservas, 7 reseñas |
 | `npm run type-check` | ❓ No ejecutado | Pendiente Fase 1 |
 | `npm run lint` | ❓ No ejecutado | Pendiente Fase 1 |
-| `npm run build` | ❓ No ejecutado | Pendiente Fase 15 |
+| `npm run build` | ✅ Limpio | 39 rutas, 0 errores, 0 warnings |
+| `npm run test` | ✅ 41/41 | Vitest: utils + seo/metadata + billing/plans |
 
 ---
 
@@ -100,7 +101,7 @@ npm run build       # Por ejecutar en Fase 15
 - Ejecución exitosa del seed en Supabase producción
 
 ### Próxima acción recomendada:
-Aprobar Fase 1. Cambios muy concretos en `app/page.tsx` (eliminar 5 claims falsos + corregir copy del widget mock). Bajo riesgo, alto impacto en confianza.
+Piloto privado. Ver `docs/piloto-readiness.md` para checklist de arranque en producción.
 
 ---
 

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import { createProductAction, toggleProductActiveAction } from '@/app/actions/dashboard'
-import { ShoppingBag, Package, Tag } from 'lucide-react'
+import { ShoppingBag, Package } from 'lucide-react'
 
 export default async function ProductosPage() {
   const session = await auth()

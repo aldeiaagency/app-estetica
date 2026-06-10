@@ -194,7 +194,7 @@ export default function PreciosPage() {
 
         {/* Mobile comparison — accordion per plan */}
         <div className="flex flex-col gap-4 sm:hidden">
-          {PLANS.map(({ key, label, desc, highlight }) => (
+          {PLANS.map(({ key, label, highlight }) => (
             <details key={key} className={`rounded-2xl border overflow-hidden ${highlight ? 'border-primary-300' : 'border-zinc-200'}`}>
               <summary className={`flex cursor-pointer items-center justify-between px-5 py-4 font-semibold select-none ${highlight ? 'bg-primary-50 text-primary-700' : 'bg-white text-zinc-900'}`}>
                 <span>{label}</span>

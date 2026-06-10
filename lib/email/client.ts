@@ -1,4 +1,18 @@
 import { Resend } from 'resend'
 
-export const resend = new Resend(process.env.RESEND_API_KEY)
+let _resend: Resend | null = null
+
+export function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY ?? '')
+  }
+  return _resend
+}
+
+export const resend = new Proxy({} as Resend, {
+  get(_target, prop) {
+    return (getResend() as unknown as Record<string | symbol, unknown>)[prop]
+  },
+})
+
 export const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Belleza Local <noreply@bellezalocal.es>'

@@ -361,8 +361,6 @@ export function BookingCalendar({ bookings }: BookingCalendarProps) {
     ? (bookingsByDate.get(selectedDate) ?? [])
     : []
 
-  const tabContainsView = tabs.some(t => t.year === viewYear && t.month === viewMonth)
-
   return (
     <div className="space-y-4">
       {/* 3-month tab selector */}

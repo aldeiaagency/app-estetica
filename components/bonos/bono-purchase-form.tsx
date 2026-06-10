@@ -17,7 +17,7 @@ function formatPrice(cents: number) {
   return (cents / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
 }
 
-export function BonoPurchaseForm({ bonoId, bonoName, priceCents, centerName }: Props) {
+export function BonoPurchaseForm({ bonoId, priceCents, centerName }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 

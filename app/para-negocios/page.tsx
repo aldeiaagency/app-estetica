@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import {
-  Sparkles, Calendar, Users, TrendingUp, Bell, ShoppingBag,
+  Sparkles, Calendar, Users, Bell, ShoppingBag,
   BarChart3, ArrowRight, CheckCircle2, Check, Zap, Shield,
   Star, MessageSquare, Gift, Globe, Headphones, Database
 } from 'lucide-react'

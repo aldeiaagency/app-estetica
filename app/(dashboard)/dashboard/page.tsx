@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import Link from 'next/link'
-import { Calendar, Users, TrendingUp, AlertCircle, Plus, Copy, ArrowUpRight, Zap, DollarSign, ShoppingCart } from 'lucide-react'
+import { Calendar, Users, AlertCircle, Plus, Copy, ArrowUpRight, Zap, DollarSign, ShoppingCart } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 
 export default async function DashboardPage() {
