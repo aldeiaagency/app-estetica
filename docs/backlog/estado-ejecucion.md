@@ -31,7 +31,7 @@
 | 11 — IA premium | ✅ Aprobada | 2026-06-10 |
 | 12 — SEO programático | ✅ Aprobada | 2026-06-10 |
 | 13 — UX/UI design system | ✅ Aprobada | 2026-06-10 |
-| 14 — Seguridad/GDPR | 🔲 Pendiente | — |
+| 14 — Seguridad/GDPR | ✅ Aprobada | 2026-06-10 |
 | 15 — Tests/QA/build/piloto | 🔲 Pendiente | — |
 
 ---
