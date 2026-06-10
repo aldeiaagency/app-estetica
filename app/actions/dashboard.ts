@@ -1,9 +1,10 @@
 'use server'
 
 import { prisma } from '@/lib/db/client'
-import { slugify } from '@/lib/utils'
+import { slugify, formatDate, formatTime } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { sendBookingConfirmation, sendBookingCancellation } from '@/lib/email/templates'
 import type { BookingStatus, CenterCategory, OrderStatus } from '@prisma/client'
 
 const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
@@ -41,7 +42,12 @@ export async function updateBookingStatusAction(
   try {
     const booking = await prisma.booking.findFirst({
       where: { id: bookingId },
-      include: { center: true },
+      include: {
+        center:   { select: { organizationId: true, name: true, slug: true } },
+        customer: { select: { name: true, email: true } },
+        service:  { select: { name: true } },
+        staff:    { select: { name: true } },
+      },
     })
 
     if (!booking) return { success: false, error: 'Reserva no encontrada' }
@@ -60,6 +66,24 @@ export async function updateBookingStatusAction(
           : {}),
       },
     })
+
+    // Send email — fire and forget (do not block the action)
+    const emailParams = {
+      to:          booking.customer.email,
+      customerName: booking.customer.name,
+      serviceName: booking.service.name,
+      centerName:  booking.center.name,
+      centerSlug:  booking.center.slug,
+      date:        formatDate(booking.startAt, { day: 'numeric', month: 'long', year: 'numeric' }),
+      time:        formatTime(booking.startAt),
+      staffName:   booking.staff?.name ?? null,
+    }
+
+    if (status === 'CONFIRMED') {
+      sendBookingConfirmation(emailParams).catch(() => {})
+    } else if (status === 'CANCELLED') {
+      sendBookingCancellation({ ...emailParams, reason }).catch(() => {})
+    }
 
     revalidatePath('/dashboard/reservas')
     return { success: true }
