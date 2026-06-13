@@ -457,7 +457,7 @@ export function BookingWizard({ centerId, centerSlug, centerName, services, preS
                 />
                 <span className="text-sm text-zinc-600">
                   Acepto la{' '}
-                  <Link href="/legal/privacidad" className="text-primary-600 underline hover:text-primary-700" target="_blank" rel="noreferrer">
+                  <Link href="/privacidad" className="text-primary-600 underline hover:text-primary-700" target="_blank" rel="noreferrer">
                     política de privacidad
                   </Link>{' '}
                   y el tratamiento de mis datos para gestionar la reserva. *

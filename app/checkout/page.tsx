@@ -55,16 +55,21 @@ export default function CheckoutPage() {
         customerEmail: email.trim().toLowerCase(),
         customerPhone: phone.trim() || undefined,
         consentGiven:  true,
+        // Solo enviamos producto y cantidad; nombre y precio los pone el servidor desde la BD.
         items: items.map(i => ({
-          productId:  i.productId,
-          name:       i.name,
-          priceCents: i.priceCents,
-          quantity:   i.quantity,
+          productId: i.productId,
+          quantity:  i.quantity,
         })),
       })
       if (result.success) {
         clearCart()
-        router.push(`/pedido/confirmado/${result.orderId}`)
+        if (result.checkoutUrl) {
+          // Pago online con Stripe
+          window.location.href = result.checkoutUrl
+        } else {
+          // Pago en el centro (click & collect)
+          router.push(`/pedido/confirmado/${result.orderId}`)
+        }
       } else {
         setError(result.error)
       }
@@ -130,7 +135,7 @@ export default function CheckoutPage() {
               />
               <span className="text-sm text-zinc-600">
                 Acepto la{' '}
-                <Link href="/legal/privacidad" className="text-primary-600 underline hover:text-primary-700" target="_blank">
+                <Link href="/privacidad" className="text-primary-600 underline hover:text-primary-700" target="_blank">
                   política de privacidad
                 </Link>{' '}
                 y el tratamiento de mis datos para gestionar este pedido. *
@@ -155,7 +160,8 @@ export default function CheckoutPage() {
               )}
             </button>
             <p className="text-center text-xs text-zinc-400">
-              Pago en {centerName} · El negocio te confirmará el método de recogida
+              Recogida en {centerName}. Si el centro tiene pago online, pagarás de forma segura ahora;
+              si no, abonarás al recoger.
             </p>
           </form>
         </div>

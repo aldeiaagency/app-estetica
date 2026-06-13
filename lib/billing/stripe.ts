@@ -21,3 +21,11 @@ export const stripe = new Proxy({} as Stripe, {
     return (getStripe() as unknown as Record<string | symbol, unknown>)[prop]
   },
 })
+
+// True si hay clave Stripe configurada. Permite degradar con gracia a "pago en el
+// centro" (click & collect) mientras Stripe no esté activado en el entorno.
+export function isStripeConfigured(): boolean {
+  return !!process.env.STRIPE_SECRET_KEY
+}
+
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'

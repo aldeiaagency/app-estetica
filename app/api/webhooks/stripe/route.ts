@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/billing/stripe'
 import { prisma } from '@/lib/db/client'
 import { PRICE_ID_TO_PLAN } from '@/lib/billing/price-map'
+import { fulfillOrderPayment, fulfillBonoPayment, type BonoCheckoutMetadata } from '@/lib/billing/checkout'
 import type Stripe from 'stripe'
 import type { Plan } from '@prisma/client'
 
@@ -30,6 +31,23 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
+
+        // ── Pagos únicos (productos / bonos) ──────────────────────────────
+        if (session.mode === 'payment') {
+          const meta = session.metadata ?? {}
+          const paymentIntentId = typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null
+
+          if (meta.type === 'order' && meta.orderId) {
+            await fulfillOrderPayment(meta.orderId, paymentIntentId)
+          } else if (meta.type === 'bono' && meta.bonoId) {
+            await fulfillBonoPayment(meta as unknown as BonoCheckoutMetadata, paymentIntentId ?? session.id)
+          }
+          break
+        }
+
+        // ── Suscripciones (planes SaaS) ───────────────────────────────────
         if (session.mode !== 'subscription') break
 
         const orgId          = session.metadata?.organizationId

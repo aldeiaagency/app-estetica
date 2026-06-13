@@ -40,7 +40,11 @@ export function BonoPurchaseForm({ bonoId, priceCents, centerName }: Props) {
         consentGiven:  true,
       })
       if (result.success) {
-        router.push(`/bono/confirmado/${result.instanceId}`)
+        if (result.checkoutUrl) {
+          window.location.href = result.checkoutUrl       // pago online con Stripe
+        } else if (result.instanceId) {
+          router.push(`/bono/confirmado/${result.instanceId}`)  // pago en el centro
+        }
       } else {
         setError(result.error)
       }
@@ -84,7 +88,7 @@ export function BonoPurchaseForm({ bonoId, priceCents, centerName }: Props) {
         />
         <span className="text-sm text-zinc-600">
           Acepto la{' '}
-          <Link href="/legal/privacidad" className="text-primary-600 underline hover:text-primary-700" target="_blank">
+          <Link href="/privacidad" className="text-primary-600 underline hover:text-primary-700" target="_blank">
             política de privacidad
           </Link>{' '}
           y el tratamiento de mis datos para gestionar este bono. *
@@ -107,7 +111,7 @@ export function BonoPurchaseForm({ bonoId, priceCents, centerName }: Props) {
         )}
       </button>
       <p className="text-center text-xs text-zinc-400">
-        Pago en {centerName} · El negocio te confirmará el método de pago
+        Si el centro tiene pago online, pagarás de forma segura ahora; si no, lo abonarás en {centerName}.
       </p>
     </form>
   )

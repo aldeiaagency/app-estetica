@@ -1,6 +1,13 @@
 import { prisma } from '@/lib/db/client'
-import { addMinutes, format, parseISO, isAfter, startOfDay, endOfDay } from 'date-fns'
+import { addMinutes, format, parseISO, startOfDay, endOfDay } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
+import {
+  computeTotalDuration,
+  localDayOfWeekMondayZero,
+  buildCandidateSlots,
+  generateConfirmationCode,
+  type Block,
+} from './slots'
 
 const TIMEZONE = 'Europe/Madrid'
 const SLOT_GRANULARITY_MINUTES = 15
@@ -29,8 +36,7 @@ export async function getAvailableSlots(query: AvailabilityQuery): Promise<TimeS
   })
   if (!service) return []
 
-  const totalDuration =
-    service.bufferMinutesBefore + service.durationMinutes + service.bufferMinutesAfter
+  const totalDuration = computeTotalDuration(service)
 
   // 2. Resolver staff elegible
   let staffIds: string[]
@@ -48,7 +54,7 @@ export async function getAvailableSlots(query: AvailabilityQuery): Promise<TimeS
 
   // 3. Calcular slots para cada staff
   const localDate = parseISO(date) // date en zona local
-  const dayOfWeek = localDate.getDay() === 0 ? 6 : localDate.getDay() - 1 // 0=lunes
+  const dayOfWeek = localDayOfWeekMondayZero(localDate) // 0=lunes
 
   const allSlots: TimeSlot[] = []
 
@@ -149,7 +155,7 @@ async function getSlotsForStaff({
     select: { startAt: true, endAt: true },
   })
 
-  const occupiedBlocks: { start: Date; end: Date }[] = [
+  const occupiedBlocks: Block[] = [
     ...existingBookings.map((b) => ({
       start: addMinutes(b.startAt, -service.bufferMinutesBefore),
       end: b.endAt,
@@ -157,37 +163,23 @@ async function getSlotsForStaff({
     ...manualBlocks.map((b) => ({ start: b.startAt, end: b.endAt })),
   ]
 
-  // d. Generar slots candidatos
-  const now = new Date()
-  const slots: TimeSlot[] = []
-  let cursor = workStartUTC
+  // d. Generar slots candidatos (lógica pura, testeada en tests/availability-slots.test.ts)
+  const candidates = buildCandidateSlots({
+    workStartUTC,
+    workEndUTC,
+    totalDuration,
+    granularityMinutes: SLOT_GRANULARITY_MINUTES,
+    now: new Date(),
+    occupiedBlocks,
+  })
 
-  while (addMinutes(cursor, totalDuration) <= workEndUTC) {
-    const slotStart = cursor
-    const slotEnd = addMinutes(cursor, totalDuration)
-
-    // No mostrar slots en el pasado
-    if (isAfter(slotStart, now)) {
-      const hasConflict = occupiedBlocks.some(
-        (b) => slotStart < b.end && slotEnd > b.start
-      )
-
-      if (!hasConflict) {
-        const localStart = toZonedTime(slotStart, TIMEZONE)
-        slots.push({
-          time: format(localStart, 'HH:mm'),
-          startAt: slotStart,
-          endAt: slotEnd,
-          staffId,
-          available: true,
-        })
-      }
-    }
-
-    cursor = addMinutes(cursor, SLOT_GRANULARITY_MINUTES)
-  }
-
-  return slots
+  return candidates.map(({ startAt, endAt }) => ({
+    time: format(toZonedTime(startAt, TIMEZONE), 'HH:mm'),
+    startAt,
+    endAt,
+    staffId,
+    available: true,
+  }))
 }
 
 export async function createBookingWithLock({
@@ -252,9 +244,4 @@ export async function createBookingWithLock({
 
     return { booking, customer }
   })
-}
-
-function generateConfirmationCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }

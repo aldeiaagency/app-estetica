@@ -7,9 +7,10 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-10
-- **Fase actual:** Fase 15 — completada
-- **Última fase aprobada:** Fase 15
+- **Fase actual:** Fase 16 — completada
+- **Última fase aprobada:** Fase 16
 - **Próxima fase pendiente:** Piloto privado (beta cerrada 3-5 negocios)
+  - Antes del piloto: cargar datos demo (seed) + activar Stripe + decidir entidad City/geo
 
 ---
 
@@ -33,6 +34,7 @@
 | 13 — UX/UI design system | ✅ Aprobada | 2026-06-10 |
 | 14 — Seguridad/GDPR | ✅ Aprobada | 2026-06-10 |
 | 15 — Tests/QA/build/piloto | ✅ Aprobada | 2026-06-10 |
+| 16 — Marketplace productos/pagos/cuenta | ✅ Aprobada | 2026-06-10 |
 
 ---
 
@@ -83,8 +85,9 @@ npm run build       # Por ejecutar en Fase 15
 | Seed demo | ✅ Ejecutado | 9 servicios, 4 staff, 5 bonos, 7 productos, 31 reservas, 7 reseñas |
 | `npm run type-check` | ❓ No ejecutado | Pendiente Fase 1 |
 | `npm run lint` | ❓ No ejecutado | Pendiente Fase 1 |
-| `npm run build` | ✅ Limpio | 39 rutas, 0 errores, 0 warnings |
-| `npm run test` | ✅ 41/41 | Vitest: utils + seo/metadata + billing/plans |
+| `npm run build` | ✅ Limpio | 41 rutas, 0 errores, 0 warnings (Fase 16) |
+| `npm run test` | ✅ 61/61 | Vitest: utils + seo/metadata + billing/plans + availability-slots |
+| Migración BD | ✅ Aplicada | `add_product_marketplace` (baseline previo de init+add_orders) |
 
 ---
 

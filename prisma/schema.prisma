@@ -431,24 +431,49 @@ model BonoInstance {
   @@index([centerId])
 }
 
+// Categoría de producto global (espejo de ServiceCategory), con jerarquía opcional.
+model ProductCategory {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+  icon        String?
+  order       Int     @default(0)
+
+  parentId String?
+  parent   ProductCategory?  @relation("ProductCategoryHierarchy", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("ProductCategoryHierarchy")
+
+  products Product[]
+
+  @@index([parentId])
+}
+
 model Product {
-  id       String @id @default(cuid())
-  centerId String
+  id         String  @id @default(cuid())
+  centerId   String
+  categoryId String?
 
   name        String
+  slug        String?
   description String?
   brand       String?
   priceCents  Int
   stock       Int?
   image       String?
-  active      Boolean @default(true)
+  images      String[] @default([])
+  active      Boolean  @default(true)
 
-  center     Center      @relation(fields: [centerId], references: [id])
+  center     Center           @relation(fields: [centerId], references: [id])
+  category   ProductCategory? @relation(fields: [categoryId], references: [id])
   orderItems OrderItem[]
 
   createdAt DateTime @default(now())
 
+  @@unique([centerId, slug])
   @@index([centerId])
+  @@index([categoryId])
+  @@index([brand])
 }
 
 model Order {
@@ -664,10 +689,13 @@ enum DiscountType {
 }
 
 enum OrderStatus {
-  PENDING
-  CONFIRMED
-  SHIPPED
-  DELIVERED
+  PENDING      // creado, pendiente de pago
+  PAID         // pagado, el centro lo está preparando
+  READY        // listo para recoger en el centro (click & collect)
+  COMPLETED    // recogido por el cliente
+  CONFIRMED    // (legacy) confirmado manualmente sin cobro online
+  SHIPPED      // (deprecated) no se usa en v1 click & collect
+  DELIVERED    // (deprecated) no se usa en v1 click & collect
   CANCELLED
 }
 

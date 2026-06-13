@@ -2,6 +2,8 @@
 
 import { prisma } from '@/lib/db/client'
 import { z } from 'zod'
+import { isStripeConfigured } from '@/lib/billing/stripe'
+import { createBonoCheckoutSession } from '@/lib/billing/checkout'
 
 const purchaseBonoSchema = z.object({
   bonoId:        z.string().cuid(),
@@ -14,7 +16,7 @@ const purchaseBonoSchema = z.object({
 export type PurchaseBonoInput = z.infer<typeof purchaseBonoSchema>
 
 export async function purchaseBonoAction(input: unknown): Promise<
-  { success: true; instanceId: string } | { success: false; error: string }
+  { success: true; instanceId?: string; checkoutUrl?: string } | { success: false; error: string }
 > {
   const parsed = purchaseBonoSchema.safeParse(input)
   if (!parsed.success) {
@@ -34,6 +36,26 @@ export async function purchaseBonoAction(input: unknown): Promise<
 
   const centerId = bono.center.id
 
+  // Si Stripe está configurado, cobramos online y creamos la BonoInstance en el webhook.
+  if (isStripeConfigured()) {
+    try {
+      const checkoutUrl = await createBonoCheckoutSession({
+        bonoId:        bono.id,
+        bonoName:      bono.name,
+        priceCents:    bono.priceCents,
+        centerId,
+        customerName:  customerName.trim(),
+        customerEmail: customerEmail.toLowerCase(),
+        customerPhone: customerPhone?.trim(),
+      })
+      return { success: true, checkoutUrl }
+    } catch (err) {
+      console.error('[bonos] Stripe checkout session failed:', err)
+      return { success: false, error: 'No se pudo iniciar el pago. Inténtalo de nuevo.' }
+    }
+  }
+
+  // Sin Stripe: se reserva el bono y se paga en el centro (comportamiento actual).
   try {
     const instance = await prisma.$transaction(async (tx) => {
       // find-or-create customer by (email, centerId)

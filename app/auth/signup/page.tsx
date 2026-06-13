@@ -122,9 +122,9 @@ function SignUpForm() {
               <input type="checkbox" required className="mt-0.5 h-4 w-4 accent-rose-600" />
               <label className="text-xs leading-relaxed text-slate-500">
                 Acepto los{' '}
-                <Link href="/legal/terminos" className="text-rose-600 underline">términos</Link>
+                <Link href="/terminos" className="text-rose-600 underline">términos</Link>
                 {' '}y la{' '}
-                <Link href="/legal/privacidad" className="text-rose-600 underline">política de privacidad</Link>.
+                <Link href="/privacidad" className="text-rose-600 underline">política de privacidad</Link>.
               </label>
             </div>
 

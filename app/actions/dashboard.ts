@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { sendBookingConfirmation, sendBookingCancellation } from '@/lib/email/templates'
 import type { BookingStatus, CenterCategory, OrderStatus } from '@prisma/client'
 
-const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
 
 export async function updateOrderStatusAction(
   orderId: string,

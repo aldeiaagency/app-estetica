@@ -9,22 +9,35 @@ import { ShoppingBag, Package, ChevronRight } from 'lucide-react'
 import type { OrderStatus } from '@prisma/client'
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING:   'Pendiente',
+  PENDING:   'Pendiente de pago',
+  PAID:      'Pagado',
+  READY:     'Listo para recoger',
+  COMPLETED: 'Recogido',
   CONFIRMED: 'Confirmado',
   SHIPPED:   'Enviado',
   DELIVERED: 'Entregado',
   CANCELLED: 'Cancelado',
 }
 
-// Allowed transitions for each status
+// Transiciones permitidas para cada estado (flujo click & collect).
+// PENDING → PAID → READY → COMPLETED. SHIPPED/DELIVERED se mantienen para pedidos legacy.
 const NEXT_ACTIONS: Record<OrderStatus, { label: string; status: OrderStatus; style: string }[]> = {
   PENDING:   [
-    { label: 'Confirmar',  status: 'CONFIRMED', style: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' },
-    { label: 'Cancelar',   status: 'CANCELLED', style: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
+    { label: 'Marcar pagado', status: 'PAID',      style: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' },
+    { label: 'Cancelar',      status: 'CANCELLED', style: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
   ],
+  PAID:      [
+    { label: 'Listo para recoger', status: 'READY',     style: 'bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100' },
+    { label: 'Cancelar',           status: 'CANCELLED', style: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
+  ],
+  READY:     [
+    { label: 'Marcar recogido', status: 'COMPLETED', style: 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200' },
+  ],
+  COMPLETED: [],
+  // Legacy
   CONFIRMED: [
-    { label: 'Marcar enviado', status: 'SHIPPED',    style: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-    { label: 'Cancelar',       status: 'CANCELLED',  style: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
+    { label: 'Marcar recogido', status: 'COMPLETED', style: 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200' },
+    { label: 'Cancelar',        status: 'CANCELLED', style: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
   ],
   SHIPPED:   [
     { label: 'Entregado', status: 'DELIVERED', style: 'bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200' },
@@ -33,7 +46,7 @@ const NEXT_ACTIONS: Record<OrderStatus, { label: string; status: OrderStatus; st
   CANCELLED: [],
 }
 
-const VALID_FILTER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+const VALID_FILTER_STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
 function isValidStatus(s: string): s is OrderStatus { return VALID_FILTER_STATUSES.includes(s as OrderStatus) }
 
 export default async function PedidosPage({
