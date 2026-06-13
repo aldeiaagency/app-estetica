@@ -7,10 +7,11 @@
 ## Checkpoint actual
 
 - **Fecha/hora:** 2026-06-10
-- **Fase actual:** Fase 16 — completada
-- **Última fase aprobada:** Fase 16
+- **Fase actual:** Fase 17 — completada
+- **Última fase aprobada:** Fase 17
 - **Próxima fase pendiente:** Piloto privado (beta cerrada 3-5 negocios)
-  - Antes del piloto: cargar datos demo (seed) + activar Stripe + decidir entidad City/geo
+  - Antes del piloto: activar Stripe + decidir entidad City/geo
+  - Datos demo ya cargados (2 negocios: servicios + productos)
 
 ---
 
@@ -35,6 +36,7 @@
 | 14 — Seguridad/GDPR | ✅ Aprobada | 2026-06-10 |
 | 15 — Tests/QA/build/piloto | ✅ Aprobada | 2026-06-10 |
 | 16 — Marketplace productos/pagos/cuenta | ✅ Aprobada | 2026-06-10 |
+| 17 — Negocios demo + navegación web | ✅ Aprobada | 2026-06-10 |
 
 ---
 

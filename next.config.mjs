@@ -4,6 +4,8 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**.r2.cloudflarestorage.com' },
       { protocol: 'https', hostname: '**.cloudflare.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'picsum.photos' },
     ],
   },
   async headers() {

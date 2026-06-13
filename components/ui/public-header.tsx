@@ -2,27 +2,29 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Sparkles, Menu, X } from 'lucide-react'
+import { Sparkles, Menu, X, ShoppingBag, User, Calendar, Store, Building2 } from 'lucide-react'
 
 interface PublicHeaderProps {
   theme?: 'light' | 'dark'
 }
 
+// Navegación tipo web pública: explorar libremente. El login/registro solo
+// se solicita al reservar o comprar (o al entrar en "Mi cuenta").
+const NAV_LINKS = [
+  { href: '/buscar',        label: 'Servicios',     icon: Calendar },
+  { href: '/productos',     label: 'Marketplace',   icon: Store },
+  { href: '/precios',       label: 'Precios',       icon: null },
+  { href: '/para-negocios', label: 'Para negocios', icon: Building2 },
+]
+
 export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
   const [open, setOpen] = useState(false)
   const isDark = theme === 'dark'
 
-  const navLinks = [
-    { href: '/buscar',        label: 'Buscar centros' },
-    { href: '/para-negocios', label: 'Para negocios'  },
-  ]
-
   return (
     <header
       className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors ${
-        isDark
-          ? 'border-white/8 bg-dark/80'
-          : 'border-zinc-200/80 bg-white/90'
+        isDark ? 'border-white/8 bg-dark/80' : 'border-zinc-200/80 bg-white/90'
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5">
@@ -38,7 +40,7 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
 
         {/* Nav desktop */}
         <nav className="hidden items-center gap-1 md:flex">
-          {navLinks.map(({ href, label }) => (
+          {NAV_LINKS.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
@@ -53,23 +55,24 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
           ))}
         </nav>
 
-        {/* Auth actions */}
-        <div className="flex items-center gap-2">
+        {/* Acciones: carrito + cuenta (login solo al comprar/reservar) */}
+        <div className="flex items-center gap-1.5">
           <Link
-            href="/auth/signin"
-            className={`hidden rounded-lg px-3.5 py-2 text-sm font-medium transition-colors sm:block ${
-              isDark
-                ? 'text-zinc-400 hover:text-white'
-                : 'text-zinc-600 hover:text-zinc-900'
+            href="/carrito"
+            aria-label="Carrito"
+            className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+              isDark ? 'text-zinc-300 hover:bg-white/8 hover:text-white' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
             }`}
           >
-            Iniciar sesión
+            <ShoppingBag className="h-[18px] w-[18px]" />
           </Link>
           <Link
-            href="/auth/signup"
-            className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary-500/20 transition-all hover:bg-primary-700 active:scale-[0.97]"
+            href="/cuenta"
+            className={`hidden items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors sm:flex ${
+              isDark ? 'text-zinc-300 hover:bg-white/8 hover:text-white' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+            }`}
           >
-            Registrarse
+            <User className="h-4 w-4" />Mi cuenta
           </Link>
           <button
             onClick={() => setOpen(prev => !prev)}
@@ -87,32 +90,31 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
       {/* Mobile nav drawer */}
       {open && (
         <div className={`border-t md:hidden ${isDark ? 'border-white/8 bg-dark' : 'border-zinc-100 bg-white'}`}>
-          <nav className="flex flex-col px-4 py-3 gap-1">
-            {navLinks.map(({ href, label }) => (
+          <nav className="flex flex-col gap-1 px-4 py-3">
+            {NAV_LINKS.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setOpen(false)}
-                className={`rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
                   isDark
                     ? 'text-zinc-300 hover:bg-white/8 hover:text-white'
                     : 'text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900'
                 }`}
               >
+                {Icon && <Icon className="h-4 w-4 shrink-0 opacity-70" />}
                 {label}
               </Link>
             ))}
             <div className={`my-2 border-t ${isDark ? 'border-white/8' : 'border-zinc-100'}`} />
             <Link
-              href="/auth/signin"
+              href="/cuenta"
               onClick={() => setOpen(false)}
-              className={`rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
-                isDark
-                  ? 'text-zinc-300 hover:bg-white/8 hover:text-white'
-                  : 'text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900'
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                isDark ? 'text-zinc-300 hover:bg-white/8 hover:text-white' : 'text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900'
               }`}
             >
-              Iniciar sesión
+              <User className="h-4 w-4 shrink-0 opacity-70" />Mi cuenta
             </Link>
           </nav>
         </div>
