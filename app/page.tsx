@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { prisma } from '@/lib/db/client'
 import { CATEGORY_LABELS, formatPrice } from '@/lib/utils'
+import { PublicHeader } from '@/components/ui/public-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,32 +68,7 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-zinc-50">
       {/* ─── HEADER ─── */}
-      <header className="sticky top-0 z-50 border-b border-white/8 bg-[#09090B]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-105">
-              <Sparkles className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-black tracking-tight text-white">BellezaLocal</span>
-          </Link>
-          <nav className="hidden items-center gap-1 md:flex">
-            <Link href="/buscar" className="rounded-lg px-3.5 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/8 hover:text-white">
-              Buscar centros
-            </Link>
-            <Link href="/para-negocios" className="rounded-lg px-3.5 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/8 hover:text-white">
-              Para negocios
-            </Link>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link href="/auth/signin" className="hidden rounded-lg px-3.5 py-2 text-sm font-medium text-zinc-400 transition-colors hover:text-white sm:block">
-              Iniciar sesión
-            </Link>
-            <Link href="/auth/signup" className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary-500/20 transition-all hover:bg-primary-700 active:scale-[0.97]">
-              Registrarse
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader theme="dark" />
 
       {/* ─── HERO ─── */}
       <section className="relative overflow-hidden bg-[#09090B] pb-24 pt-20">
@@ -399,7 +375,7 @@ export default async function HomePage() {
             <div>
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-zinc-400">Marketplace</p>
               <ul className="space-y-2">
-                {[['Buscar centros','/buscar'],['Peluquerías','/buscar?categoria=PELUQUERIA'],['Estética','/buscar?categoria=ESTETICA'],['Masajes','/buscar?categoria=MASAJES']].map(([label, href]) => (
+                {[['Servicios','/buscar'],['Marketplace','/productos'],['Peluquerías','/buscar?categoria=PELUQUERIA'],['Masajes','/buscar?categoria=MASAJES']].map(([label, href]) => (
                   <li key={href}><Link href={href} className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{label}</Link></li>
                 ))}
               </ul>
@@ -407,7 +383,7 @@ export default async function HomePage() {
             <div>
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-zinc-400">Empresa</p>
               <ul className="space-y-2">
-                {[['Para negocios','/para-negocios'],['Iniciar sesión','/auth/signin'],['Registrarse','/auth/signup'],['Privacidad','/privacidad']].map(([label, href]) => (
+                {[['Para negocios','/para-negocios'],['Precios','/precios'],['Mi cuenta','/cuenta'],['Privacidad','/privacidad']].map(([label, href]) => (
                   <li key={href}><Link href={href} className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{label}</Link></li>
                 ))}
               </ul>
