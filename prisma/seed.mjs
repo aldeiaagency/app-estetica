@@ -12,6 +12,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
+import { flattenTaxonomy } from './product-taxonomy.mjs'
 
 const prisma = new PrismaClient()
 
@@ -37,26 +38,17 @@ function img(seed, w = 800, h = 600) {
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/${w}/${h}`
 }
 
-// ─── Categorías de producto (compartidas) ──────────────────────────────────────
-
-const PRODUCT_CATEGORIES = [
-  { slug: 'capilar',    name: 'Cuidado capilar',  icon: '💇', order: 1, description: 'Champús, mascarillas y tratamientos para el cabello.' },
-  { slug: 'facial',     name: 'Cuidado facial',   icon: '🧴', order: 2, description: 'Sérums, cremas y limpiadores para el rostro.' },
-  { slug: 'corporal',   name: 'Cuidado corporal', icon: '🧼', order: 3, description: 'Aceites, cremas y exfoliantes corporales.' },
-  { slug: 'maquillaje', name: 'Maquillaje',       icon: '💄', order: 4, description: 'Bases, labiales, sombras y cosmética de color.' },
-  { slug: 'unas',       name: 'Uñas',             icon: '💅', order: 5, description: 'Esmaltes, geles y cuidado de uñas.' },
-  { slug: 'solar',      name: 'Protección solar', icon: '☀️', order: 6, description: 'Protectores solares faciales y corporales.' },
-  { slug: 'perfumes',   name: 'Perfumes',         icon: '🌸', order: 7, description: 'Fragancias y aguas de colonia.' },
-  { slug: 'accesorios', name: 'Accesorios',       icon: '🪮', order: 8, description: 'Herramientas y accesorios de belleza.' },
-]
+// ─── Categorías de producto (taxonomía de 3 niveles, compartida) ────────────────
 
 async function ensureProductCategories() {
+  const flat = flattenTaxonomy() // orden padre→hijo garantizado
   const map = {}
-  for (const c of PRODUCT_CATEGORIES) {
+  for (const c of flat) {
+    const parentId = c.parentSlug ? map[c.parentSlug] ?? null : null
     const cat = await prisma.productCategory.upsert({
       where:  { slug: c.slug },
-      update: { name: c.name, icon: c.icon, order: c.order, description: c.description },
-      create: c,
+      update: { name: c.name, icon: c.icon, order: c.order, parentId },
+      create: { slug: c.slug, name: c.name, icon: c.icon, order: c.order, parentId },
     })
     map[c.slug] = cat.id
   }
@@ -192,11 +184,11 @@ async function seedServiceBusiness(catBySlug) {
 
   // Productos (pocos, de venta cruzada) — categorizados y con imagen
   const productDefs = [
-    { name: 'Champú reparador Olaplex N°4', brand: 'Olaplex',        cat: 'capilar', description: 'Champú reparador para cabello dañado o teñido. Sin sulfatos. 250ml.', priceCents: 2800, stock: 20 },
-    { name: 'Mascarilla Bond Intense',       brand: 'Kérastase',     cat: 'capilar', description: 'Mascarilla de hidratación intensa para cabello muy dañado. 200ml.',   priceCents: 4200, stock: 15 },
-    { name: 'Sérum Vitamina C Facial',       brand: 'Medik8',        cat: 'facial',  description: 'Sérum antioxidante con vitamina C al 20%. Luminosidad inmediata. 30ml.', priceCents: 6500, stock: 10 },
-    { name: 'Spray Protector Térmico',       brand: 'GHD',           cat: 'capilar', description: 'Protección frente al calor hasta 230°C. 120ml.',                       priceCents: 2500, stock: 18 },
-    { name: 'Set Esmaltes Gel',              brand: 'OPI',           cat: 'unas',    description: 'Set de 3 esmaltes de gel de larga duración. Tonos de temporada.',      priceCents: 3200, stock: 8  },
+    { name: 'Champú reparador Olaplex N°4', brand: 'Olaplex',    cat: 'champus',              description: 'Champú reparador para cabello dañado o teñido. Sin sulfatos. 250ml.', priceCents: 2800, stock: 20 },
+    { name: 'Mascarilla Bond Intense',       brand: 'Kérastase', cat: 'acondicionadores',     description: 'Mascarilla de hidratación intensa para cabello muy dañado. 200ml.',   priceCents: 4200, stock: 15 },
+    { name: 'Sérum Vitamina C Facial',       brand: 'Medik8',    cat: 'serums-faciales',      description: 'Sérum antioxidante con vitamina C al 20%. Luminosidad inmediata. 30ml.', priceCents: 6500, stock: 10 },
+    { name: 'Spray Protector Térmico',       brand: 'GHD',       cat: 'protectores-termicos', description: 'Protección frente al calor hasta 230°C. 120ml.',                       priceCents: 2500, stock: 18 },
+    { name: 'Set Esmaltes Gel',              brand: 'OPI',       cat: 'esmaltes',             description: 'Set de 3 esmaltes de gel de larga duración. Tonos de temporada.',      priceCents: 3200, stock: 8  },
   ]
   await upsertProducts(center.id, productDefs, catBySlug)
   console.log('  ✅ Productos:', productDefs.length)
@@ -415,31 +407,31 @@ async function seedProductBusiness(catBySlug) {
   // Catálogo amplio de productos (el corazón de este negocio)
   const productDefs = [
     // Facial
-    { name: 'Sérum Hialurónico Hydra Boost', brand: 'The Ordinary',    cat: 'facial',     description: 'Ácido hialurónico 2% + B5. Hidratación profunda. 30ml.',          priceCents: 1290, stock: 40 },
-    { name: 'Crema Hidratante Dramatically', brand: 'Clinique',        cat: 'facial',     description: 'Gel-crema hidratante para todo tipo de piel. 50ml.',               priceCents: 3200, stock: 25 },
-    { name: 'Contorno de Ojos Advanced',     brand: 'Estée Lauder',    cat: 'facial',     description: 'Reduce signos de fatiga y ojeras. 15ml.',                          priceCents: 5800, stock: 18 },
-    { name: 'Limpiador Facial Espuma',       brand: 'CeraVe',          cat: 'facial',     description: 'Espuma limpiadora con ceramidas para piel normal a grasa. 236ml.', priceCents: 1450, stock: 50 },
+    { name: 'Sérum Hialurónico Hydra Boost', brand: 'The Ordinary',    cat: 'serums-faciales',      description: 'Ácido hialurónico 2% + B5. Hidratación profunda. 30ml.',          priceCents: 1290, stock: 40 },
+    { name: 'Crema Hidratante Dramatically', brand: 'Clinique',        cat: 'cremas-hidratantes',   description: 'Gel-crema hidratante para todo tipo de piel. 50ml.',               priceCents: 3200, stock: 25 },
+    { name: 'Contorno de Ojos Advanced',     brand: 'Estée Lauder',    cat: 'contorno-ojos',        description: 'Reduce signos de fatiga y ojeras. 15ml.',                          priceCents: 5800, stock: 18 },
+    { name: 'Limpiador Facial Espuma',       brand: 'CeraVe',          cat: 'limpiadores-faciales', description: 'Espuma limpiadora con ceramidas para piel normal a grasa. 236ml.', priceCents: 1450, stock: 50 },
     // Maquillaje
-    { name: 'Base de Maquillaje Luminous',   brand: 'L\'Oréal Paris',  cat: 'maquillaje', description: 'Base fluida de acabado luminoso. 24h de duración. Tonos variados.', priceCents: 1690, stock: 35 },
-    { name: 'Paleta de Sombras Nude',        brand: 'Urban Decay',     cat: 'maquillaje', description: '12 tonos nude altamente pigmentados. Acabados mate y satinado.',   priceCents: 4900, stock: 15 },
-    { name: 'Labial Mate Velvet',            brand: 'MAC',             cat: 'maquillaje', description: 'Labial de acabado mate aterciopelado y larga duración.',           priceCents: 2400, stock: 30 },
-    { name: 'Máscara de Pestañas Volume',    brand: 'Maybelline',      cat: 'maquillaje', description: 'Volumen extremo sin grumos. Cepillo profesional.',                 priceCents: 1290, stock: 45 },
+    { name: 'Base de Maquillaje Luminous',   brand: 'L\'Oréal Paris',  cat: 'bases-maquillaje',     description: 'Base fluida de acabado luminoso. 24h de duración. Tonos variados.', priceCents: 1690, stock: 35 },
+    { name: 'Paleta de Sombras Nude',        brand: 'Urban Decay',     cat: 'sombras-ojos',         description: '12 tonos nude altamente pigmentados. Acabados mate y satinado.',   priceCents: 4900, stock: 15 },
+    { name: 'Labial Mate Velvet',            brand: 'MAC',             cat: 'barras-labios',        description: 'Labial de acabado mate aterciopelado y larga duración.',           priceCents: 2400, stock: 30 },
+    { name: 'Máscara de Pestañas Volume',    brand: 'Maybelline',      cat: 'mascaras-pestanas',    description: 'Volumen extremo sin grumos. Cepillo profesional.',                 priceCents: 1290, stock: 45 },
     // Capilar
-    { name: 'Champú Nutritivo Argán',        brand: 'Moroccanoil',     cat: 'capilar',    description: 'Champú con aceite de argán para cabello seco. 250ml.',             priceCents: 2600, stock: 22 },
-    { name: 'Aceite Capilar Treatment',      brand: 'Moroccanoil',     cat: 'capilar',    description: 'Aceite de tratamiento icónico. Brillo y suavidad. 100ml.',         priceCents: 3900, stock: 20 },
+    { name: 'Champú Nutritivo Argán',        brand: 'Moroccanoil',     cat: 'champus',              description: 'Champú con aceite de argán para cabello seco. 250ml.',             priceCents: 2600, stock: 22 },
+    { name: 'Aceite Capilar Treatment',      brand: 'Moroccanoil',     cat: 'aceites-capilares',    description: 'Aceite de tratamiento icónico. Brillo y suavidad. 100ml.',         priceCents: 3900, stock: 20 },
     // Corporal
-    { name: 'Crema Corporal Karité',         brand: 'L\'Occitane',     cat: 'corporal',   description: 'Crema ultra nutritiva con 25% de manteca de karité. 200ml.',       priceCents: 3500, stock: 28 },
-    { name: 'Exfoliante Corporal Azúcar',    brand: 'Sol de Janeiro',  cat: 'corporal',   description: 'Exfoliante de azúcar con aroma tropical. 220g.',                   priceCents: 2900, stock: 16 },
+    { name: 'Crema Corporal Karité',         brand: 'L\'Occitane',     cat: 'hidratacion-corporal', description: 'Crema ultra nutritiva con 25% de manteca de karité. 200ml.',       priceCents: 3500, stock: 28 },
+    { name: 'Exfoliante Corporal Azúcar',    brand: 'Sol de Janeiro',  cat: 'exfoliantes-corporales', description: 'Exfoliante de azúcar con aroma tropical. 220g.',                 priceCents: 2900, stock: 16 },
     // Solar
-    { name: 'Protector Solar Facial SPF50+', brand: 'ISDIN',           cat: 'solar',      description: 'Fusion Water. Textura ultraligera de absorción inmediata. 50ml.',  priceCents: 1950, stock: 38 },
+    { name: 'Protector Solar Facial SPF50+', brand: 'ISDIN',           cat: 'solar-facial',         description: 'Fusion Water. Textura ultraligera de absorción inmediata. 50ml.',  priceCents: 1950, stock: 38 },
     // Perfumes
-    { name: 'Eau de Parfum Blossom',         brand: 'Jo Malone',       cat: 'perfumes',   description: 'Fragancia floral fresca. Notas de peonía y manzana. 100ml.',       priceCents: 13500, stock: 10 },
-    { name: 'Perfume Noir Intense',          brand: 'Yves Saint Laurent', cat: 'perfumes', description: 'Fragancia oriental intensa para noche. 90ml.',                    priceCents: 11800, stock: 12 },
+    { name: 'Eau de Parfum Blossom',         brand: 'Jo Malone',       cat: 'perfumes-mujer',       description: 'Fragancia floral fresca. Notas de peonía y manzana. 100ml.',       priceCents: 13500, stock: 10 },
+    { name: 'Perfume Noir Intense',          brand: 'Yves Saint Laurent', cat: 'perfumes-hombre',   description: 'Fragancia oriental intensa para noche. 90ml.',                    priceCents: 11800, stock: 12 },
     // Uñas
-    { name: 'Esmalte Gel Semipermanente',    brand: 'Essie',           cat: 'unas',       description: 'Esmalte de larga duración con brillo gel. Sin lámpara.',           priceCents: 990,  stock: 60 },
+    { name: 'Esmalte Gel Semipermanente',    brand: 'Essie',           cat: 'esmaltes-semipermanentes', description: 'Esmalte de larga duración con brillo gel. Sin lámpara.',       priceCents: 990,  stock: 60 },
     // Accesorios
-    { name: 'Set 5 Brochas Maquillaje',      brand: 'Real Techniques', cat: 'accesorios', description: 'Set profesional de 5 brochas para rostro y ojos.',                 priceCents: 2790, stock: 24 },
-    { name: 'Esponja de Maquillaje Blender', brand: 'beautyblender',   cat: 'accesorios', description: 'Esponja original para un acabado impecable.',                      priceCents: 1990, stock: 33 },
+    { name: 'Set 5 Brochas Maquillaje',      brand: 'Real Techniques', cat: 'brochas-esponjas',     description: 'Set profesional de 5 brochas para rostro y ojos.',                 priceCents: 2790, stock: 24 },
+    { name: 'Esponja de Maquillaje Blender', brand: 'beautyblender',   cat: 'brochas-esponjas',     description: 'Esponja original para un acabado impecable.',                      priceCents: 1990, stock: 33 },
   ]
   await upsertProducts(center.id, productDefs, catBySlug)
   console.log('  ✅ Productos:', productDefs.length)

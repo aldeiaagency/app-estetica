@@ -1,68 +1,90 @@
-// Seed de categorías de producto (idempotente).
+// Seed de la taxonomía de producto (3 niveles, idempotente).
 // Ejecutar: node --env-file=.env.local prisma/seed-product-categories.mjs
 //
-// Crea la taxonomía base de productos de belleza y asigna una categoría a los
-// productos existentes mediante una heurística simple por nombre/marca.
+// Crea la jerarquía completa (categoría → subcategoría → sub-subcategoría) y
+// asigna una categoría hoja a los productos sin categoría mediante heurística.
 
 import { PrismaClient } from '@prisma/client'
+import { flattenTaxonomy } from './product-taxonomy.mjs'
 
 const prisma = new PrismaClient()
 
-const CATEGORIES = [
-  { slug: 'capilar',     name: 'Cuidado capilar',   icon: '💇', order: 1, description: 'Champús, mascarillas, tratamientos y protección para el cabello.' },
-  { slug: 'facial',      name: 'Cuidado facial',    icon: '🧴', order: 2, description: 'Sérums, cremas, limpiadores y tratamientos para el rostro.' },
-  { slug: 'corporal',    name: 'Cuidado corporal',  icon: '🧼', order: 3, description: 'Aceites, cremas y exfoliantes para el cuerpo.' },
-  { slug: 'maquillaje',  name: 'Maquillaje',        icon: '💄', order: 4, description: 'Bases, labiales, sombras y cosmética de color.' },
-  { slug: 'unas',        name: 'Uñas',              icon: '💅', order: 5, description: 'Esmaltes, geles y cuidado de manos y uñas.' },
-  { slug: 'solar',       name: 'Protección solar',  icon: '☀️', order: 6, description: 'Protectores solares faciales y corporales.' },
-  { slug: 'perfumes',    name: 'Perfumes',          icon: '🌸', order: 7, description: 'Fragancias y aguas de colonia.' },
-  { slug: 'accesorios',  name: 'Accesorios',        icon: '🪮', order: 8, description: 'Herramientas y accesorios de belleza.' },
-]
+/** Crea/actualiza toda la taxonomía y devuelve un mapa slug → id. */
+export async function ensureTaxonomy(client = prisma) {
+  const flat = flattenTaxonomy()
+  const bySlug = {}
+  // flat ya viene en orden padre→hijo, así que el parentId siempre existe al insertar.
+  for (const c of flat) {
+    const parentId = c.parentSlug ? bySlug[c.parentSlug] ?? null : null
+    const cat = await client.productCategory.upsert({
+      where:  { slug: c.slug },
+      update: { name: c.name, icon: c.icon, order: c.order, parentId },
+      create: { slug: c.slug, name: c.name, icon: c.icon, order: c.order, parentId },
+    })
+    bySlug[c.slug] = cat.id
+  }
+  return bySlug
+}
 
-// Heurística nombre/marca → slug de categoría
-function guessCategory(name, brand) {
+// Heurística nombre/marca → slug de categoría HOJA
+function guessLeafCategory(name, brand) {
   const t = `${name} ${brand ?? ''}`.toLowerCase()
-  if (/(spf|solar|protector)/.test(t)) return 'solar'
-  if (/(champ|mascarilla|cabello|capilar|olaplex|kerastase|ghd|t[eé]rmico|aceite.*cabello)/.test(t)) return 'capilar'
-  if (/(s[eé]rum|facial|rostro|antienvejecimiento|antiedad|crema.*d[ií]a|vitamina c)/.test(t)) return 'facial'
-  if (/(nail|esmalte|u[ñn]a|opi|manicura)/.test(t)) return 'unas'
-  if (/(labial|base|sombra|m[aá]scara|maquillaje|polvos|colorete)/.test(t)) return 'maquillaje'
-  if (/(perfume|colonia|fragancia|eau de)/.test(t)) return 'perfumes'
-  if (/(corporal|cuerpo|exfoliante)/.test(t)) return 'corporal'
+  if (/(spf|solar|protector solar)/.test(t)) return 'solar-facial'
+  if (/aftersun/.test(t)) return 'aftersun'
+  if (/(perfume|colonia|fragancia|eau de|parfum)/.test(t)) return 'perfumes-mujer'
+  if (/(champ)/.test(t)) return 'champus'
+  if (/(acondicionador|mascarilla.*pelo|bond)/.test(t)) return 'acondicionadores'
+  if (/(protector t[eé]rmico|t[eé]rmico)/.test(t)) return 'protectores-termicos'
+  if (/(laca|fijador)/.test(t)) return 'lacas-fijadores'
+  if (/(aceite.*capilar|capilar.*aceite|argan|argán|moroccanoil)/.test(t)) return 'aceites-capilares'
+  if (/(s[eé]rum).*(capilar|pelo)/.test(t)) return 'serums-capilares'
+  if (/(s[eé]rum|vitamina c|hialur)/.test(t)) return 'serums-faciales'
+  if (/(contorno.*ojos)/.test(t)) return 'contorno-ojos'
+  if (/(mascarilla facial)/.test(t)) return 'mascarillas-faciales'
+  if (/(crema hidratante|hidratante facial|dramatically)/.test(t)) return 'cremas-hidratantes'
+  if (/(limpiador|gel limpiador|espuma)/.test(t)) return 'limpiadores-faciales'
+  if (/(agua micelar)/.test(t)) return 'aguas-micelares'
+  if (/(desmaquillante)/.test(t)) return 'desmaquillantes'
+  if (/(exfoliante.*facial)/.test(t)) return 'exfoliantes-faciales'
+  if (/(exfoliante)/.test(t)) return 'exfoliantes-corporales'
+  if (/(crema corporal|corporal|kar[ií]t[eé])/.test(t)) return 'hidratacion-corporal'
+  if (/(base de maquillaje|base fluida)/.test(t)) return 'bases-maquillaje'
+  if (/(corrector)/.test(t)) return 'correctores'
+  if (/(polvos)/.test(t)) return 'polvos-faciales'
+  if (/(colorete)/.test(t)) return 'coloretes'
+  if (/(iluminador)/.test(t)) return 'iluminadores'
+  if (/(m[aá]scara.*pesta|pesta[ñn]as)/.test(t)) return 'mascaras-pestanas'
+  if (/(sombra|paleta)/.test(t)) return 'sombras-ojos'
+  if (/(delineador|eyeliner)/.test(t)) return 'delineadores'
+  if (/(ceja)/.test(t)) return 'cejas-maquillaje'
+  if (/(labial|barra de labios|lipstick)/.test(t)) return 'barras-labios'
+  if (/(gloss|brillo de labios)/.test(t)) return 'glosses'
+  if (/(esmalte.*(gel|semi))/.test(t)) return 'esmaltes-semipermanentes'
+  if (/(esmalte|nail)/.test(t)) return 'esmaltes'
+  if (/(brocha|esponja|blender)/.test(t)) return 'brochas-esponjas'
   return null
 }
 
 async function main() {
-  console.log('🌱 Sembrando categorías de producto...')
+  console.log('🌱 Sembrando taxonomía de producto (3 niveles)...')
+  const bySlug = await ensureTaxonomy()
+  console.log('✅ Categorías totales:', Object.keys(bySlug).length)
 
-  const bySlug = {}
-  for (const c of CATEGORIES) {
-    const cat = await prisma.productCategory.upsert({
-      where:  { slug: c.slug },
-      update: { name: c.name, icon: c.icon, order: c.order, description: c.description },
-      create: c,
-    })
-    bySlug[c.slug] = cat.id
-  }
-  console.log('✅ Categorías:', Object.keys(bySlug).length)
-
-  // Asignar categoría a productos sin categoría
-  const products = await prisma.product.findMany({
-    where: { categoryId: null },
-    select: { id: true, name: true, brand: true },
-  })
-
+  const products = await prisma.product.findMany({ select: { id: true, name: true, brand: true } })
   let assigned = 0
   for (const p of products) {
-    const slug = guessCategory(p.name, p.brand)
+    const slug = guessLeafCategory(p.name, p.brand)
     if (slug && bySlug[slug]) {
       await prisma.product.update({ where: { id: p.id }, data: { categoryId: bySlug[slug] } })
       assigned++
     }
   }
-  console.log('✅ Productos categorizados:', assigned, 'de', products.length)
+  console.log('✅ Productos (re)categorizados:', assigned, 'de', products.length)
 }
 
-main()
-  .catch((e) => { console.error(e); process.exit(1) })
-  .finally(() => prisma.$disconnect())
+// Permite importar ensureTaxonomy desde seed.mjs sin ejecutar main()
+if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('seed-product-categories.mjs')) {
+  main()
+    .catch((e) => { console.error(e); process.exit(1) })
+    .finally(() => prisma.$disconnect())
+}

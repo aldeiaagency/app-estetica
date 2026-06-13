@@ -1,10 +1,11 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
-import { ShoppingBag, Search, Sparkles, MapPin, Package, SlidersHorizontal } from 'lucide-react'
+import { ShoppingBag, Search, Sparkles, MapPin, Package, SlidersHorizontal, ChevronRight, ChevronLeft } from 'lucide-react'
 import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
 import { Prisma } from '@prisma/client'
 import { PublicHeader } from '@/components/ui/public-header'
+import { getCategoryData, collectDescendantIds, getAncestorChain, type CatNode } from '@/lib/catalog/categories'
 
 export const metadata: Metadata = {
   title: 'Productos de belleza',
@@ -48,6 +49,10 @@ export default async function ProductosPage({ searchParams }: Props) {
   const precioMinCents = parseCents(sp.precioMin)
   const precioMaxCents = parseCents(sp.precioMax)
 
+  // ─── Categorías (árbol jerárquico) ───────────────────────────────────────────
+  const categoryData = await getCategoryData()
+  const selectedCat = sp.categoria ? categoryData.bySlug.get(sp.categoria) : undefined
+
   // ─── Filtros AND combinables ───────────────────────────────────────────────
   const and: Prisma.ProductWhereInput[] = [
     { active: true },
@@ -66,21 +71,21 @@ export default async function ProductosPage({ searchParams }: Props) {
   if (centro) and.push({ center: { slug: centro } })
   if (ciudad) and.push({ center: { addressCity: ciudad } })
   if (marca)  and.push({ brand: marca })
-  if (sp.categoria) and.push({ category: { slug: sp.categoria } })
+  // Filtra por la categoría seleccionada Y todos sus descendientes (subcategorías).
+  if (selectedCat) and.push({ categoryId: { in: collectDescendantIds(selectedCat) } })
   if (precioMinCents !== undefined) and.push({ priceCents: { gte: precioMinCents } })
   if (precioMaxCents !== undefined) and.push({ priceCents: { lte: precioMaxCents } })
 
   const where: Prisma.ProductWhereInput = { AND: and }
 
   // ─── Datos + opciones de filtro (en paralelo) ───────────────────────────────
-  const [products, categories, cityRows, brandRows] = await Promise.all([
+  const [products, cityRows, brandRows] = await Promise.all([
     prisma.product.findMany({
       where,
       include: { center: { select: { id: true, name: true, slug: true, addressCity: true } } },
       orderBy: ORDER_BY[orden],
       take: 60,
     }),
-    prisma.productCategory.findMany({ orderBy: { order: 'asc' } }),
     prisma.center.findMany({
       where: { published: true, products: { some: { active: true } } },
       select: { addressCity: true },
@@ -97,6 +102,18 @@ export default async function ProductosPage({ searchParams }: Props) {
 
   const cities = cityRows.map(c => c.addressCity).filter(Boolean)
   const brands = brandRows.map(b => b.brand).filter((b): b is string => !!b)
+
+  // ─── Navegación de categorías por niveles ────────────────────────────────────
+  const ancestors = selectedCat ? getAncestorChain(selectedCat, categoryData.byId) : []
+  let levelNodes: CatNode[]
+  if (!selectedCat) {
+    levelNodes = categoryData.roots
+  } else if (selectedCat.children.length > 0) {
+    levelNodes = selectedCat.children        // profundizar a subcategorías
+  } else {
+    const parent = selectedCat.parentId ? categoryData.byId.get(selectedCat.parentId) : null
+    levelNodes = parent ? parent.children : categoryData.roots  // hoja: mostrar hermanos
+  }
 
   const hasFilters = !!(q || centro || ciudad || marca || sp.categoria || sp.precioMin || sp.precioMax || (sp.orden && sp.orden !== 'recientes'))
 
@@ -152,17 +169,59 @@ export default async function ProductosPage({ searchParams }: Props) {
               <SlidersHorizontal className="h-4 w-4" />Filtros
             </div>
 
-            {/* Categoría */}
-            {categories.length > 0 && (
-              <FilterGroup title="Categoría">
-                <FilterLink href={buildHref({ categoria: undefined })} active={!sp.categoria}>Todas</FilterLink>
-                {categories.map(cat => (
-                  <FilterLink key={cat.id} href={buildHref({ categoria: cat.slug })} active={sp.categoria === cat.slug}>
-                    {cat.name}
-                  </FilterLink>
-                ))}
-              </FilterGroup>
-            )}
+            {/* Categoría — navegación por niveles */}
+            <FilterGroup title="Categorías">
+              {/* Breadcrumb de niveles */}
+              <Link
+                href={buildHref({ categoria: undefined })}
+                className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
+                  !selectedCat ? 'bg-primary-50 font-semibold text-primary-700' : 'text-zinc-600 hover:bg-zinc-100'
+                }`}
+              >
+                Todas las categorías
+              </Link>
+              {ancestors.length > 0 && (
+                <div className="my-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 px-2.5 text-xs text-zinc-400">
+                  {ancestors.map((a, i) => (
+                    <span key={a.id} className="flex items-center gap-1">
+                      {i > 0 && <ChevronRight className="h-3 w-3" />}
+                      {a.slug === sp.categoria
+                        ? <span className="font-semibold text-zinc-700">{a.name}</span>
+                        : <Link href={buildHref({ categoria: a.slug })} className="hover:text-primary-600">{a.name}</Link>}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Volver al nivel superior */}
+              {selectedCat && (
+                <Link
+                  href={buildHref({ categoria: ancestors.length >= 2 ? ancestors[ancestors.length - 2].slug : undefined })}
+                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />Volver
+                </Link>
+              )}
+              {/* Nivel actual navegable */}
+              {levelNodes.map(node => {
+                const active = node.slug === sp.categoria
+                const hasChildren = node.children.length > 0
+                return (
+                  <Link
+                    key={node.id}
+                    href={buildHref({ categoria: node.slug })}
+                    className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
+                      active ? 'bg-primary-50 font-semibold text-primary-700' : 'text-zinc-600 hover:bg-zinc-100'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      {node.icon && <span className="text-xs">{node.icon}</span>}
+                      {node.name}
+                    </span>
+                    {hasChildren && <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />}
+                  </Link>
+                )
+              })}
+            </FilterGroup>
 
             {/* Ciudad */}
             {cities.length > 0 && (
@@ -220,9 +279,10 @@ export default async function ProductosPage({ searchParams }: Props) {
           <div>
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h1 className="text-lg font-bold text-zinc-900">
-                {products.length > 0
+                {selectedCat ? selectedCat.name : (products.length > 0
                   ? `${products.length} producto${products.length !== 1 ? 's' : ''}`
-                  : 'Sin productos'}
+                  : 'Sin productos')}
+                {selectedCat ? ` · ${products.length} producto${products.length !== 1 ? 's' : ''}` : ''}
                 {ciudad ? ` en ${ciudad}` : ''}
               </h1>
               {/* Orden */}
