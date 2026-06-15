@@ -1,16 +1,21 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import Link from 'next/link'
 import {
-  ArrowLeft, Clock, Loader2, Check, Users, Sparkles,
-  ChevronRight, CalendarDays, BadgeCheck,
+  ArrowLeft,
+  BadgeCheck,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  Clock,
+  Loader2,
+  Sparkles,
+  Users,
 } from 'lucide-react'
 import { createBookingAction } from '@/app/actions/booking'
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 type ServiceData = {
   id: string
@@ -35,7 +40,16 @@ type SlotData = {
 
 type Step = 1 | 2 | 3 | 4 | 5
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+interface Props {
+  centerId: string
+  centerSlug: string
+  centerName: string
+  services: ServiceData[]
+  preSelectedServiceId?: string
+}
+
+const STEP_NAMES = ['Servicio', 'Profesional', 'Fecha y hora', 'Tus datos', 'Confirmar']
+const NEXT_DAYS = getNextDays(14)
 
 function fmtPrice(cents: number) {
   return (cents / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
@@ -60,8 +74,8 @@ function getDateLabel(dateStr: string) {
   const d = new Date(`${dateStr}T12:00:00`)
   return {
     weekday: d.toLocaleDateString('es-ES', { weekday: 'short' }),
-    day:     d.toLocaleDateString('es-ES', { day: 'numeric' }),
-    month:   d.toLocaleDateString('es-ES', { month: 'short' }),
+    day: d.toLocaleDateString('es-ES', { day: 'numeric' }),
+    month: d.toLocaleDateString('es-ES', { month: 'short' }),
   }
 }
 
@@ -70,90 +84,85 @@ function fmtDateLong(dateStr: string) {
   return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-const STEP_NAMES = ['Servicio', 'Profesional', 'Fecha y hora', 'Tus datos', 'Confirmar']
-const NEXT_DAYS  = getNextDays(14)
-
-// ─── Component ───────────────────────────────────────────────────────────────
-
-interface Props {
-  centerId: string
-  centerSlug: string
-  centerName: string
-  services: ServiceData[]
-  preSelectedServiceId?: string
-}
-
 export function BookingWizard({ centerId, centerSlug, centerName, services, preSelectedServiceId }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const { data: session, status: sessionStatus } = useSession()
-
   const isAuthenticated = sessionStatus === 'authenticated'
 
   const initialService = preSelectedServiceId
-    ? (services.find(s => s.id === preSelectedServiceId) ?? null)
+    ? (services.find(service => service.id === preSelectedServiceId) ?? null)
     : null
 
-  // Wizard state
-  const [step, setStep]                       = useState<Step>(initialService ? 2 : 1)
+  const [step, setStep] = useState<Step>(initialService ? 2 : 1)
   const [selectedService, setSelectedService] = useState<ServiceData | null>(initialService)
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null)
   const [selectedStaffName, setSelectedStaffName] = useState('Sin preferencia')
-  const [selectedDate, setSelectedDate]       = useState('')
-  const [selectedSlot, setSelectedSlot]       = useState<SlotData | null>(null)
-
-  // Customer data — pre-filled from session if available
-  const [custName,         setCustName]         = useState('')
-  const [custEmail,        setCustEmail]        = useState('')
-  const [custPhone,        setCustPhone]        = useState('')
-  const [consentGiven,     setConsentGiven]     = useState(false)
+  const [selectedDate, setSelectedDate] = useState('')
+  const [selectedSlot, setSelectedSlot] = useState<SlotData | null>(null)
+  const [custName, setCustName] = useState('')
+  const [custEmail, setCustEmail] = useState('')
+  const [custPhone, setCustPhone] = useState('')
+  const [consentGiven, setConsentGiven] = useState(false)
   const [marketingConsent, setMarketingConsent] = useState(false)
+  const [staffList, setStaffList] = useState<StaffMember[]>([])
+  const [loadingStaff, setLoadingStaff] = useState(false)
+  const [slots, setSlots] = useState<SlotData[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  // Async data
-  const [staffList,     setStaffList]     = useState<StaffMember[]>([])
-  const [loadingStaff,  setLoadingStaff]  = useState(false)
-  const [slots,         setSlots]         = useState<SlotData[]>([])
-  const [loadingSlots,  setLoadingSlots]  = useState(false)
-  const [submitError,   setSubmitError]   = useState<string | null>(null)
-
-  // Pre-fill from session — functional updater form avoids reading state in effect
   useEffect(() => {
     if (!session?.user) return
-    if (session.user.name)  setCustName(n => n || session.user!.name!)
-    if (session.user.email) setCustEmail(e => e || session.user!.email!)
+    if (session.user.name) setCustName(current => current || session.user!.name!)
+    if (session.user.email) setCustEmail(current => current || session.user!.email!)
   }, [session])
 
-  // Load staff on step 2
   useEffect(() => {
     if (step !== 2 || !selectedService) return
     setLoadingStaff(true)
     setStaffList([])
     fetch(`/api/v1/staff?centerId=${centerId}&serviceId=${selectedService.id}`)
-      .then(r => r.json())
-      .then(d => setStaffList(d.staff ?? []))
+      .then(response => response.json())
+      .then(data => setStaffList(data.staff ?? []))
       .catch(() => {})
       .finally(() => setLoadingStaff(false))
-  }, [step, selectedService, centerId])
+  }, [centerId, selectedService, step])
 
-  // Load slots on date change in step 3
   useEffect(() => {
     if (step !== 3 || !selectedDate || !selectedService) return
     setLoadingSlots(true)
     setSlots([])
-    const p = new URLSearchParams({ centerId, serviceId: selectedService.id, date: selectedDate })
-    if (selectedStaffId) p.set('staffId', selectedStaffId)
-    fetch(`/api/v1/availability?${p}`)
-      .then(r => r.json())
-      .then(d => setSlots(d.slots ?? []))
+    const params = new URLSearchParams({ centerId, serviceId: selectedService.id, date: selectedDate })
+    if (selectedStaffId) params.set('staffId', selectedStaffId)
+    fetch(`/api/v1/availability?${params}`)
+      .then(response => response.json())
+      .then(data => setSlots(data.slots ?? []))
       .catch(() => {})
       .finally(() => setLoadingSlots(false))
-  }, [step, selectedDate, selectedService, selectedStaffId, centerId])
+  }, [centerId, selectedDate, selectedService, selectedStaffId, step])
 
   function goBack() {
+    if (step === 1) return
     const prev = (step - 1) as Step
-    if (prev < 3) { setSelectedDate(''); setSelectedSlot(null); setSlots([]) }
-    if (prev < 2) { setSelectedStaffId(null); setSelectedStaffName('Sin preferencia') }
+    if (prev < 3) {
+      setSelectedDate('')
+      setSelectedSlot(null)
+      setSlots([])
+    }
+    if (prev < 2) {
+      setSelectedStaffId(null)
+      setSelectedStaffName('Sin preferencia')
+    }
     setStep(prev)
+  }
+
+  function selectService(service: ServiceData) {
+    setSelectedService(service)
+    setSelectedStaffId(null)
+    setSelectedStaffName('Sin preferencia')
+    setSelectedDate('')
+    setSelectedSlot(null)
+    setStep(2)
   }
 
   function handleConfirm() {
@@ -162,413 +171,391 @@ export function BookingWizard({ centerId, centerSlug, centerName, services, preS
     startTransition(async () => {
       const result = await createBookingAction({
         centerId,
-        serviceId:       selectedService.id,
-        staffId:         selectedSlot.staffId || null,
-        startAt:         selectedSlot.startAt,
-        endAt:           selectedSlot.endAt,
-        customerName:    custName.trim(),
-        customerEmail:   custEmail.trim().toLowerCase(),
-        customerPhone:   custPhone.trim() || undefined,
-        consentGiven:    true,
+        serviceId: selectedService.id,
+        staffId: selectedSlot.staffId || null,
+        startAt: selectedSlot.startAt,
+        endAt: selectedSlot.endAt,
+        customerName: custName.trim(),
+        customerEmail: custEmail.trim().toLowerCase(),
+        customerPhone: custPhone.trim() || undefined,
+        consentGiven: true,
         marketingConsent,
       })
+
       if (result.success) {
         router.push(`/reserva/confirmada/${result.confirmationCode}`)
-      } else {
-        setSubmitError(result.error)
-        if (result.error?.toLowerCase().includes('horario') || result.error?.toLowerCase().includes('ocupado')) {
-          setSelectedSlot(null)
-          setSelectedDate('')
-          setSlots([])
-          setStep(3)
-        }
+        return
+      }
+
+      setSubmitError(result.error)
+      if (result.error?.toLowerCase().includes('horario') || result.error?.toLowerCase().includes('ocupado')) {
+        setSelectedSlot(null)
+        setSelectedDate('')
+        setSlots([])
+        setStep(3)
       }
     })
   }
 
-  // ── Progress bar ──────────────────────────────────────────────────────────
-  const progressBar = (
-    <div className="mb-6">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex gap-1">
-          {STEP_NAMES.map((name, i) => (
+  return (
+    <div>
+      <div className="mb-5">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9f3f2f]">Reserva online</p>
+          <span className="text-xs font-bold text-[#6c625a]">{STEP_NAMES[step - 1]}</span>
+        </div>
+        <div className="grid grid-cols-5 gap-1">
+          {STEP_NAMES.map((name, index) => (
             <div
               key={name}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i + 1 <= step ? 'bg-primary-600' : 'bg-zinc-200'
-              }`}
-              style={{ width: i + 1 === step ? 32 : 16 }}
+              className={`h-1.5 rounded-full transition-all ${index + 1 <= step ? 'bg-[#e36952]' : 'bg-[#e5ded3]'}`}
             />
           ))}
         </div>
-        <span className="text-xs font-semibold text-zinc-500">{STEP_NAMES[step - 1]}</span>
       </div>
-    </div>
-  )
 
-  // ── Back button ───────────────────────────────────────────────────────────
-  const backBtn = step === 1 ? (
-    <Link
-      href={`/centro/${centerSlug}`}
-      className="mb-4 flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
-    >
-      <ArrowLeft className="h-3.5 w-3.5" /> Volver al centro
-    </Link>
-  ) : (
-    <button
-      onClick={goBack}
-      className="mb-4 flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
-    >
-      <ArrowLeft className="h-3.5 w-3.5" /> Atrás
-    </button>
-  )
+      {step === 1 ? (
+        <Link href={`/centro/${centerSlug}`} className="mb-4 inline-flex items-center gap-1.5 text-sm font-bold text-[#6c625a] hover:text-[#171412]">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Volver al centro
+        </Link>
+      ) : (
+        <button onClick={goBack} className="mb-4 inline-flex items-center gap-1.5 text-sm font-bold text-[#6c625a] hover:text-[#171412]">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Atras
+        </button>
+      )}
 
-  return (
-    <div>
-      {progressBar}
-      {backBtn}
-
-      <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-
-        {/* ── Step 1: Service ─────────────────────────────────────────── */}
+      <div className="overflow-hidden rounded-lg border border-[#e5ded3] bg-white shadow-[0_24px_70px_rgba(42,32,24,0.08)]">
         {step === 1 && (
-          <div className="p-6">
-            <h2 className="mb-1 text-xl font-black tracking-tight text-zinc-900">¿Qué servicio quieres?</h2>
-            <p className="mb-5 text-sm text-zinc-400">{centerName}</p>
-            <div className="space-y-2">
-              {services.map(svc => (
+          <section className="p-6">
+            <h2 className="text-2xl font-black tracking-tight text-[#171412]">Que servicio quieres?</h2>
+            <p className="mt-1 text-sm text-[#6c625a]">{centerName}</p>
+            <div className="mt-6 space-y-2">
+              {services.map(service => (
                 <button
-                  key={svc.id}
-                  onClick={() => { setSelectedService(svc); setStep(2) }}
-                  className="group flex w-full items-center justify-between rounded-2xl border border-zinc-200 p-4 text-left transition-all hover:border-primary-300 hover:bg-primary-50/50 active:scale-[0.99]"
+                  key={service.id}
+                  onClick={() => selectService(service)}
+                  className="group flex w-full items-center justify-between rounded-md border border-[#e5ded3] p-4 text-left transition-all hover:border-[#d7cbbb] hover:bg-[#fbfaf7]"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-zinc-900">{svc.name}</p>
-                    {svc.description && (
-                      <p className="mt-0.5 truncate text-xs text-zinc-400">{svc.description}</p>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-black text-[#171412]">{service.name}</span>
+                    {service.description && (
+                      <span className="mt-0.5 block truncate text-xs text-[#6c625a]">{service.description}</span>
                     )}
-                    <p className="mt-1 flex items-center gap-1 text-xs text-zinc-400">
-                      <Clock className="h-3 w-3" />{fmtDuration(svc.durationMinutes)}
-                    </p>
-                  </div>
-                  <div className="ml-4 flex shrink-0 items-center gap-2">
-                    <span className="font-bold text-zinc-900">{fmtPrice(svc.priceCents)}</span>
-                    <ChevronRight className="h-4 w-4 text-zinc-300 transition-colors group-hover:text-primary-500" />
-                  </div>
+                    <span className="mt-1 flex items-center gap-1 text-xs text-[#6c625a]">
+                      <Clock className="h-3 w-3" />
+                      {fmtDuration(service.durationMinutes)}
+                    </span>
+                  </span>
+                  <span className="ml-4 flex shrink-0 items-center gap-2">
+                    <span className="font-black text-[#171412]">{fmtPrice(service.priceCents)}</span>
+                    <ChevronRight className="h-4 w-4 text-[#cbbcaf] transition-colors group-hover:text-[#9f3f2f]" />
+                  </span>
                 </button>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* ── Step 2: Staff ────────────────────────────────────────────── */}
         {step === 2 && selectedService && (
-          <div className="p-6">
-            <h2 className="mb-1 text-xl font-black tracking-tight text-zinc-900">¿Con quién quieres la cita?</h2>
-            <p className="mb-5 text-sm text-zinc-400">
+          <section className="p-6">
+            <h2 className="text-2xl font-black tracking-tight text-[#171412]">Elige profesional</h2>
+            <p className="mt-1 text-sm text-[#6c625a]">
               {selectedService.name} · {fmtDuration(selectedService.durationMinutes)}
             </p>
             {loadingStaff ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-zinc-400">
-                <Loader2 className="h-4 w-4 animate-spin" /> Cargando profesionales...
-              </div>
+              <LoadingState label="Cargando profesionales..." />
             ) : (
-              <div className="space-y-2">
+              <div className="mt-6 space-y-2">
                 <button
-                  onClick={() => { setSelectedStaffId(null); setSelectedStaffName('Sin preferencia'); setStep(3) }}
-                  className="flex w-full items-center gap-4 rounded-2xl border border-zinc-200 p-4 text-left transition-all hover:border-primary-300 hover:bg-primary-50/50 active:scale-[0.99]"
+                  onClick={() => {
+                    setSelectedStaffId(null)
+                    setSelectedStaffName('Sin preferencia')
+                    setStep(3)
+                  }}
+                  className="group flex w-full items-center gap-4 rounded-md border border-[#e5ded3] p-4 text-left transition-all hover:border-[#d7cbbb] hover:bg-[#fbfaf7]"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100">
-                    <Users className="h-5 w-5 text-zinc-400" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-zinc-900">Sin preferencia</p>
-                    <p className="text-xs text-zinc-400">Primer profesional disponible</p>
-                  </div>
-                  <ChevronRight className="ml-auto h-4 w-4 text-zinc-300" />
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#eee7dd]">
+                    <Users className="h-5 w-5 text-[#6c625a]" />
+                  </span>
+                  <span>
+                    <span className="block font-black text-[#171412]">Sin preferencia</span>
+                    <span className="text-xs text-[#6c625a]">Primer profesional disponible</span>
+                  </span>
+                  <ChevronRight className="ml-auto h-4 w-4 text-[#cbbcaf] group-hover:text-[#9f3f2f]" />
                 </button>
-                {staffList.map(s => (
+
+                {staffList.map(staff => (
                   <button
-                    key={s.id}
-                    onClick={() => { setSelectedStaffId(s.id); setSelectedStaffName(s.name); setStep(3) }}
-                    className="flex w-full items-center gap-4 rounded-2xl border border-zinc-200 p-4 text-left transition-all hover:border-primary-300 hover:bg-primary-50/50 active:scale-[0.99]"
+                    key={staff.id}
+                    onClick={() => {
+                      setSelectedStaffId(staff.id)
+                      setSelectedStaffName(staff.name)
+                      setStep(3)
+                    }}
+                    className="group flex w-full items-center gap-4 rounded-md border border-[#e5ded3] p-4 text-left transition-all hover:border-[#d7cbbb] hover:bg-[#fbfaf7]"
                   >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-sm font-bold text-white">
-                      {s.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-zinc-900">{s.name}</p>
-                      {s.role && <p className="text-xs text-zinc-400">{s.role}</p>}
-                    </div>
-                    <ChevronRight className="ml-auto h-4 w-4 text-zinc-300" />
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#171412] text-sm font-black text-white">
+                      {staff.name.charAt(0)}
+                    </span>
+                    <span>
+                      <span className="block font-black text-[#171412]">{staff.name}</span>
+                      {staff.role && <span className="text-xs text-[#6c625a]">{staff.role}</span>}
+                    </span>
+                    <ChevronRight className="ml-auto h-4 w-4 text-[#cbbcaf] group-hover:text-[#9f3f2f]" />
                   </button>
                 ))}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* ── Step 3: Date + Slots ──────────────────────────────────────── */}
         {step === 3 && selectedService && (
-          <div className="p-6">
-            <h2 className="mb-1 text-xl font-black tracking-tight text-zinc-900">Elige fecha y hora</h2>
-            <p className="mb-5 text-sm text-zinc-400">
+          <section className="p-6">
+            <h2 className="text-2xl font-black tracking-tight text-[#171412]">Elige fecha y hora</h2>
+            <p className="mt-1 text-sm text-[#6c625a]">
               {selectedService.name} · {selectedStaffName}
             </p>
 
-            {/* Date strip */}
-            <div className="-mx-1 mb-5 overflow-x-auto pb-1">
+            <div className="-mx-1 mt-6 overflow-x-auto pb-1">
               <div className="flex gap-2 px-1" style={{ minWidth: 'max-content' }}>
-                {NEXT_DAYS.map(d => {
-                  const { weekday, day, month } = getDateLabel(d)
-                  const active = selectedDate === d
+                {NEXT_DAYS.map(date => {
+                  const { weekday, day, month } = getDateLabel(date)
+                  const active = selectedDate === date
                   return (
                     <button
-                      key={d}
-                      onClick={() => { setSelectedDate(d); setSelectedSlot(null) }}
-                      className={`flex flex-col items-center rounded-2xl border px-3.5 py-2.5 text-center transition-all ${
+                      key={date}
+                      onClick={() => {
+                        setSelectedDate(date)
+                        setSelectedSlot(null)
+                      }}
+                      className={`flex min-w-16 flex-col items-center rounded-md border px-3.5 py-2.5 text-center transition-all ${
                         active
-                          ? 'border-primary-600 bg-primary-600 text-white shadow-md shadow-primary-500/20'
-                          : 'border-zinc-200 bg-white text-zinc-700 hover:border-primary-300 hover:bg-primary-50'
+                          ? 'border-[#171412] bg-[#171412] text-white'
+                          : 'border-[#e5ded3] bg-white text-[#332b26] hover:border-[#d7cbbb] hover:bg-[#fbfaf7]'
                       }`}
                     >
-                      <span className={`text-xs font-medium capitalize ${active ? 'text-primary-100' : 'text-zinc-400'}`}>{weekday}</span>
+                      <span className={`text-xs font-bold capitalize ${active ? 'text-white/70' : 'text-[#6c625a]'}`}>{weekday}</span>
                       <span className="text-lg font-black leading-tight">{day}</span>
-                      <span className={`text-[10px] capitalize ${active ? 'text-primary-200' : 'text-zinc-400'}`}>{month}</span>
+                      <span className={`text-[10px] capitalize ${active ? 'text-white/58' : 'text-[#9a8f84]'}`}>{month}</span>
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            {/* Slots */}
             {!selectedDate && (
-              <div className="rounded-2xl border border-dashed border-zinc-200 py-8 text-center">
-                <CalendarDays className="mx-auto mb-2 h-8 w-8 text-zinc-300" />
-                <p className="text-sm text-zinc-400">Selecciona un día para ver disponibilidad</p>
-              </div>
+              <EmptyState icon={<CalendarDays className="h-8 w-8 text-[#9a8f84]" />} label="Selecciona un dia para ver disponibilidad" />
             )}
-            {selectedDate && loadingSlots && (
-              <div className="flex items-center justify-center gap-2 py-10 text-zinc-400">
-                <Loader2 className="h-4 w-4 animate-spin" /> Cargando horarios...
-              </div>
-            )}
+            {selectedDate && loadingSlots && <LoadingState label="Cargando horarios..." />}
             {selectedDate && !loadingSlots && slots.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-zinc-200 py-8 text-center">
-                <p className="text-sm text-zinc-400">Sin disponibilidad para este día. Prueba con otra fecha.</p>
-              </div>
+              <EmptyState label="Sin disponibilidad para este dia. Prueba con otra fecha." />
             )}
             {selectedDate && !loadingSlots && slots.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {slots.map(slot => {
-                  const active = selectedSlot?.time === slot.time && selectedSlot?.staffId === slot.staffId
-                  return (
-                    <button
-                      key={`${slot.time}-${slot.staffId}`}
-                      onClick={() => { setSelectedSlot(slot); setStep(4) }}
-                      className={`rounded-2xl border py-3 text-center text-sm font-semibold transition-all ${
-                        active
-                          ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
-                          : 'border-zinc-200 bg-white text-zinc-700 hover:border-primary-300 hover:bg-primary-50'
-                      }`}
-                    >
-                      {slot.time}
-                    </button>
-                  )
-                })}
+              <div className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {slots.map(slot => (
+                  <button
+                    key={`${slot.time}-${slot.staffId}`}
+                    onClick={() => {
+                      setSelectedSlot(slot)
+                      setStep(4)
+                    }}
+                    className="rounded-md border border-[#e5ded3] bg-white py-3 text-center text-sm font-black text-[#332b26] transition-all hover:border-[#e36952] hover:bg-[#f4ded6]"
+                  >
+                    {slot.time}
+                  </button>
+                ))}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* ── Step 4: Customer data ─────────────────────────────────────── */}
         {step === 4 && selectedService && selectedSlot && (
-          <div className="p-6">
-            <h2 className="mb-1 text-xl font-black tracking-tight text-zinc-900">Tus datos</h2>
-            <p className="mb-5 text-sm text-zinc-400">
+          <section className="p-6">
+            <h2 className="text-2xl font-black tracking-tight text-[#171412]">Tus datos</h2>
+            <p className="mt-1 text-sm text-[#6c625a]">
               {selectedService.name} · {fmtDateLong(selectedDate)} · {selectedSlot.time}
             </p>
 
-            {/* Logged-in user card */}
             {isAuthenticated && session?.user && (
-              <div className="mb-5 flex items-center gap-3 rounded-2xl border border-primary-100 bg-primary-50 p-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-sm font-bold text-white">
+              <div className="mt-6 flex items-center gap-3 rounded-md border border-[#e5ded3] bg-[#fbfaf7] p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#171412] text-sm font-black text-white">
                   {(session.user.name ?? 'U')[0]}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-zinc-900 truncate">{session.user.name}</p>
-                  <p className="text-xs text-zinc-500 truncate">{session.user.email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold text-[#171412]">{session.user.name}</p>
+                  <p className="truncate text-xs text-[#6c625a]">{session.user.email}</p>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-full bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-700">
-                  <BadgeCheck className="h-3 w-3" />Identificado
+                <div className="flex items-center gap-1.5 rounded-full bg-[#eef4eb] px-2.5 py-1 text-xs font-bold text-[#4b7258]">
+                  <BadgeCheck className="h-3 w-3" />
+                  Identificado
                 </div>
               </div>
             )}
 
-            <div className="space-y-4">
-              <div>
-                <label className="label">Nombre completo <span className="text-beauty-500">*</span></label>
-                <input
-                  type="text"
-                  required
-                  value={custName}
-                  onChange={e => setCustName(e.target.value)}
-                  className="input-base"
-                  placeholder="Tu nombre completo"
-                  autoComplete="name"
-                />
-              </div>
-              <div>
-                <label className="label">Email <span className="text-beauty-500">*</span></label>
-                <input
-                  type="email"
-                  required
-                  value={custEmail}
-                  onChange={e => setCustEmail(e.target.value)}
-                  className="input-base"
-                  placeholder="tu@email.com"
-                  autoComplete="email"
-                  readOnly={isAuthenticated}
-                />
-                {isAuthenticated && (
-                  <p className="mt-1 text-[11px] text-zinc-400">Email de tu cuenta — recibirás la confirmación aquí</p>
-                )}
-              </div>
-              <div>
-                <label className="label">
-                  Teléfono <span className="text-zinc-400 font-normal">(opcional)</span>
-                </label>
-                <input
-                  type="tel"
-                  value={custPhone}
-                  onChange={e => setCustPhone(e.target.value)}
-                  className="input-base"
-                  placeholder="+34 600 000 000"
-                  autoComplete="tel"
-                />
-              </div>
+            <div className="mt-6 space-y-4">
+              <Field label="Nombre completo" required>
+                <input value={custName} onChange={event => setCustName(event.target.value)} className="input-base" placeholder="Tu nombre completo" autoComplete="name" />
+              </Field>
+              <Field label="Email" required>
+                <input value={custEmail} onChange={event => setCustEmail(event.target.value)} className="input-base" placeholder="tu@email.com" autoComplete="email" type="email" readOnly={isAuthenticated} />
+                {isAuthenticated && <p className="mt-1 text-[11px] text-[#6c625a]">Recibiras la confirmacion en el email de tu cuenta.</p>}
+              </Field>
+              <Field label="Telefono">
+                <input value={custPhone} onChange={event => setCustPhone(event.target.value)} className="input-base" placeholder="+34 600 000 000" autoComplete="tel" type="tel" />
+              </Field>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={consentGiven}
-                  onChange={e => setConsentGiven(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-primary-600"
-                />
-                <span className="text-sm text-zinc-600">
-                  Acepto la{' '}
-                  <Link href="/privacidad" className="text-primary-600 underline hover:text-primary-700" target="_blank" rel="noreferrer">
-                    política de privacidad
-                  </Link>{' '}
-                  y el tratamiento de mis datos para gestionar la reserva. *
-                </span>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={marketingConsent}
-                  onChange={e => setMarketingConsent(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-primary-600"
-                />
-                <span className="text-sm text-zinc-600">
-                  Acepto recibir comunicaciones del centro sobre ofertas y novedades.{' '}
-                  <span className="text-zinc-400">(Opcional)</span>
-                </span>
-              </label>
+              <ConsentRow checked={consentGiven} onChange={setConsentGiven}>
+                Acepto la{' '}
+                <Link href="/privacidad" className="font-bold text-[#9f3f2f] underline" target="_blank" rel="noreferrer">
+                  politica de privacidad
+                </Link>{' '}
+                y el tratamiento de mis datos para gestionar la reserva. *
+              </ConsentRow>
+              <ConsentRow checked={marketingConsent} onChange={setMarketingConsent}>
+                Acepto recibir comunicaciones del centro sobre ofertas y novedades. <span className="text-[#9a8f84]">(Opcional)</span>
+              </ConsentRow>
 
               <button
                 disabled={!custName.trim() || !custEmail.trim() || !consentGiven}
                 onClick={() => setStep(5)}
-                className="btn-primary w-full justify-center py-3 disabled:cursor-not-allowed disabled:opacity-40"
+                className="btn-primary w-full py-3 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Continuar a la confirmación
+                Continuar a confirmacion
               </button>
             </div>
-          </div>
+          </section>
         )}
 
-        {/* ── Step 5: Confirm ───────────────────────────────────────────── */}
         {step === 5 && selectedService && selectedSlot && (
-          <div className="p-6">
-            <h2 className="mb-5 text-xl font-black tracking-tight text-zinc-900">Confirma tu reserva</h2>
+          <section className="p-6">
+            <h2 className="text-2xl font-black tracking-tight text-[#171412]">Confirma tu reserva</h2>
 
-            <div className="mb-5 overflow-hidden rounded-2xl border border-zinc-200">
+            <div className="mt-6 overflow-hidden rounded-lg border border-[#e5ded3]">
               {[
-                { label: 'Centro',      value: centerName },
-                { label: 'Servicio',    value: selectedService.name },
+                { label: 'Centro', value: centerName },
+                { label: 'Servicio', value: selectedService.name },
                 { label: 'Profesional', value: selectedStaffName },
-                { label: 'Fecha',       value: fmtDateLong(selectedDate) },
-                { label: 'Hora',        value: selectedSlot.time },
-                { label: 'Duración',    value: fmtDuration(selectedService.durationMinutes) },
-              ].map((row, i) => (
-                <div
-                  key={row.label}
-                  className={`flex justify-between px-5 py-3.5 text-sm ${i > 0 ? 'border-t border-zinc-100' : ''}`}
-                >
-                  <span className="text-zinc-500">{row.label}</span>
-                  <span className="font-semibold text-zinc-900">{row.value}</span>
+                { label: 'Fecha', value: fmtDateLong(selectedDate) },
+                { label: 'Hora', value: selectedSlot.time },
+                { label: 'Duracion', value: fmtDuration(selectedService.durationMinutes) },
+              ].map((row, index) => (
+                <div key={row.label} className={`flex justify-between gap-4 px-5 py-3.5 text-sm ${index > 0 ? 'border-t border-[#eee7dd]' : ''}`}>
+                  <span className="text-[#6c625a]">{row.label}</span>
+                  <span className="text-right font-bold text-[#171412]">{row.value}</span>
                 </div>
               ))}
-              <div className="flex justify-between border-t border-zinc-200 bg-zinc-50 px-5 py-4">
-                <span className="font-bold text-zinc-900">Total</span>
-                <span className="text-lg font-black text-primary-600">{fmtPrice(selectedService.priceCents)}</span>
+              <div className="flex justify-between border-t border-[#e5ded3] bg-[#f7f4ef] px-5 py-4">
+                <span className="font-black text-[#171412]">Total</span>
+                <span className="text-lg font-black text-[#9f3f2f]">{fmtPrice(selectedService.priceCents)}</span>
               </div>
             </div>
 
-            {/* Customer summary */}
-            <div className="mb-5 flex items-center gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-600">
+            <div className="mt-5 flex items-center gap-3 rounded-md border border-[#eee7dd] bg-[#fbfaf7] px-4 py-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#eee7dd] text-xs font-black text-[#5f554d]">
                 {custName[0]}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-zinc-900 truncate">{custName}</p>
-                <p className="text-xs text-zinc-400 truncate">{custEmail}{custPhone ? ` · ${custPhone}` : ''}</p>
+                <p className="truncate font-bold text-[#171412]">{custName}</p>
+                <p className="truncate text-xs text-[#6c625a]">{custEmail}{custPhone ? ` · ${custPhone}` : ''}</p>
               </div>
             </div>
 
             {submitError && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {submitError}
               </div>
             )}
 
-            <button
-              onClick={handleConfirm}
-              disabled={isPending}
-              className="btn-primary w-full justify-center py-4 text-base disabled:opacity-60"
-            >
+            <button onClick={handleConfirm} disabled={isPending} className="btn-primary mt-5 w-full py-4 text-base disabled:opacity-60">
               {isPending ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Confirmando...</>
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Confirmando...
+                </>
               ) : (
-                <><Check className="h-4 w-4" /> Confirmar reserva</>
+                <>
+                  <Check className="h-4 w-4" />
+                  Confirmar reserva
+                </>
               )}
             </button>
-            <p className="mt-3 text-center text-xs text-zinc-400">
-              Cancelación gratuita hasta 24h antes · Confirmación por email
+            <p className="mt-3 text-center text-xs text-[#6c625a]">
+              Cancelacion gratuita hasta 24h antes · Confirmacion por email
             </p>
 
-            {/* Post-booking: create account CTA for guests */}
             {!isAuthenticated && (
-              <div className="mt-5 rounded-2xl border border-primary-100 bg-primary-50 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="h-4 w-4 text-primary-500" />
-                  <p className="text-sm font-semibold text-zinc-900">¿Primera vez aquí?</p>
+              <div className="mt-5 rounded-lg border border-[#f2b5a7] bg-[#fff6f2] p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#9f3f2f]" />
+                  <p className="text-sm font-black text-[#171412]">Primera vez aqui?</p>
                 </div>
-                <p className="text-xs text-zinc-500 mb-3">
-                  Crea una cuenta gratis para ver y gestionar todas tus reservas en un solo lugar, sin tener que volver a introducir tus datos.
+                <p className="mb-3 text-xs text-[#6c625a]">
+                  Crea una cuenta gratis para ver y gestionar tus reservas sin introducir tus datos de nuevo.
                 </p>
                 <Link
                   href={`/auth/register?email=${encodeURIComponent(custEmail)}&name=${encodeURIComponent(custName)}`}
-                  className="block w-full rounded-xl border border-primary-200 py-2 text-center text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100"
+                  className="block w-full rounded-md border border-[#f2b5a7] py-2 text-center text-sm font-bold text-[#9f3f2f] transition-colors hover:bg-[#f4ded6]"
                 >
-                  Crear cuenta con este email →
+                  Crear cuenta con este email
                 </Link>
               </div>
             )}
-          </div>
+          </section>
         )}
       </div>
     </div>
+  )
+}
+
+function LoadingState({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center gap-2 py-10 text-[#6c625a]">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      {label}
+    </div>
+  )
+}
+
+function EmptyState({ icon, label }: { icon?: React.ReactNode; label: string }) {
+  return (
+    <div className="mt-6 rounded-md border border-dashed border-[#d7cbbb] py-8 text-center">
+      {icon && <div className="mb-2 flex justify-center">{icon}</div>}
+      <p className="text-sm text-[#6c625a]">{label}</p>
+    </div>
+  )
+}
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="label">
+        {label} {required && <span className="text-[#9f3f2f]">*</span>}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+function ConsentRow({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  children: React.ReactNode
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-md bg-[#fbfaf7] p-4 transition-colors hover:bg-[#f7f4ef]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={event => onChange(event.target.checked)}
+        className="mt-0.5 h-4 w-4 accent-[#e36952]"
+      />
+      <span className="text-sm text-[#5f554d]">{children}</span>
+    </label>
   )
 }

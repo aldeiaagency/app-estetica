@@ -16,13 +16,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
+          'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e36952] focus-visible:ring-offset-2',
           {
-            'bg-primary-600 text-white shadow-sm shadow-primary-500/20 hover:bg-primary-700 active:scale-[0.97]': variant === 'primary',
-            'bg-zinc-100 text-zinc-800 hover:bg-zinc-200 active:scale-[0.97]': variant === 'secondary',
-            'bg-transparent text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900': variant === 'ghost',
-            'bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.97]': variant === 'destructive',
-            'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300': variant === 'outline',
+            'bg-[#e36952] text-white shadow-[0_14px_30px_rgba(227,105,82,0.24)] hover:bg-[#cf5845] active:scale-[0.98]': variant === 'primary',
+            'bg-[#eee7dd] text-[#332b26] hover:bg-[#e5ded3] active:scale-[0.98]': variant === 'secondary',
+            'bg-transparent text-[#5f554d] hover:bg-[#eee7dd] hover:text-[#171412]': variant === 'ghost',
+            'bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.98]': variant === 'destructive',
+            'border border-[#d7cbbb] bg-white text-[#332b26] hover:border-[#bda995] hover:bg-[#fbfaf7]': variant === 'outline',
             'px-3 py-1.5 text-xs': size === 'sm',
             'px-4 py-2.5 text-sm': size === 'md',
             'px-6 py-3.5 text-base': size === 'lg',
@@ -31,7 +31,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
-        {loading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+        {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
         {children}
       </button>
     )
@@ -54,13 +54,13 @@ function ButtonLink({ href, variant = 'primary', size = 'md', className, childre
     <Link
       href={href}
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
+        'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e36952] focus-visible:ring-offset-2',
         {
-          'bg-primary-600 text-white shadow-sm shadow-primary-500/20 hover:bg-primary-700 active:scale-[0.97]': variant === 'primary',
-          'bg-zinc-100 text-zinc-800 hover:bg-zinc-200 active:scale-[0.97]': variant === 'secondary',
-          'bg-transparent text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900': variant === 'ghost',
-          'bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.97]': variant === 'destructive',
-          'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300': variant === 'outline',
+          'bg-[#e36952] text-white shadow-[0_14px_30px_rgba(227,105,82,0.24)] hover:bg-[#cf5845] active:scale-[0.98]': variant === 'primary',
+          'bg-[#eee7dd] text-[#332b26] hover:bg-[#e5ded3] active:scale-[0.98]': variant === 'secondary',
+          'bg-transparent text-[#5f554d] hover:bg-[#eee7dd] hover:text-[#171412]': variant === 'ghost',
+          'bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.98]': variant === 'destructive',
+          'border border-[#d7cbbb] bg-white text-[#332b26] hover:border-[#bda995] hover:bg-[#fbfaf7]': variant === 'outline',
           'px-3 py-1.5 text-xs': size === 'sm',
           'px-4 py-2.5 text-sm': size === 'md',
           'px-6 py-3.5 text-base': size === 'lg',

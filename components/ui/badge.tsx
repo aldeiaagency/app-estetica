@@ -9,15 +9,15 @@ interface BadgeProps {
 export function Badge({ children, variant = 'default', className }: BadgeProps) {
   return (
     <span className={cn(
-      'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold',
+      'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold',
       {
-        'bg-zinc-100 text-zinc-700':              variant === 'default',
-        'bg-emerald-50 text-emerald-700':         variant === 'success',
-        'bg-amber-50 text-amber-700':             variant === 'warning',
-        'bg-red-50 text-red-700':                 variant === 'danger',
-        'bg-blue-50 text-blue-700':               variant === 'info',
-        'border border-zinc-200 bg-white text-zinc-600': variant === 'outline',
-        'bg-primary-50 text-primary-700':         variant === 'primary',
+        'bg-[#eee7dd] text-[#5f554d]': variant === 'default',
+        'bg-[#eef4eb] text-[#4b7258]': variant === 'success',
+        'bg-amber-50 text-amber-700': variant === 'warning',
+        'bg-red-50 text-red-700': variant === 'danger',
+        'bg-blue-50 text-blue-700': variant === 'info',
+        'border border-[#d7cbbb] bg-white text-[#5f554d]': variant === 'outline',
+        'bg-[#f4ded6] text-[#9f3f2f]': variant === 'primary',
       },
       className
     )}>
