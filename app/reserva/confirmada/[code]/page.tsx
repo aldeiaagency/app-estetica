@@ -77,7 +77,7 @@ export default async function ConfirmadaPage({ params }: Props) {
           )}
         </div>
 
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
             <h1 className="text-xl font-bold text-slate-900">Detalles de tu cita</h1>
             <span className="rounded-lg bg-slate-100 px-3 py-1.5 font-mono text-sm font-bold tracking-wider text-slate-700">
@@ -136,7 +136,7 @@ export default async function ConfirmadaPage({ params }: Props) {
 
         {/* Instructions */}
         {!isCancelled && !isCompleted && (
-          <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+          <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-5">
             <h2 className="mb-2 font-semibold text-slate-900">Qué hacer ahora</h2>
             <ul className="space-y-1.5 text-sm text-slate-600">
               <li>• Recibirás un email de confirmación con estos datos</li>
@@ -151,14 +151,14 @@ export default async function ConfirmadaPage({ params }: Props) {
           {!isCancelled && !isCompleted && (
             <Link
               href={`/reserva/gestionar?code=${booking.confirmationCode}`}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
             >
               Gestionar / cancelar
             </Link>
           )}
           <Link
             href={`/centro/${booking.center.slug}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-rose-600 py-3 text-sm font-semibold text-white hover:bg-rose-700 transition-colors"
+            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-rose-600 py-3 text-sm font-semibold text-white hover:bg-rose-700 transition-colors"
           >
             Ver el centro <ArrowRight className="h-4 w-4" />
           </Link>

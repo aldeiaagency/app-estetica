@@ -44,20 +44,20 @@ const COOKIES = [
 export default function CookiesPage() {
   return (
     <div className="min-h-screen bg-white">
-      <header className="border-b border-zinc-100 px-6 py-4">
+      <header className="border-b border-[#e5eaf2] px-6 py-4">
         <Link href="/" className="inline-flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-700">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#2f6df6] to-[#2355c8]">
             <Sparkles className="h-3.5 w-3.5 text-white" />
           </div>
-          <span className="font-black tracking-tight text-zinc-900">BellezaLocal</span>
+          <span className="font-black tracking-tight text-[#0c1324]">BellezaLocal</span>
         </Link>
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-3xl font-black tracking-tight text-zinc-900">Política de Cookies</h1>
-        <p className="mt-2 text-sm text-zinc-400">Última actualización: {LAST_UPDATED}</p>
+        <h1 className="text-3xl font-black tracking-tight text-[#0c1324]">Política de Cookies</h1>
+        <p className="mt-2 text-sm text-[#8b96aa]">Última actualización: {LAST_UPDATED}</p>
 
-        <div className="mt-10 space-y-10 text-zinc-700 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h2]:mb-3 [&_p]:leading-relaxed">
+        <div className="mt-10 space-y-10 text-[#273244] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-[#0c1324] [&_h2]:mb-3 [&_p]:leading-relaxed">
 
           <section>
             <h2>¿Qué son las cookies?</h2>
@@ -74,23 +74,23 @@ export default function CookiesPage() {
               de la plataforma. No utilizamos cookies de análisis, publicidad, seguimiento ni de terceros con fines
               comerciales.
             </p>
-            <div className="overflow-x-auto rounded-xl border border-zinc-200">
+            <div className="overflow-x-auto rounded-md border border-[#d8dee9]">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-100 bg-zinc-50 text-left">
-                    <th className="px-4 py-3 font-semibold text-zinc-600">Cookie</th>
-                    <th className="px-4 py-3 font-semibold text-zinc-600">Finalidad</th>
-                    <th className="px-4 py-3 font-semibold text-zinc-600">Duración</th>
-                    <th className="px-4 py-3 font-semibold text-zinc-600">Proveedor</th>
+                  <tr className="border-b border-[#e5eaf2] bg-[#f1f4f8] text-left">
+                    <th className="px-4 py-3 font-semibold text-[#46546b]">Cookie</th>
+                    <th className="px-4 py-3 font-semibold text-[#46546b]">Finalidad</th>
+                    <th className="px-4 py-3 font-semibold text-[#46546b]">Duración</th>
+                    <th className="px-4 py-3 font-semibold text-[#46546b]">Proveedor</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-50">
+                <tbody className="divide-y divide-[#eef2f7]">
                   {COOKIES.map((c) => (
-                    <tr key={c.name} className="hover:bg-zinc-50/50">
-                      <td className="px-4 py-3 font-mono text-xs text-zinc-800 break-all">{c.name}</td>
-                      <td className="px-4 py-3 text-zinc-600">{c.purpose}</td>
-                      <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{c.duration}</td>
-                      <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{c.provider}</td>
+                    <tr key={c.name} className="hover:bg-[#f1f4f8]/50">
+                      <td className="px-4 py-3 font-mono text-xs text-[#273244] break-all">{c.name}</td>
+                      <td className="px-4 py-3 text-[#46546b]">{c.purpose}</td>
+                      <td className="px-4 py-3 text-[#647089] whitespace-nowrap">{c.duration}</td>
+                      <td className="px-4 py-3 text-[#647089] whitespace-nowrap">{c.provider}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -117,10 +117,10 @@ export default function CookiesPage() {
               Instrucciones para los navegadores más comunes:
             </p>
             <ul className="mt-2 space-y-1 pl-5 list-disc">
-              <li><a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Google Chrome</a></li>
-              <li><a href="https://support.mozilla.org/es/kb/habilitar-y-deshabilitar-cookies-sitios-web-rastrear-preferencias" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Mozilla Firefox</a></li>
-              <li><a href="https://support.apple.com/es-es/guide/safari/sfri11471/mac" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Apple Safari</a></li>
-              <li><a href="https://support.microsoft.com/es-es/windows/eliminar-y-administrar-cookies-168dab11-0753-043d-7c16-ede5947fc64d" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">Microsoft Edge</a></li>
+              <li><a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener noreferrer" className="text-[#2f6df6] hover:underline">Google Chrome</a></li>
+              <li><a href="https://support.mozilla.org/es/kb/habilitar-y-deshabilitar-cookies-sitios-web-rastrear-preferencias" target="_blank" rel="noopener noreferrer" className="text-[#2f6df6] hover:underline">Mozilla Firefox</a></li>
+              <li><a href="https://support.apple.com/es-es/guide/safari/sfri11471/mac" target="_blank" rel="noopener noreferrer" className="text-[#2f6df6] hover:underline">Apple Safari</a></li>
+              <li><a href="https://support.microsoft.com/es-es/windows/eliminar-y-administrar-cookies-168dab11-0753-043d-7c16-ede5947fc64d" target="_blank" rel="noopener noreferrer" className="text-[#2f6df6] hover:underline">Microsoft Edge</a></li>
             </ul>
           </section>
 
@@ -136,19 +136,19 @@ export default function CookiesPage() {
             <h2>Más información</h2>
             <p>
               Consulta también nuestra{' '}
-              <Link href="/privacidad" className="text-primary-600 hover:underline">Política de Privacidad</Link>{' '}
+              <Link href="/privacidad" className="text-[#2f6df6] hover:underline">Política de Privacidad</Link>{' '}
               y nuestros{' '}
-              <Link href="/terminos" className="text-primary-600 hover:underline">Términos y Condiciones</Link>.
+              <Link href="/terminos" className="text-[#2f6df6] hover:underline">Términos y Condiciones</Link>.
             </p>
           </section>
         </div>
       </main>
 
-      <footer className="border-t border-zinc-100 px-6 py-8 text-center">
-        <div className="flex flex-wrap justify-center gap-4 text-sm text-zinc-400">
-          <Link href="/" className="hover:text-zinc-600">Inicio</Link>
-          <Link href="/privacidad" className="hover:text-zinc-600">Privacidad</Link>
-          <Link href="/terminos" className="hover:text-zinc-600">Términos</Link>
+      <footer className="border-t border-[#e5eaf2] px-6 py-8 text-center">
+        <div className="flex flex-wrap justify-center gap-4 text-sm text-[#8b96aa]">
+          <Link href="/" className="hover:text-[#46546b]">Inicio</Link>
+          <Link href="/privacidad" className="hover:text-[#46546b]">Privacidad</Link>
+          <Link href="/terminos" className="hover:text-[#46546b]">Términos</Link>
         </div>
       </footer>
     </div>

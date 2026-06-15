@@ -188,28 +188,28 @@ export default function GestionarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white px-4 py-3.5">
+    <div className="min-h-screen bg-[#f1f4f8]">
+      <header className="border-b border-[#d8dee9] bg-white px-4 py-3.5">
         <div className="mx-auto flex max-w-[600px] items-center gap-2">
-          <Link href="/" className="flex items-center gap-1.5 font-black text-zinc-900">
-            <Sparkles className="h-4 w-4 text-primary-600" />
+          <Link href="/" className="flex items-center gap-1.5 font-black text-[#0c1324]">
+            <Sparkles className="h-4 w-4 text-[#2f6df6]" />
             BellezaLocal
           </Link>
         </div>
       </header>
 
       <div className="mx-auto max-w-[600px] px-4 py-10">
-        <h1 className="mb-2 text-2xl font-black text-zinc-900">Gestionar reserva</h1>
-        <p className="mb-8 text-sm text-zinc-500">
+        <h1 className="mb-2 text-2xl font-black text-[#0c1324]">Gestionar reserva</h1>
+        <p className="mb-8 text-sm text-[#647089]">
           Consulta, modifica o cancela tu cita.
         </p>
 
         {/* ── Lookup form ─────────────────────────────────────────── */}
         {(phase === 'form' || phase === 'loading') && (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-[#d8dee9] bg-white p-6 shadow-sm">
             <form onSubmit={handleLookup} className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-zinc-700">
+                <label className="mb-1.5 block text-sm font-semibold text-[#273244]">
                   Código de confirmación
                 </label>
                 <input
@@ -219,12 +219,12 @@ export default function GestionarPage() {
                   onChange={e => setCode(e.target.value.toUpperCase())}
                   placeholder="Ej: AB12CD34"
                   maxLength={8}
-                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 font-mono text-sm uppercase tracking-wider outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
+                  className="w-full rounded-md border border-[#d8dee9] px-4 py-3 font-mono text-sm uppercase tracking-wider outline-none focus:border-[#8bb7ff] focus:ring-2 focus:ring-[#cfe0ff] transition-all"
                 />
-                <p className="mt-1 text-xs text-zinc-400">Está en el email de confirmación</p>
+                <p className="mt-1 text-xs text-[#8b96aa]">Está en el email de confirmación</p>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-zinc-700">
+                <label className="mb-1.5 block text-sm font-semibold text-[#273244]">
                   Email con el que reservaste
                 </label>
                 <input
@@ -233,13 +233,13 @@ export default function GestionarPage() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="tu@email.com"
-                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
+                  className="w-full rounded-md border border-[#d8dee9] px-4 py-3 text-sm outline-none focus:border-[#8bb7ff] focus:ring-2 focus:ring-[#cfe0ff] transition-all"
                 />
               </div>
               <button
                 type="submit"
                 disabled={phase === 'loading'}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3 font-semibold text-white transition-colors hover:bg-primary-700 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-[#2f6df6] py-3 font-semibold text-white transition-colors hover:bg-[#2355c8] disabled:opacity-60"
               >
                 {phase === 'loading' ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Buscando...</>
@@ -253,15 +253,15 @@ export default function GestionarPage() {
 
         {/* ── Not found ─────────────────────────────────────────────── */}
         {phase === 'not-found' && (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
-            <AlertCircle className="mx-auto mb-3 h-10 w-10 text-zinc-300" />
-            <h2 className="mb-2 font-bold text-zinc-900">No encontramos tu reserva</h2>
-            <p className="mb-5 text-sm text-zinc-500">
+          <div className="rounded-lg border border-[#d8dee9] bg-white p-8 text-center shadow-sm">
+            <AlertCircle className="mx-auto mb-3 h-10 w-10 text-[#b9c4d5]" />
+            <h2 className="mb-2 font-bold text-[#0c1324]">No encontramos tu reserva</h2>
+            <p className="mb-5 text-sm text-[#647089]">
               Comprueba el código de confirmación y el email que usaste al reservar.
             </p>
             <button
               onClick={() => setPhase('form')}
-              className="text-sm font-semibold text-primary-600 hover:text-primary-700"
+              className="text-sm font-semibold text-[#2f6df6] hover:text-[#2355c8]"
             >
               Intentar de nuevo
             </button>
@@ -272,14 +272,14 @@ export default function GestionarPage() {
         {phase === 'found' && booking && (
           <div className="space-y-4">
             {/* Booking card */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="rounded-lg border border-[#d8dee9] bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-bold text-zinc-900">Tu cita</h2>
+                <h2 className="font-bold text-[#0c1324]">Tu cita</h2>
                 <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusColor[booking.status] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusColor[booking.status] ?? 'bg-[#e5eaf2] text-[#46546b]'}`}>
                     {statusLabel[booking.status] ?? booking.status}
                   </span>
-                  <span className="rounded-lg bg-zinc-100 px-2.5 py-1 font-mono text-xs font-bold tracking-wider text-zinc-600">
+                  <span className="rounded-lg bg-[#e5eaf2] px-2.5 py-1 font-mono text-xs font-bold tracking-wider text-[#46546b]">
                     {booking.confirmationCode}
                   </span>
                 </div>
@@ -287,24 +287,24 @@ export default function GestionarPage() {
 
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#8b96aa]" />
                   <div>
-                    <p className="font-semibold text-zinc-900">{booking.center.name}</p>
-                    <p className="text-sm text-zinc-500">{booking.center.addressCity}</p>
+                    <p className="font-semibold text-[#0c1324]">{booking.center.name}</p>
+                    <p className="text-sm text-[#647089]">{booking.center.addressCity}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-[#8b96aa]" />
                   <div>
-                    <p className="font-semibold capitalize text-zinc-900">{fmtDate(booking.startAt)}</p>
-                    <p className="text-sm text-zinc-500">{fmtTime(booking.startAt)} – {fmtTime(booking.endAt)}</p>
+                    <p className="font-semibold capitalize text-[#0c1324]">{fmtDate(booking.startAt)}</p>
+                    <p className="text-sm text-[#647089]">{fmtTime(booking.startAt)} – {fmtTime(booking.endAt)}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#8b96aa]" />
                   <div>
-                    <p className="font-semibold text-zinc-900">{booking.service.name}</p>
-                    <p className="text-sm text-zinc-500">
+                    <p className="font-semibold text-[#0c1324]">{booking.service.name}</p>
+                    <p className="text-sm text-[#647089]">
                       {fmtDuration(booking.service.durationMinutes)} · {fmtPrice(booking.service.priceCents)}
                       {booking.staff && ` · ${booking.staff.name}`}
                     </p>
@@ -315,12 +315,12 @@ export default function GestionarPage() {
 
             {/* ── Reschedule: pick date + slot ──────────────────────── */}
             {booking.canCancel && subPhase === 'pick-date' && (
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="rounded-lg border border-[#d8dee9] bg-white p-6 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
-                  <button onClick={resetReschedule} className="text-zinc-400 hover:text-zinc-700 transition-colors">
+                  <button onClick={resetReschedule} className="text-[#8b96aa] hover:text-[#273244] transition-colors">
                     <ArrowLeft className="h-4 w-4" />
                   </button>
-                  <h3 className="font-semibold text-zinc-900">Elige nueva fecha y hora</h3>
+                  <h3 className="font-semibold text-[#0c1324]">Elige nueva fecha y hora</h3>
                 </div>
 
                 {/* Date strip */}
@@ -333,15 +333,15 @@ export default function GestionarPage() {
                         <button
                           key={d}
                           onClick={() => setRescheduleDate(d)}
-                          className={`flex flex-col items-center rounded-2xl border px-3.5 py-2.5 text-center transition-all ${
+                          className={`flex flex-col items-center rounded-lg border px-3.5 py-2.5 text-center transition-all ${
                             active
-                              ? 'border-primary-600 bg-primary-600 text-white shadow-md shadow-primary-500/20'
-                              : 'border-zinc-200 bg-white text-zinc-700 hover:border-primary-300 hover:bg-primary-50'
+                              ? 'border-[#2f6df6] bg-[#2f6df6] text-white shadow-md shadow-[#2f6df6]/20'
+                              : 'border-[#d8dee9] bg-white text-[#273244] hover:border-[#a9c6ff] hover:bg-[#e5edff]'
                           }`}
                         >
-                          <span className={`text-xs font-medium capitalize ${active ? 'text-primary-100' : 'text-zinc-400'}`}>{weekday}</span>
+                          <span className={`text-xs font-medium capitalize ${active ? 'text-[#e5edff]' : 'text-[#8b96aa]'}`}>{weekday}</span>
                           <span className="text-lg font-black leading-tight">{day}</span>
-                          <span className={`text-[10px] capitalize ${active ? 'text-primary-200' : 'text-zinc-400'}`}>{month}</span>
+                          <span className={`text-[10px] capitalize ${active ? 'text-[#cfe0ff]' : 'text-[#8b96aa]'}`}>{month}</span>
                         </button>
                       )
                     })}
@@ -350,19 +350,19 @@ export default function GestionarPage() {
 
                 {/* Slots */}
                 {!rescheduleDate && (
-                  <div className="rounded-2xl border border-dashed border-zinc-200 py-8 text-center">
-                    <CalendarDays className="mx-auto mb-2 h-8 w-8 text-zinc-300" />
-                    <p className="text-sm text-zinc-400">Selecciona un día para ver disponibilidad</p>
+                  <div className="rounded-lg border border-dashed border-[#d8dee9] py-8 text-center">
+                    <CalendarDays className="mx-auto mb-2 h-8 w-8 text-[#b9c4d5]" />
+                    <p className="text-sm text-[#8b96aa]">Selecciona un día para ver disponibilidad</p>
                   </div>
                 )}
                 {rescheduleDate && loadingSlots && (
-                  <div className="flex items-center justify-center gap-2 py-8 text-zinc-400">
+                  <div className="flex items-center justify-center gap-2 py-8 text-[#8b96aa]">
                     <Loader2 className="h-4 w-4 animate-spin" /> Cargando horarios...
                   </div>
                 )}
                 {rescheduleDate && !loadingSlots && rescheduleSlots.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-zinc-200 py-8 text-center">
-                    <p className="text-sm text-zinc-400">Sin disponibilidad para este día. Prueba con otra fecha.</p>
+                  <div className="rounded-lg border border-dashed border-[#d8dee9] py-8 text-center">
+                    <p className="text-sm text-[#8b96aa]">Sin disponibilidad para este día. Prueba con otra fecha.</p>
                   </div>
                 )}
                 {rescheduleDate && !loadingSlots && rescheduleSlots.length > 0 && (
@@ -373,10 +373,10 @@ export default function GestionarPage() {
                         <button
                           key={slot.time}
                           onClick={() => { setSelectedSlot(slot); setSubPhase('confirm-reschedule') }}
-                          className={`rounded-2xl border py-3 text-center text-sm font-semibold transition-all ${
+                          className={`rounded-lg border py-3 text-center text-sm font-semibold transition-all ${
                             active
-                              ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
-                              : 'border-zinc-200 bg-white text-zinc-700 hover:border-primary-300 hover:bg-primary-50'
+                              ? 'border-[#2f6df6] bg-[#2f6df6] text-white shadow-sm'
+                              : 'border-[#d8dee9] bg-white text-[#273244] hover:border-[#a9c6ff] hover:bg-[#e5edff]'
                           }`}
                         >
                           {slot.time}
@@ -390,31 +390,31 @@ export default function GestionarPage() {
 
             {/* ── Reschedule: confirm ───────────────────────────────── */}
             {booking.canCancel && subPhase === 'confirm-reschedule' && selectedSlot && (
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="rounded-lg border border-[#d8dee9] bg-white p-6 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
-                  <button onClick={() => setSubPhase('pick-date')} className="text-zinc-400 hover:text-zinc-700 transition-colors">
+                  <button onClick={() => setSubPhase('pick-date')} className="text-[#8b96aa] hover:text-[#273244] transition-colors">
                     <ArrowLeft className="h-4 w-4" />
                   </button>
-                  <h3 className="font-semibold text-zinc-900">Confirmar cambio de fecha</h3>
+                  <h3 className="font-semibold text-[#0c1324]">Confirmar cambio de fecha</h3>
                 </div>
 
-                <div className="mb-5 overflow-hidden rounded-2xl border border-zinc-200 text-sm">
+                <div className="mb-5 overflow-hidden rounded-lg border border-[#d8dee9] text-sm">
                   <div className="flex justify-between px-5 py-3.5">
-                    <span className="text-zinc-500">Antes</span>
-                    <span className="font-semibold text-zinc-500 line-through">
+                    <span className="text-[#647089]">Antes</span>
+                    <span className="font-semibold text-[#647089] line-through">
                       {fmtDate(booking.startAt)} · {fmtTime(booking.startAt)}
                     </span>
                   </div>
-                  <div className="flex justify-between border-t border-zinc-200 bg-primary-50 px-5 py-3.5">
-                    <span className="text-zinc-700">Ahora</span>
-                    <span className="font-bold text-primary-700">
+                  <div className="flex justify-between border-t border-[#d8dee9] bg-[#e5edff] px-5 py-3.5">
+                    <span className="text-[#273244]">Ahora</span>
+                    <span className="font-bold text-[#2355c8]">
                       {fmtDate(selectedSlot.startAt)} · {selectedSlot.time}
                     </span>
                   </div>
                 </div>
 
                 {rescheduleError && (
-                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {rescheduleError}
                   </div>
                 )}
@@ -422,7 +422,7 @@ export default function GestionarPage() {
                 <button
                   onClick={handleRescheduleConfirm}
                   disabled={isRescheduling}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3 font-semibold text-white transition-colors hover:bg-primary-700 disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-md bg-[#2f6df6] py-3 font-semibold text-white transition-colors hover:bg-[#2355c8] disabled:opacity-60"
                 >
                   {isRescheduling ? (
                     <><Loader2 className="h-4 w-4 animate-spin" /> Guardando cambio...</>
@@ -430,7 +430,7 @@ export default function GestionarPage() {
                     'Confirmar nuevo horario'
                   )}
                 </button>
-                <p className="mt-2 text-center text-xs text-zinc-400">
+                <p className="mt-2 text-center text-xs text-[#8b96aa]">
                   Cancelación gratuita hasta 24h antes de la nueva cita.
                 </p>
               </div>
@@ -442,33 +442,33 @@ export default function GestionarPage() {
                 {/* Reschedule button */}
                 <button
                   onClick={() => setSubPhase('pick-date')}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary-200 bg-primary-50 py-4 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#cfe0ff] bg-[#e5edff] py-4 text-sm font-semibold text-[#2355c8] transition-colors hover:bg-[#cfe0ff]"
                 >
                   <CalendarDays className="h-4 w-4" /> Cambiar fecha y hora
                 </button>
 
                 {/* Cancel form */}
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-                  <h3 className="mb-3 font-semibold text-zinc-900">Cancelar esta cita</h3>
+                <div className="rounded-lg border border-[#d8dee9] bg-white p-6 shadow-sm">
+                  <h3 className="mb-3 font-semibold text-[#0c1324]">Cancelar esta cita</h3>
                   <div className="mb-3">
-                    <label className="mb-1.5 block text-sm font-medium text-zinc-700">
-                      Motivo <span className="font-normal text-zinc-400">(opcional)</span>
+                    <label className="mb-1.5 block text-sm font-medium text-[#273244]">
+                      Motivo <span className="font-normal text-[#8b96aa]">(opcional)</span>
                     </label>
                     <input
                       type="text"
                       value={cancelReason}
                       onChange={e => setCancelReason(e.target.value)}
                       placeholder="Cambio de planes, enfermedad..."
-                      className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
+                      className="w-full rounded-md border border-[#d8dee9] px-4 py-3 text-sm outline-none focus:border-[#8bb7ff] focus:ring-2 focus:ring-[#cfe0ff] transition-all"
                     />
                   </div>
                   {cancelError && (
-                    <p className="mb-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{cancelError}</p>
+                    <p className="mb-3 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{cancelError}</p>
                   )}
                   <button
                     onClick={handleCancel}
                     disabled={isCancelling}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+                    className="flex w-full items-center justify-center gap-2 rounded-md border border-red-300 bg-red-50 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
                   >
                     {isCancelling ? (
                       <><Loader2 className="h-4 w-4 animate-spin" /> Cancelando...</>
@@ -476,7 +476,7 @@ export default function GestionarPage() {
                       'Cancelar esta reserva'
                     )}
                   </button>
-                  <p className="mt-2 text-center text-xs text-zinc-400">
+                  <p className="mt-2 text-center text-xs text-[#8b96aa]">
                     La cancelación es gratuita hasta 24h antes de la cita.
                   </p>
                 </div>
@@ -484,7 +484,7 @@ export default function GestionarPage() {
             )}
 
             {!booking.canCancel && booking.cancelMessage && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
                 {booking.cancelMessage}
               </div>
             )}
@@ -493,11 +493,11 @@ export default function GestionarPage() {
 
         {/* ── Cancelled ─────────────────────────────────────────────── */}
         {phase === 'cancelled' && (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
+          <div className="rounded-lg border border-[#d8dee9] bg-white p-8 text-center shadow-sm">
             <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-500" />
-            <h2 className="mb-2 font-bold text-zinc-900">Reserva cancelada</h2>
-            <p className="mb-6 text-sm text-zinc-500">Tu cita ha sido cancelada correctamente.</p>
-            <Link href="/buscar" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+            <h2 className="mb-2 font-bold text-[#0c1324]">Reserva cancelada</h2>
+            <p className="mb-6 text-sm text-[#647089]">Tu cita ha sido cancelada correctamente.</p>
+            <Link href="/buscar" className="text-sm font-semibold text-[#2f6df6] hover:text-[#2355c8]">
               Buscar otro centro →
             </Link>
           </div>
@@ -505,14 +505,14 @@ export default function GestionarPage() {
 
         {/* ── Rescheduled ───────────────────────────────────────────── */}
         {phase === 'rescheduled' && selectedSlot && (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
+          <div className="rounded-lg border border-[#d8dee9] bg-white p-8 text-center shadow-sm">
             <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-500" />
-            <h2 className="mb-2 font-bold text-zinc-900">¡Cita reprogramada!</h2>
-            <p className="mb-1 text-sm text-zinc-600">
+            <h2 className="mb-2 font-bold text-[#0c1324]">¡Cita reprogramada!</h2>
+            <p className="mb-1 text-sm text-[#46546b]">
               Tu nueva cita es el {fmtDate(selectedSlot.startAt)} a las {selectedSlot.time}.
             </p>
-            <p className="mb-6 text-xs text-zinc-400">Recibirás un email con los nuevos datos.</p>
-            <Link href="/buscar" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
+            <p className="mb-6 text-xs text-[#8b96aa]">Recibirás un email con los nuevos datos.</p>
+            <Link href="/buscar" className="text-sm font-semibold text-[#2f6df6] hover:text-[#2355c8]">
               Volver al inicio →
             </Link>
           </div>

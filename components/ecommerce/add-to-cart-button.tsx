@@ -32,7 +32,7 @@ export function AddToCartButton({ productId, centerId, centerName, centerSlug, n
 
   if (disabled) {
     return (
-      <button disabled className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-zinc-200 py-4 text-sm font-semibold text-zinc-400">
+      <button disabled className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-[#d8dee9] py-4 text-sm font-semibold text-[#8b96aa]">
         <ShoppingCart className="h-4 w-4" />Producto agotado
       </button>
     )
@@ -41,16 +41,16 @@ export function AddToCartButton({ productId, centerId, centerName, centerSlug, n
   return (
     <div className="space-y-2">
       {cartHasDifferentCenter && (
-        <p className="rounded-xl bg-amber-50 px-4 py-2 text-xs text-amber-700">
+        <p className="rounded-md bg-amber-50 px-4 py-2 text-xs text-amber-700">
           Tu carrito tiene productos de otro centro. Al añadir este se vaciará el carrito anterior.
         </p>
       )}
       <button
         onClick={handleClick}
-        className={`flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold transition-all ${
+        className={`flex w-full items-center justify-center gap-2 rounded-lg py-4 text-sm font-semibold transition-all ${
           added
             ? 'bg-emerald-600 text-white'
-            : 'bg-primary-600 text-white hover:bg-primary-700 active:scale-[0.98] shadow-md shadow-primary-500/20'
+            : 'bg-[#2f6df6] text-white hover:bg-[#2355c8] active:scale-[0.98] shadow-md shadow-[#2f6df6]/20'
         }`}
       >
         {added ? (
@@ -62,7 +62,7 @@ export function AddToCartButton({ productId, centerId, centerName, centerSlug, n
       {added && (
         <button
           onClick={() => router.push('/carrito')}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary-200 py-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#cfe0ff] py-3 text-sm font-semibold text-[#2355c8] transition-colors hover:bg-[#e5edff]"
         >
           Ver carrito →
         </button>

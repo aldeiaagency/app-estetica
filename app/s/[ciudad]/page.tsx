@@ -74,21 +74,21 @@ export default async function CiudadPage({ params }: Props) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <div className="min-h-screen bg-zinc-50">
+      <div className="min-h-screen bg-[#f1f4f8]">
         <PublicHeader />
 
         {/* Hero */}
-        <section className="bg-white border-b border-zinc-100 px-6 py-12">
+        <section className="bg-white border-b border-[#e5eaf2] px-6 py-12">
           <div className="mx-auto max-w-5xl">
-            <div className="flex items-center gap-2 text-sm text-zinc-400 mb-3">
-              <Link href="/" className="hover:text-zinc-600">Inicio</Link>
+            <div className="flex items-center gap-2 text-sm text-[#8b96aa] mb-3">
+              <Link href="/" className="hover:text-[#46546b]">Inicio</Link>
               <span>/</span>
-              <span className="text-zinc-700 font-medium">{cityDisplay}</span>
+              <span className="text-[#273244] font-medium">{cityDisplay}</span>
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-zinc-900 sm:text-4xl">
+            <h1 className="text-3xl font-black tracking-tight text-[#0c1324] sm:text-4xl">
               Centros de belleza en {cityDisplay}
             </h1>
-            <p className="mt-3 text-zinc-500">
+            <p className="mt-3 text-[#647089]">
               {centers.length} centro{centers.length !== 1 ? 's' : ''} disponible{centers.length !== 1 ? 's' : ''} · Reserva online en segundos
             </p>
 
@@ -99,7 +99,7 @@ export default async function CiudadPage({ params }: Props) {
                   <Link
                     key={cat}
                     href={`/s/${ciudad}/${categoryToSlug(cat)}`}
-                    className="rounded-full border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium text-zinc-600 hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+                    className="rounded-full border border-[#d8dee9] bg-white px-4 py-1.5 text-sm font-medium text-[#46546b] hover:border-[#a9c6ff] hover:text-[#2355c8] hover:bg-[#e5edff] transition-colors"
                   >
                     {CATEGORY_LABELS[cat] ?? cat}
                   </Link>
@@ -116,25 +116,25 @@ export default async function CiudadPage({ params }: Props) {
               <Link
                 key={center.id}
                 href={`/centro/${center.slug}`}
-                className="group flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
+                className="group flex flex-col rounded-lg border border-[#d8dee9] bg-white shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
               >
                 {/* Cover */}
-                <div className="h-36 bg-gradient-to-br from-primary-100 to-beauty-100 relative overflow-hidden">
+                <div className="h-36 bg-gradient-to-br from-[#e5edff] to-[#e7f7f5] relative overflow-hidden">
                   {center.coverImage ? (
                     <Image src={center.coverImage} alt={center.name} fill className="object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-4xl">💆</div>
                   )}
-                  <span className="absolute top-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-zinc-700">
+                  <span className="absolute top-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-[#273244]">
                     {CATEGORY_LABELS[center.category] ?? center.category}
                   </span>
                 </div>
 
                 <div className="flex flex-1 flex-col p-5">
-                  <h2 className="font-black text-zinc-900 group-hover:text-primary-700 transition-colors line-clamp-1">
+                  <h2 className="font-black text-[#0c1324] group-hover:text-[#2355c8] transition-colors line-clamp-1">
                     {center.name}
                   </h2>
-                  <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-400">
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-[#8b96aa]">
                     <MapPin className="h-3 w-3" />
                     {cityDisplay}
                     {center._count.reviews > 0 && (
@@ -146,11 +146,11 @@ export default async function CiudadPage({ params }: Props) {
                     )}
                   </div>
                   {center.description && (
-                    <p className="mt-2 text-sm text-zinc-500 line-clamp-2">{center.description}</p>
+                    <p className="mt-2 text-sm text-[#647089] line-clamp-2">{center.description}</p>
                   )}
                   <div className="mt-auto pt-4 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-primary-600">Reservar cita</span>
-                    <ArrowRight className="h-4 w-4 text-primary-400 group-hover:translate-x-0.5 transition-transform" />
+                    <span className="text-xs font-semibold text-[#2f6df6]">Reservar cita</span>
+                    <ArrowRight className="h-4 w-4 text-[#8bb7ff] group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </div>
               </Link>
