@@ -1,7 +1,7 @@
+import Link from 'next/link'
+import { AlertCircle, ArrowUpRight, Calendar, Copy, DollarSign, Plus, ShoppingCart, Users, Zap } from 'lucide-react'
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
-import Link from 'next/link'
-import { Calendar, Users, AlertCircle, Plus, Copy, ArrowUpRight, Zap, DollarSign, ShoppingCart } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 
 export default async function DashboardPage() {
@@ -15,9 +15,13 @@ export default async function DashboardPage() {
       })
     : null
 
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999)
-  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const todayEnd = new Date()
+  todayEnd.setHours(23, 59, 59, 999)
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
 
   const [todayBookings, monthOrderRevenue, pendingOrders] = center
     ? await Promise.all([
@@ -35,110 +39,142 @@ export default async function DashboardPage() {
     : [[], null, 0]
 
   const bookingLink = center ? `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/centro/${center.slug}` : null
-
-  const confirmedToday = todayBookings.filter(b => b.status === 'CONFIRMED').length
-  const pendingToday   = todayBookings.filter(b => b.status === 'PENDING').length
+  const confirmedToday = todayBookings.filter(booking => booking.status === 'CONFIRMED').length
+  const pendingToday = todayBookings.filter(booking => booking.status === 'PENDING').length
   const revenueThisMonth = monthOrderRevenue?._sum?.totalCents ?? 0
 
   return (
     <div className="space-y-8">
-      {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-zinc-900">
-            Hola, {session?.user?.name?.split(' ')[0]} 👋
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9f3f2f]">Panel de negocio</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#171412]">
+            Hola, {session?.user?.name?.split(' ')[0] ?? 'equipo'}
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-[#6c625a]">
             {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
-        <Link
-          href="/dashboard/reservas/nueva"
-          className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/20 transition-all hover:bg-primary-700 active:scale-[0.97]"
-        >
-          <Plus className="h-4 w-4" />Nueva reserva
+        <Link href="/dashboard/reservas/nueva" className="btn-primary">
+          <Plus className="h-4 w-4" />
+          Nueva reserva
         </Link>
       </div>
 
-      {/* No center — onboarding */}
       {!center && (
-        <div className="rounded-3xl border-2 border-dashed border-zinc-200 bg-white p-12 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50">
-            <AlertCircle className="h-7 w-7 text-primary-500" />
+        <div className="rounded-lg border border-dashed border-[#d7cbbb] bg-white p-10 text-center shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-[#f4ded6]">
+            <AlertCircle className="h-7 w-7 text-[#9f3f2f]" />
           </div>
-          <h2 className="mb-2 text-xl font-bold text-zinc-900">Configura tu centro</h2>
-          <p className="mb-6 max-w-sm mx-auto text-sm text-zinc-500">
-            Aún no tienes ningún centro configurado. Créalo en menos de 5 minutos.
+          <h2 className="mb-2 text-xl font-black text-[#171412]">Configura tu centro</h2>
+          <p className="mx-auto mb-6 max-w-sm text-sm text-[#6c625a]">
+            Aun no tienes ningun centro configurado. Crealo en menos de 5 minutos.
           </p>
-          <Link href="/dashboard/configuracion" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 text-sm font-semibold text-white hover:bg-primary-700">
-            <Plus className="h-4 w-4" />Crear mi centro
+          <Link href="/dashboard/configuracion" className="btn-primary">
+            <Plus className="h-4 w-4" />
+            Crear mi centro
           </Link>
         </div>
       )}
 
       {center && (
         <>
-          {/* KPIs */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { label: 'Citas hoy',        value: todayBookings.length,    sub: `${confirmedToday} confirmadas · ${pendingToday} pendientes`, icon: Calendar,     color: 'bg-primary-50 text-primary-600', href: '/dashboard/reservas' },
-              { label: 'Ingresos este mes', value: formatPrice(revenueThisMonth), sub: 'Pedidos confirmados/entregados',                       icon: DollarSign,   color: 'bg-emerald-50 text-emerald-600', href: '/dashboard/pedidos'  },
-              { label: 'Pedidos pendientes',value: pendingOrders,           sub: 'Requieren confirmación',                                    icon: ShoppingCart, color: pendingOrders > 0 ? 'bg-amber-50 text-amber-600' : 'bg-zinc-50 text-zinc-400', href: '/dashboard/pedidos?estado=PENDING' },
-              { label: 'Clientes totales',  value: center._count.customers, sub: 'En tu CRM',                                                 icon: Users,        color: 'bg-beauty-50 text-beauty-600',   href: '/dashboard/clientes' },
-            ].map((kpi) => (
-              <Link key={kpi.label} href={kpi.href} className="group rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
-                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${kpi.color}`}>
+              {
+                label: 'Citas hoy',
+                value: todayBookings.length,
+                sub: `${confirmedToday} confirmadas · ${pendingToday} pendientes`,
+                icon: Calendar,
+                color: 'bg-[#f4ded6] text-[#9f3f2f]',
+                href: '/dashboard/reservas',
+              },
+              {
+                label: 'Ingresos este mes',
+                value: formatPrice(revenueThisMonth),
+                sub: 'Pedidos confirmados y entregados',
+                icon: DollarSign,
+                color: 'bg-[#eef4eb] text-[#4b7258]',
+                href: '/dashboard/pedidos',
+              },
+              {
+                label: 'Pedidos pendientes',
+                value: pendingOrders,
+                sub: 'Requieren confirmacion',
+                icon: ShoppingCart,
+                color: pendingOrders > 0 ? 'bg-amber-50 text-amber-700' : 'bg-[#eee7dd] text-[#6c625a]',
+                href: '/dashboard/pedidos?estado=PENDING',
+              },
+              {
+                label: 'Clientes totales',
+                value: center._count.customers,
+                sub: 'En tu CRM',
+                icon: Users,
+                color: 'bg-[#eef4eb] text-[#4b7258]',
+                href: '/dashboard/clientes',
+              },
+            ].map(kpi => (
+              <Link
+                key={kpi.label}
+                href={kpi.href}
+                className="group rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_26px_70px_rgba(42,32,24,0.1)]"
+              >
+                <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-md ${kpi.color}`}>
                   <kpi.icon className="h-5 w-5" />
                 </div>
-                <div className="text-3xl font-black tracking-tight text-zinc-900">{kpi.value}</div>
-                <div className="mt-1 text-sm font-medium text-zinc-700">{kpi.label}</div>
-                <div className="mt-0.5 text-xs text-zinc-400">{kpi.sub}</div>
+                <div className="text-3xl font-black tracking-tight text-[#171412]">{kpi.value}</div>
+                <div className="mt-1 text-sm font-bold text-[#332b26]">{kpi.label}</div>
+                <div className="mt-0.5 text-xs text-[#6c625a]">{kpi.sub}</div>
               </Link>
             ))}
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-            {/* Today agenda */}
-            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4">
-                <h2 className="font-bold text-zinc-900">Agenda de hoy</h2>
-                <Link href="/dashboard/reservas" className="flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:text-primary-700">
+            <div className="overflow-hidden rounded-lg border border-[#e5ded3] bg-white shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
+              <div className="flex items-center justify-between border-b border-[#eee7dd] px-6 py-4">
+                <div>
+                  <h2 className="font-black text-[#171412]">Agenda de hoy</h2>
+                  <p className="text-xs text-[#6c625a]">Vista rapida de citas y estados.</p>
+                </div>
+                <Link href="/dashboard/reservas" className="flex items-center gap-1.5 text-sm font-bold text-[#9f3f2f] hover:text-[#e36952]">
                   Ver todo <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
               {todayBookings.length === 0 ? (
                 <div className="px-6 py-12 text-center">
-                  <Calendar className="mx-auto mb-3 h-10 w-10 text-zinc-200" />
-                  <p className="text-sm text-zinc-400">No hay citas programadas para hoy</p>
-                  <Link href="/dashboard/reservas/nueva" className="mt-3 inline-flex text-sm font-semibold text-primary-600 hover:text-primary-700">
-                    + Añadir cita manual
+                  <Calendar className="mx-auto mb-3 h-10 w-10 text-[#cbbcaf]" />
+                  <p className="text-sm text-[#6c625a]">No hay citas programadas para hoy</p>
+                  <Link href="/dashboard/reservas/nueva" className="mt-3 inline-flex text-sm font-bold text-[#9f3f2f] hover:text-[#e36952]">
+                    Anadir cita manual
                   </Link>
                 </div>
               ) : (
-                <div className="divide-y divide-zinc-50">
-                  {todayBookings.map((b) => (
-                    <div key={b.id} className="flex items-center gap-4 px-6 py-4 hover:bg-zinc-50/50 transition-colors">
+                <div className="divide-y divide-[#f0e8dc]">
+                  {todayBookings.map(booking => (
+                    <div key={booking.id} className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#fbfaf7]">
                       <div className="shrink-0 text-center">
-                        <p className="text-sm font-bold text-zinc-900">
-                          {new Date(b.startAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        <p className="text-sm font-black text-[#171412]">
+                          {new Date(booking.startAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                       <div className={`h-10 w-1 shrink-0 rounded-full ${
-                        b.status === 'CONFIRMED' ? 'bg-emerald-400' :
-                        b.status === 'PENDING'   ? 'bg-amber-400' : 'bg-zinc-300'
+                        booking.status === 'CONFIRMED' ? 'bg-[#9fc4aa]' :
+                        booking.status === 'PENDING' ? 'bg-amber-400' : 'bg-[#cbbcaf]'
                       }`} />
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-600">
-                        {b.customer.name[0]}
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4ded6] text-sm font-black text-[#9f3f2f]">
+                        {booking.customer.name[0]}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-zinc-900 truncate">{b.customer.name}</p>
-                        <p className="text-sm text-zinc-500 truncate">{b.service.name}{b.staff ? ` · ${b.staff.name}` : ''}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-bold text-[#171412]">{booking.customer.name}</p>
+                        <p className="truncate text-sm text-[#6c625a]">
+                          {booking.service.name}{booking.staff ? ` · ${booking.staff.name}` : ''}
+                        </p>
                       </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        b.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-700' :
-                        b.status === 'PENDING'   ? 'bg-amber-50 text-amber-700' : 'bg-zinc-100 text-zinc-500'
+                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        booking.status === 'CONFIRMED' ? 'bg-[#eef4eb] text-[#4b7258]' :
+                        booking.status === 'PENDING' ? 'bg-amber-50 text-amber-700' : 'bg-[#eee7dd] text-[#6c625a]'
                       }`}>
-                        {b.status === 'CONFIRMED' ? 'Confirmada' : b.status === 'PENDING' ? 'Pendiente' : b.status}
+                        {booking.status === 'CONFIRMED' ? 'Confirmada' : booking.status === 'PENDING' ? 'Pendiente' : booking.status}
                       </span>
                     </div>
                   ))}
@@ -146,65 +182,68 @@ export default async function DashboardPage() {
               )}
             </div>
 
-            {/* Sidebar cards */}
             <div className="space-y-4">
-              {/* Quick actions */}
-              <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                <h3 className="mb-4 font-semibold text-zinc-900">Acciones rápidas</h3>
+              <div className="rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
+                <h3 className="mb-4 font-black text-[#171412]">Acciones rapidas</h3>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { label: 'Nueva reserva',  href: '/dashboard/reservas/nueva', icon: Calendar,     color: 'bg-primary-50 text-primary-600' },
-                    { label: 'Servicios',      href: '/dashboard/servicios',      icon: Zap,          color: 'bg-emerald-50 text-emerald-600' },
-                    { label: 'Clientes',       href: '/dashboard/clientes',       icon: Users,        color: 'bg-beauty-50 text-beauty-600'   },
-                    { label: 'Pedidos',        href: '/dashboard/pedidos',        icon: ShoppingCart, color: 'bg-amber-50 text-amber-600'     },
-                  ].map((a) => (
-                    <Link key={a.href} href={a.href}
-                      className="flex flex-col items-center gap-2 rounded-xl border border-zinc-100 p-3 text-center transition-all hover:border-zinc-200 hover:shadow-sm hover:-translate-y-0.5">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${a.color}`}>
-                        <a.icon className="h-4 w-4" />
+                    { label: 'Nueva reserva', href: '/dashboard/reservas/nueva', icon: Calendar, color: 'bg-[#f4ded6] text-[#9f3f2f]' },
+                    { label: 'Servicios', href: '/dashboard/servicios', icon: Zap, color: 'bg-[#eef4eb] text-[#4b7258]' },
+                    { label: 'Clientes', href: '/dashboard/clientes', icon: Users, color: 'bg-[#eee7dd] text-[#5f554d]' },
+                    { label: 'Pedidos', href: '/dashboard/pedidos', icon: ShoppingCart, color: 'bg-amber-50 text-amber-700' },
+                  ].map(action => (
+                    <Link
+                      key={action.href}
+                      href={action.href}
+                      className="flex flex-col items-center gap-2 rounded-md border border-[#eee7dd] p-3 text-center transition-all hover:-translate-y-0.5 hover:border-[#d7cbbb]"
+                    >
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-md ${action.color}`}>
+                        <action.icon className="h-4 w-4" />
                       </div>
-                      <span className="text-xs font-medium text-zinc-600 leading-tight">{a.label}</span>
+                      <span className="text-xs font-bold leading-tight text-[#5f554d]">{action.label}</span>
                     </Link>
                   ))}
                 </div>
               </div>
 
-              {/* Booking link */}
               {bookingLink && (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                  <h3 className="mb-1 font-semibold text-zinc-900">Tu enlace de reserva</h3>
-                  <p className="mb-3 text-xs text-zinc-400">Compártelo con tus clientes.</p>
-                  <div className="flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2.5">
-                    <span className="flex-1 truncate font-mono text-xs text-zinc-500">{bookingLink}</span>
+                <div className="rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
+                  <h3 className="mb-1 font-black text-[#171412]">Tu enlace de reserva</h3>
+                  <p className="mb-3 text-xs text-[#6c625a]">Compartelo con tus clientes.</p>
+                  <div className="flex items-center gap-2 rounded-md bg-[#f7f4ef] px-3 py-2.5">
+                    <span className="flex-1 truncate font-mono text-xs text-[#6c625a]">{bookingLink}</span>
                     <button
-                      className="shrink-0 flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+                      className="flex shrink-0 items-center gap-1 text-xs font-bold text-[#9f3f2f] transition-colors hover:text-[#e36952]"
                       title="Copiar"
                     >
-                      <Copy className="h-3.5 w-3.5" />Copiar
+                      <Copy className="h-3.5 w-3.5" />
+                      Copiar
                     </button>
                   </div>
                   <Link
                     href={`/centro/${center.slug}`}
                     target="_blank"
-                    className="mt-2.5 flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-600 transition-colors"
+                    className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#6c625a] transition-colors hover:text-[#171412]"
                   >
-                    <ArrowUpRight className="h-3.5 w-3.5" />Ver mi página pública
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                    Ver mi pagina publica
                   </Link>
                 </div>
               )}
 
-              {/* Status */}
-              <div className={`rounded-2xl border p-5 ${center.published ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+              <div className={`rounded-lg border p-5 ${
+                center.published ? 'border-[#cfe0d2] bg-[#eef4eb]' : 'border-amber-200 bg-amber-50'
+              }`}>
                 <div className="flex items-center gap-2">
-                  <div className={`h-2 w-2 rounded-full ${center.published ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <p className={`text-sm font-semibold ${center.published ? 'text-emerald-700' : 'text-amber-700'}`}>
-                    {center.published ? 'Centro publicado' : 'Pendiente de publicación'}
+                  <div className={`h-2 w-2 rounded-full ${center.published ? 'bg-[#4b7258]' : 'bg-amber-500'}`} />
+                  <p className={`text-sm font-black ${center.published ? 'text-[#4b7258]' : 'text-amber-700'}`}>
+                    {center.published ? 'Centro publicado' : 'Pendiente de publicacion'}
                   </p>
                 </div>
-                <p className={`mt-1 text-xs ${center.published ? 'text-emerald-600' : 'text-amber-600'}`}>
+                <p className={`mt-1 text-xs ${center.published ? 'text-[#4b7258]' : 'text-amber-700'}`}>
                   {center.published
                     ? 'Tu perfil es visible en el marketplace.'
-                    : 'Tu perfil está en revisión. Te avisaremos pronto.'}
+                    : 'Tu perfil esta en revision. Te avisaremos pronto.'}
                 </p>
               </div>
             </div>
