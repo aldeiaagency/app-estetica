@@ -20,11 +20,20 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
   const isDark = theme === 'dark'
 
   const headerClass = isDark
-    ? 'border-white/10 bg-[#0c1324]/90'
+    ? 'border-white/10 bg-[#0c1324]/92'
     : 'border-[#d8dee9]/90 bg-[#f1f4f8]/92'
-  const linkClass = isDark
-    ? 'text-white/64 hover:bg-white/10 hover:text-white'
+  const navLinkClass = isDark
+    ? 'text-white/78 hover:bg-white/10 hover:text-white'
     : 'text-[#647089] hover:bg-[#e5edff] hover:text-[#0c1324]'
+  const actionLinkClass = isDark
+    ? 'text-white/88 hover:bg-white/12 hover:text-white'
+    : 'text-[#647089] hover:bg-[#e5edff] hover:text-[#0c1324]'
+  const mobilePanelClass = isDark
+    ? 'border-white/10 bg-[#0c1324] shadow-[0_22px_55px_rgba(0,0,0,0.28)]'
+    : 'border-[#d8dee9] bg-[#f1f4f8] shadow-[0_22px_55px_rgba(12,19,36,0.08)]'
+  const mobileLinkClass = isDark
+    ? 'text-white/88 hover:bg-white/10 hover:text-white'
+    : 'text-[#0c1324] hover:bg-[#e5edff] hover:text-[#0c1324]'
 
   return (
     <header className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors ${headerClass}`}>
@@ -43,7 +52,7 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
             <Link
               key={href}
               href={href}
-              className={`rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${linkClass}`}
+              className={`rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${navLinkClass}`}
             >
               {label}
             </Link>
@@ -54,20 +63,20 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
           <Link
             href="/carrito"
             aria-label="Carrito"
-            className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${linkClass}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${actionLinkClass}`}
           >
             <ShoppingBag className="h-[18px] w-[18px]" />
           </Link>
           <Link
             href="/cuenta"
-            className={`hidden items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition-colors sm:flex ${linkClass}`}
+            className={`hidden items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition-colors sm:flex ${actionLinkClass}`}
           >
             <User className="h-4 w-4" />
             Mi cuenta
           </Link>
           <button
             onClick={() => setOpen(prev => !prev)}
-            className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors md:hidden ${linkClass}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors md:hidden ${actionLinkClass}`}
             aria-label={open ? 'Cerrar menu' : 'Abrir menu'}
             aria-expanded={open}
           >
@@ -77,14 +86,14 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
       </div>
 
       {open && (
-        <div className={`border-t md:hidden ${isDark ? 'border-white/10 bg-[#0c1324]' : 'border-[#d8dee9] bg-[#f1f4f8]'}`}>
+        <div className={`border-t md:hidden ${mobilePanelClass}`}>
           <nav className="flex flex-col gap-1 px-4 py-3">
             {NAV_LINKS.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition-colors ${linkClass}`}
+                className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition-colors ${mobileLinkClass}`}
               >
                 {Icon && <Icon className="h-4 w-4 shrink-0 opacity-70" />}
                 {label}
@@ -94,7 +103,7 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
             <Link
               href="/cuenta"
               onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition-colors ${linkClass}`}
+              className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-semibold transition-colors ${mobileLinkClass}`}
             >
               <User className="h-4 w-4 shrink-0 opacity-70" />
               Mi cuenta

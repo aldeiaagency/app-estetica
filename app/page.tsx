@@ -6,9 +6,12 @@ import {
   BadgeCheck,
   CalendarCheck,
   Clock3,
+  Gift,
   MapPin,
+  Package,
   Search,
   ShieldCheck,
+  ShoppingBag,
   Sparkles,
   Star,
   Store,
@@ -57,6 +60,36 @@ async function getHomeStats() {
   }
 }
 
+async function getMarketplaceHighlights() {
+  try {
+    const [products, bonos] = await Promise.all([
+      prisma.product.findMany({
+        where: { active: true, center: { published: true } },
+        include: {
+          center: { select: { name: true, slug: true, addressCity: true } },
+          _count: { select: { orderItems: true } },
+        },
+        orderBy: [{ orderItems: { _count: 'desc' } }, { createdAt: 'desc' }],
+        take: 4,
+      }),
+      prisma.bono.findMany({
+        where: { active: true, center: { published: true } },
+        include: {
+          center: { select: { name: true, slug: true, addressCity: true } },
+          service: { select: { name: true } },
+          _count: { select: { instances: true } },
+        },
+        orderBy: [{ instances: { _count: 'desc' } }, { createdAt: 'desc' }],
+        take: 3,
+      }),
+    ])
+
+    return { products, bonos }
+  } catch {
+    return { products: [], bonos: [] }
+  }
+}
+
 const CATEGORIES = [
   { slug: 'PELUQUERIA', label: 'Peluquería', sample: 'Corte, color, brushing' },
   { slug: 'ESTETICA', label: 'Estética', sample: 'Faciales, depilación, rituales' },
@@ -91,7 +124,11 @@ const BUSINESS_METRICS = [
 ]
 
 export default async function HomePage() {
-  const [centers, stats] = await Promise.all([getFeaturedCenters(), getHomeStats()])
+  const [centers, stats, marketplace] = await Promise.all([
+    getFeaturedCenters(),
+    getHomeStats(),
+    getMarketplaceHighlights(),
+  ])
 
   return (
     <div className="min-h-screen bg-[#f1f4f8] text-[#0c1324]">
@@ -220,6 +257,149 @@ export default async function HomePage() {
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-9 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2f6df6]">Marketplace local</p>
+              <h2 className="mt-2 max-w-2xl text-3xl font-black tracking-tight text-[#0c1324] sm:text-5xl">
+                Compra lo que usas en tu centro favorito.
+              </h2>
+            </div>
+            <div className="max-w-xl lg:justify-self-end">
+              <p className="text-sm leading-6 text-[#647089]">
+                Belleza Local no termina cuando reservas. Descubre productos profesionales,
+                bonos de sesiones y rutinas recomendadas por centros reales de tu zona.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link href="/productos" className="btn-primary py-2 text-xs">
+                  <ShoppingBag className="h-3.5 w-3.5" />
+                  Ver productos
+                </Link>
+                <Link href="/buscar" className="btn-outline py-2 text-xs">
+                  Encontrar centros
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <h3 className="text-lg font-black text-[#0c1324]">Productos mas solicitados</h3>
+                <Link href="/productos" className="text-sm font-bold text-[#2355c8] hover:text-[#2f6df6]">
+                  Ver marketplace
+                </Link>
+              </div>
+
+              {marketplace.products.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {marketplace.products.map(product => (
+                    <Link
+                      key={product.id}
+                      href={`/productos/${product.id}`}
+                      className="group grid min-h-36 grid-cols-[104px_1fr] overflow-hidden rounded-lg border border-[#d8dee9] bg-[#f7f9fc] transition hover:-translate-y-0.5 hover:border-[#b9c4d5] hover:bg-white hover:shadow-[0_24px_60px_-42px_rgba(12,19,36,0.8)]"
+                    >
+                      <div className="relative overflow-hidden bg-[#e5eaf2]">
+                        {product.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={product.image} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Package className="h-7 w-7 text-[#8b96aa]" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex min-w-0 flex-col justify-between p-4">
+                        <div>
+                          {product.brand && <p className="text-[10px] font-black uppercase tracking-wider text-[#647089]">{product.brand}</p>}
+                          <p className="mt-1 line-clamp-2 font-black leading-tight text-[#0c1324] transition-colors group-hover:text-[#2355c8]">
+                            {product.name}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-[#647089]">
+                            {product.center.name} - {product.center.addressCity}
+                          </p>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <span className="font-black text-[#0c1324]">{formatPrice(product.priceCents)}</span>
+                          <span className="rounded-full bg-[#e5edff] px-2.5 py-1 text-[11px] font-black text-[#2355c8]">
+                            {product._count.orderItems > 0 ? `${product._count.orderItems} pedidos` : 'Nuevo'}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    ['Cosmetica profesional', 'Rutinas faciales, cremas y serum recomendados por centros.'],
+                    ['Cuidado capilar', 'Tratamientos, mascarillas y productos para mantener el resultado.'],
+                    ['Bienestar en casa', 'Aceites, kits y detalles para continuar el ritual despues de la cita.'],
+                  ].map(([title, text]) => (
+                    <div key={title} className="rounded-lg border border-dashed border-[#d8dee9] bg-[#f7f9fc] p-5">
+                      <Package className="h-5 w-5 text-[#2f6df6]" />
+                      <p className="mt-4 font-black text-[#0c1324]">{title}</p>
+                      <p className="mt-2 text-sm leading-6 text-[#647089]">{text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <Gift className="h-4 w-4 text-[#2f6df6]" />
+                <h3 className="text-lg font-black text-[#0c1324]">Bonos para repetir</h3>
+              </div>
+
+              {marketplace.bonos.length > 0 ? (
+                <div className="space-y-3">
+                  {marketplace.bonos.map(bono => (
+                    <Link
+                      key={bono.id}
+                      href={`/bono/${bono.id}`}
+                      className="block rounded-lg border border-[#d8dee9] bg-[#f7f9fc] p-4 transition hover:-translate-y-0.5 hover:border-[#b9c4d5] hover:bg-white hover:shadow-[0_24px_60px_-42px_rgba(12,19,36,0.8)]"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-black text-[#0c1324]">{bono.name}</p>
+                          <p className="mt-1 truncate text-xs text-[#647089]">
+                            {bono.center.name} - {bono.center.addressCity}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-[#e5edff] px-2.5 py-1 text-xs font-black text-[#2355c8]">
+                          {formatPrice(bono.priceCents)}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#647089]">
+                        <span className="rounded-full bg-white px-2.5 py-1 font-bold">{bono.sessions} sesiones</span>
+                        <span className="rounded-full bg-white px-2.5 py-1 font-bold">{bono.validityDays} dias</span>
+                        <span className="rounded-full bg-white px-2.5 py-1 font-bold">
+                          {bono._count.instances > 0 ? `${bono._count.instances} vendidos` : (bono.service?.name ?? 'Flexible')}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-[#d8dee9] bg-[#0c1324] p-5 text-white">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9db8ff]">Ejemplo de bono</p>
+                  <h3 className="mt-3 text-2xl font-black tracking-tight">Bono facial 5 sesiones</h3>
+                  <p className="mt-3 text-sm leading-6 text-white/64">
+                    Perfecto para tratamientos recurrentes: depilacion, masaje, manicura o rituales faciales.
+                  </p>
+                  <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
+                    <span className="text-sm text-white/64">Ahorro frente a sesiones sueltas</span>
+                    <span className="font-black text-white">Desde 49 EUR</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
