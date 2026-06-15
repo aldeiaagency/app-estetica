@@ -38,20 +38,20 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f4ef] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#f1f4f8] px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[#e36952] shadow-[0_12px_26px_rgba(227,105,82,0.28)]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[#2f6df6] shadow-[0_12px_26px_rgba(47,109,246,0.28)]">
               <Sparkles className="h-4 w-4 text-white" />
             </div>
-            <span className="text-xl font-black text-[#171412]">Belleza Local</span>
+            <span className="text-xl font-black text-[#0c1324]">Belleza Local</span>
           </Link>
-          <h1 className="mt-6 text-3xl font-black tracking-tight text-[#171412]">Bienvenido de nuevo</h1>
-          <p className="mt-1 text-sm text-[#6c625a]">Entra en tu cuenta para continuar</p>
+          <h1 className="mt-6 text-3xl font-black tracking-tight text-[#0c1324]">Bienvenido de nuevo</h1>
+          <p className="mt-1 text-sm text-[#647089]">Entra en tu cuenta para continuar</p>
         </div>
 
-        <div className="rounded-lg border border-[#e5ded3] bg-white p-8 shadow-[0_24px_70px_rgba(42,32,24,0.08)]">
+        <div className="rounded-lg border border-[#d8dee9] bg-white p-8 shadow-[0_24px_70px_rgba(12,19,36,0.08)]">
           {error && <div className="mb-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -61,8 +61,8 @@ export default function SignInPage() {
             </div>
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-sm font-semibold text-[#332b26]">Contrasena</label>
-                <Link href="/auth/forgot-password" className="text-xs font-bold text-[#9f3f2f] hover:text-[#e36952]">
+                <label className="text-sm font-semibold text-[#0c1324]">Contrasena</label>
+                <Link href="/auth/forgot-password" className="text-xs font-bold text-[#2355c8] hover:text-[#2f6df6]">
                   Olvidaste tu contrasena?
                 </Link>
               </div>
@@ -78,7 +78,7 @@ export default function SignInPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9a8f84] hover:text-[#171412]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b96aa] hover:text-[#0c1324]"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -92,16 +92,16 @@ export default function SignInPage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#eee7dd]" />
+              <div className="w-full border-t border-[#e5eaf2]" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-xs text-[#9a8f84]">o continua con</span>
+              <span className="bg-white px-3 text-xs text-[#8b96aa]">o continua con</span>
             </div>
           </div>
 
           <button
             onClick={handleGoogle}
-            className="flex w-full items-center justify-center gap-3 rounded-md border border-[#d7cbbb] py-3 text-sm font-bold text-[#332b26] transition-colors hover:bg-[#fbfaf7]"
+            className="flex w-full items-center justify-center gap-3 rounded-md border border-[#d8dee9] py-3 text-sm font-bold text-[#0c1324] transition-colors hover:bg-[#f7f9fc]"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -113,9 +113,9 @@ export default function SignInPage() {
           </button>
         </div>
 
-        <p className="mt-6 text-center text-sm text-[#6c625a]">
+        <p className="mt-6 text-center text-sm text-[#647089]">
           No tienes cuenta?{' '}
-          <Link href="/auth/signup" className="font-black text-[#9f3f2f] hover:text-[#e36952]">
+          <Link href="/auth/signup" className="font-black text-[#2355c8] hover:text-[#2f6df6]">
             Registrate gratis
           </Link>
         </p>

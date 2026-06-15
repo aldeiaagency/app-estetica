@@ -43,15 +43,15 @@ export default async function ReservarPage({ params, searchParams }: Props) {
 
   if (center.services.length === 0) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#f7f4ef]">
+      <div className="flex min-h-screen flex-col bg-[#f1f4f8]">
         <BookingHeader slug={slug} centerName={center.name} />
         <div className="flex flex-1 items-center justify-center p-4">
           <div className="max-w-sm text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-[#eee7dd]">
-              <Sparkles className="h-7 w-7 text-[#9a8f84]" />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-[#e5edff]">
+              <Sparkles className="h-7 w-7 text-[#2f6df6]" />
             </div>
-            <p className="font-bold text-[#332b26]">Este centro no tiene servicios disponibles todavia.</p>
-            <Link href={`/centro/${slug}`} className="mt-4 inline-block font-bold text-[#9f3f2f] hover:text-[#e36952]">
+            <p className="font-bold text-[#0c1324]">Este centro no tiene servicios disponibles todavia.</p>
+            <Link href={`/centro/${slug}`} className="mt-4 inline-block font-bold text-[#2355c8] hover:text-[#2f6df6]">
               Volver al centro
             </Link>
           </div>
@@ -61,9 +61,9 @@ export default async function ReservarPage({ params, searchParams }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f4ef]">
+    <div className="min-h-screen bg-[#f1f4f8]">
       <BookingHeader slug={slug} centerName={center.name} />
-      <main className="mx-auto max-w-[680px] px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-8">
         <BookingWizard
           centerId={center.id}
           centerSlug={center.slug}
@@ -78,20 +78,20 @@ export default async function ReservarPage({ params, searchParams }: Props) {
 
 function BookingHeader({ slug, centerName }: { slug: string; centerName: string }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-[#e5ded3] bg-[#f7f4ef]/92 px-4 py-3.5 backdrop-blur-md">
-      <div className="mx-auto flex max-w-[680px] items-center gap-2 text-sm">
-        <Link href="/" className="flex items-center gap-1.5 font-black text-[#171412]">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#e36952]">
+    <header className="sticky top-0 z-30 border-b border-[#d8dee9] bg-[#f1f4f8]/92 px-4 py-3.5 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 text-sm">
+        <Link href="/" className="flex items-center gap-1.5 font-black text-[#0c1324]">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2f6df6]">
             <Sparkles className="h-3.5 w-3.5 text-white" />
           </span>
           <span className="hidden sm:inline">Belleza Local</span>
         </Link>
-        <ChevronRight className="h-3 w-3 text-[#cbbcaf]" />
-        <Link href={`/centro/${slug}`} className="max-w-[180px] truncate text-[#6c625a] transition-colors hover:text-[#171412]">
+        <ChevronRight className="h-3 w-3 text-[#8b96aa]" />
+        <Link href={`/centro/${slug}`} className="max-w-[180px] truncate text-[#647089] transition-colors hover:text-[#0c1324]">
           {centerName}
         </Link>
-        <ChevronRight className="h-3 w-3 text-[#cbbcaf]" />
-        <span className="font-bold text-[#332b26]">Reservar</span>
+        <ChevronRight className="h-3 w-3 text-[#8b96aa]" />
+        <span className="font-bold text-[#0c1324]">Reservar</span>
       </div>
     </header>
   )

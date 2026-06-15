@@ -11,13 +11,13 @@ export function Badge({ children, variant = 'default', className }: BadgeProps) 
     <span className={cn(
       'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold',
       {
-        'bg-[#eee7dd] text-[#5f554d]': variant === 'default',
+        'bg-[#f1f4f8] text-[#647089]': variant === 'default',
         'bg-[#eef4eb] text-[#4b7258]': variant === 'success',
         'bg-amber-50 text-amber-700': variant === 'warning',
         'bg-red-50 text-red-700': variant === 'danger',
         'bg-blue-50 text-blue-700': variant === 'info',
-        'border border-[#d7cbbb] bg-white text-[#5f554d]': variant === 'outline',
-        'bg-[#f4ded6] text-[#9f3f2f]': variant === 'primary',
+        'border border-[#d8dee9] bg-white text-[#647089]': variant === 'outline',
+        'bg-[#e5edff] text-[#2355c8]': variant === 'primary',
       },
       className
     )}>

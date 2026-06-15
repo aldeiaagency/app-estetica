@@ -5,6 +5,7 @@ import { CenterCategory, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/client'
 import { CATEGORY_LABELS, formatPrice } from '@/lib/utils'
 import { PublicHeader } from '@/components/ui/public-header'
+import { PublicFooter } from '@/components/ui/public-footer'
 
 export const metadata: Metadata = {
   title: 'Buscar centros de belleza',
@@ -80,10 +81,10 @@ export default async function BuscarPage({
   const resultLabel = centers.length === 1 ? 'centro encontrado' : 'centros encontrados'
 
   return (
-    <div className="min-h-screen bg-[#f7f4ef]">
+    <div className="min-h-screen bg-[#f1f4f8]">
       <PublicHeader />
 
-      <section className="border-b border-[#e5ded3] bg-[#171412] text-white">
+      <section className="border-b border-[#d8dee9] bg-[#0c1324] text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 md:grid-cols-[0.92fr_1.08fr] md:items-end md:py-14">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f2b5a7]">Explorar centros</p>
@@ -97,32 +98,32 @@ export default async function BuscarPage({
 
           <form className="rounded-lg border border-white/10 bg-white p-3 shadow-[0_30px_90px_rgba(0,0,0,0.24)]">
             <div className="grid gap-2 md:grid-cols-[1fr_0.82fr_0.7fr_auto]">
-              <label className="flex items-center gap-3 rounded-md border border-[#e5ded3] bg-[#fbfaf7] px-4 py-3">
-                <Search className="h-4 w-4 shrink-0 text-[#9a8f84]" />
+              <label className="flex items-center gap-3 rounded-md border border-[#d8dee9] bg-[#f7f9fc] px-4 py-3">
+                <Search className="h-4 w-4 shrink-0 text-[#8b96aa]" />
                 <input
                   type="text"
                   name="q"
                   defaultValue={q}
                   placeholder="Servicio, peluqueria, masaje..."
-                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#171412] outline-none placeholder:text-[#9a8f84]"
+                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#0c1324] outline-none placeholder:text-[#8b96aa]"
                 />
               </label>
-              <label className="flex items-center gap-3 rounded-md border border-[#e5ded3] bg-[#fbfaf7] px-4 py-3">
-                <MapPin className="h-4 w-4 shrink-0 text-[#9a8f84]" />
+              <label className="flex items-center gap-3 rounded-md border border-[#d8dee9] bg-[#f7f9fc] px-4 py-3">
+                <MapPin className="h-4 w-4 shrink-0 text-[#8b96aa]" />
                 <input
                   type="text"
                   name="ciudad"
                   defaultValue={ciudad}
                   placeholder="Ciudad"
-                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#171412] outline-none placeholder:text-[#9a8f84]"
+                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#0c1324] outline-none placeholder:text-[#8b96aa]"
                 />
               </label>
-              <label className="flex items-center gap-3 rounded-md border border-[#e5ded3] bg-[#fbfaf7] px-4 py-3">
-                <SlidersHorizontal className="h-4 w-4 shrink-0 text-[#9a8f84]" />
+              <label className="flex items-center gap-3 rounded-md border border-[#d8dee9] bg-[#f7f9fc] px-4 py-3">
+                <SlidersHorizontal className="h-4 w-4 shrink-0 text-[#8b96aa]" />
                 <select
                   name="categoria"
                   defaultValue={validCategory ?? ''}
-                  className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#332b26] outline-none"
+                  className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#0c1324] outline-none"
                 >
                   <option value="">Todas</option>
                   {VALID_CATEGORIES.map(cat => (
@@ -141,17 +142,17 @@ export default async function BuscarPage({
       <main className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9f3f2f]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2355c8]">
               {centers.length > 0 ? `${centers.length} ${resultLabel}` : 'Sin resultados'}
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-[#171412]">
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-[#0c1324]">
               {ciudad ? `Resultados en ${ciudad}` : 'Centros destacados'}
               {validCategory ? ` · ${CATEGORY_LABELS[validCategory]}` : ''}
             </h2>
-            {q && <p className="mt-1 text-sm text-[#6c625a]">Busqueda: &ldquo;{q}&rdquo;</p>}
+            {q && <p className="mt-1 text-sm text-[#647089]">Busqueda: &ldquo;{q}&rdquo;</p>}
           </div>
           {hasFilters && (
-            <Link href="/buscar" className="text-sm font-bold text-[#9f3f2f] transition-colors hover:text-[#e36952]">
+            <Link href="/buscar" className="text-sm font-bold text-[#2355c8] transition-colors hover:text-[#2f6df6]">
               Limpiar filtros
             </Link>
           )}
@@ -164,8 +165,8 @@ export default async function BuscarPage({
               href={`/buscar?${new URLSearchParams({ ...(q ? { q } : {}), ...(ciudad ? { ciudad } : {}), categoria: cat }).toString()}`}
               className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all ${
                 validCategory === cat
-                  ? 'bg-[#171412] text-white'
-                  : 'border border-[#e5ded3] bg-white text-[#5f554d] hover:border-[#bda995] hover:text-[#171412]'
+                  ? 'bg-[#0c1324] text-white'
+                  : 'border border-[#d8dee9] bg-white text-[#647089] hover:border-[#b9c4d5] hover:text-[#0c1324]'
               }`}
             >
               {CATEGORY_LABELS[cat] ?? cat}
@@ -174,12 +175,12 @@ export default async function BuscarPage({
         </div>
 
         {centers.length === 0 && (
-          <div className="rounded-lg border border-dashed border-[#d7cbbb] bg-white px-6 py-16 text-center shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-[#eee7dd]">
-              <Search className="h-7 w-7 text-[#9a8f84]" />
+          <div className="rounded-lg border border-dashed border-[#d8dee9] bg-white px-6 py-16 text-center shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-[#e5eaf2]">
+              <Search className="h-7 w-7 text-[#8b96aa]" />
             </div>
-            <p className="font-bold text-[#332b26]">No encontramos centros</p>
-            <p className="mx-auto mt-1 max-w-sm text-sm text-[#6c625a]">
+            <p className="font-bold text-[#0c1324]">No encontramos centros</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-[#647089]">
               {hasFilters ? 'Prueba con otra busqueda o elimina los filtros.' : 'Pronto habra centros disponibles en tu zona.'}
             </p>
             {hasFilters && (
@@ -202,36 +203,36 @@ export default async function BuscarPage({
                 <Link
                   key={center.id}
                   href={`/centro/${center.slug}`}
-                  className="group block overflow-hidden rounded-lg border border-[#e5ded3] bg-white shadow-[0_20px_55px_rgba(42,32,24,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_28px_75px_rgba(42,32,24,0.12)]"
+                  className="group block overflow-hidden rounded-lg border border-[#d8dee9] bg-white shadow-[0_20px_55px_rgba(12,19,36,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_28px_75px_rgba(12,19,36,0.12)]"
                 >
-                  <div className="relative aspect-[16/9] overflow-hidden bg-[#eee7dd]">
+                  <div className="relative aspect-[16/9] overflow-hidden bg-[#e5eaf2]">
                     {center.coverImage ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={center.coverImage} alt={center.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     ) : (
                       <div className="flex h-full items-center justify-center">
-                        <Sparkles className="h-10 w-10 text-[#cbbcaf]" />
+                        <Sparkles className="h-10 w-10 text-[#8b96aa]" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#171412]/40 via-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0c1324]/40 via-transparent" />
                     <div className="absolute bottom-3 left-3">
-                      <span className="rounded-full bg-white/92 px-2.5 py-0.5 text-xs font-bold text-[#332b26] backdrop-blur">
+                      <span className="rounded-full bg-white/92 px-2.5 py-0.5 text-xs font-bold text-[#0c1324] backdrop-blur">
                         {CATEGORY_LABELS[center.category] ?? center.category}
                       </span>
                     </div>
                     {avgRating && (
-                      <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/92 px-2.5 py-1 text-xs font-bold text-[#332b26] backdrop-blur">
+                      <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/92 px-2.5 py-1 text-xs font-bold text-[#0c1324] backdrop-blur">
                         <Star className="h-3 w-3 fill-[#e3a952] text-[#e3a952]" />
                         {avgRating.toFixed(1)}
-                        <span className="text-[#6c625a]">({center._count.reviews})</span>
+                        <span className="text-[#647089]">({center._count.reviews})</span>
                       </div>
                     )}
                   </div>
                   <div className="p-5">
-                    <h3 className="font-bold leading-snug text-[#171412] transition-colors group-hover:text-[#9f3f2f]">
+                    <h3 className="font-bold leading-snug text-[#0c1324] transition-colors group-hover:text-[#2355c8]">
                       {center.name}
                     </h3>
-                    <p className="mt-1 flex items-center gap-1 text-xs text-[#6c625a]">
+                    <p className="mt-1 flex items-center gap-1 text-xs text-[#647089]">
                       <MapPin className="h-3 w-3 shrink-0" />
                       {center.addressCity}
                       {center.addressProvince && center.addressProvince !== center.addressCity ? `, ${center.addressProvince}` : ''}
@@ -239,25 +240,25 @@ export default async function BuscarPage({
                     {center.services.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1.5">
                         {center.services.slice(0, 3).map(service => (
-                          <span key={service.id} className="flex items-center gap-1 rounded-full bg-[#f7f4ef] px-2.5 py-1 text-xs text-[#5f554d]">
+                          <span key={service.id} className="flex items-center gap-1 rounded-full bg-[#f1f4f8] px-2.5 py-1 text-xs text-[#647089]">
                             <Clock className="h-3 w-3" />
                             {service.name}
                           </span>
                         ))}
                         {center.services.length > 3 && (
-                          <span className="rounded-full bg-[#f7f4ef] px-2.5 py-1 text-xs text-[#6c625a]">
+                          <span className="rounded-full bg-[#f1f4f8] px-2.5 py-1 text-xs text-[#647089]">
                             +{center.services.length - 3}
                           </span>
                         )}
                       </div>
                     )}
-                    <div className="mt-4 flex items-center justify-between border-t border-[#eee7dd] pt-4">
+                    <div className="mt-4 flex items-center justify-between border-t border-[#e5eaf2] pt-4">
                       {minPrice !== null ? (
-                        <span className="text-sm font-black text-[#171412]">Desde {formatPrice(minPrice)}</span>
+                        <span className="text-sm font-black text-[#0c1324]">Desde {formatPrice(minPrice)}</span>
                       ) : (
-                        <span className="text-sm text-[#9a8f84]">Consultar precio</span>
+                        <span className="text-sm text-[#8b96aa]">Consultar precio</span>
                       )}
-                      <span className="flex items-center gap-1 text-sm font-bold text-[#9f3f2f]">
+                      <span className="flex items-center gap-1 text-sm font-bold text-[#2355c8]">
                         Reservar <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                       </span>
                     </div>
@@ -268,6 +269,7 @@ export default async function BuscarPage({
           </div>
         )}
       </main>
+      <PublicFooter />
     </div>
   )
 }

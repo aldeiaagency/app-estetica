@@ -68,10 +68,10 @@ export function SidebarNav({ userName, userEmail, centerName }: SidebarNavProps)
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-white/10 bg-[#171412]">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-white/10 bg-[#0c1324]">
       <div className="border-b border-white/10 px-5 py-5">
         <Link href="/" className="group flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#e36952] shadow-[0_12px_26px_rgba(227,105,82,0.28)] transition-transform group-hover:scale-105">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#2f6df6] shadow-[0_12px_26px_rgba(47,109,246,0.28)] transition-transform group-hover:scale-105">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
           <span className="font-black tracking-tight text-white">Belleza Local</span>
@@ -99,7 +99,7 @@ export function SidebarNav({ userName, userEmail, centerName }: SidebarNavProps)
                     href={href}
                     className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition-all duration-150 ${
                       active
-                        ? 'bg-[#e36952] text-white shadow-[0_12px_30px_rgba(227,105,82,0.2)]'
+                        ? 'bg-[#2f6df6] text-white shadow-[0_12px_30px_rgba(47,109,246,0.22)]'
                         : 'text-white/54 hover:bg-white/8 hover:text-white'
                     }`}
                   >

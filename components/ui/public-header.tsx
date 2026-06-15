@@ -20,20 +20,20 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
   const isDark = theme === 'dark'
 
   const headerClass = isDark
-    ? 'border-white/10 bg-[#171412]/86'
-    : 'border-[#e5ded3]/90 bg-[#f7f4ef]/92'
+    ? 'border-white/10 bg-[#0c1324]/90'
+    : 'border-[#d8dee9]/90 bg-[#f1f4f8]/92'
   const linkClass = isDark
     ? 'text-white/64 hover:bg-white/10 hover:text-white'
-    : 'text-[#5f554d] hover:bg-[#eee7dd] hover:text-[#171412]'
+    : 'text-[#647089] hover:bg-[#e5edff] hover:text-[#0c1324]'
 
   return (
     <header className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors ${headerClass}`}>
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5">
         <Link href="/" className="group flex items-center gap-2.5" onClick={() => setOpen(false)}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#e36952] shadow-[0_12px_26px_rgba(227,105,82,0.28)] transition-transform group-hover:scale-105">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#2f6df6] shadow-[0_12px_26px_rgba(47,109,246,0.26)] transition-transform group-hover:scale-105">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
-          <span className={`font-black tracking-tight ${isDark ? 'text-white' : 'text-[#171412]'}`}>
+          <span className={`font-black tracking-tight ${isDark ? 'text-white' : 'text-[#0c1324]'}`}>
             Belleza Local
           </span>
         </Link>
@@ -77,7 +77,7 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
       </div>
 
       {open && (
-        <div className={`border-t md:hidden ${isDark ? 'border-white/10 bg-[#171412]' : 'border-[#e5ded3] bg-[#f7f4ef]'}`}>
+        <div className={`border-t md:hidden ${isDark ? 'border-white/10 bg-[#0c1324]' : 'border-[#d8dee9] bg-[#f1f4f8]'}`}>
           <nav className="flex flex-col gap-1 px-4 py-3">
             {NAV_LINKS.map(({ href, label, icon: Icon }) => (
               <Link
@@ -90,7 +90,7 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
                 {label}
               </Link>
             ))}
-            <div className={`my-2 border-t ${isDark ? 'border-white/10' : 'border-[#e5ded3]'}`} />
+            <div className={`my-2 border-t ${isDark ? 'border-white/10' : 'border-[#d8dee9]'}`} />
             <Link
               href="/cuenta"
               onClick={() => setOpen(false)}

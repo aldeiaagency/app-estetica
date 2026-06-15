@@ -47,11 +47,11 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9f3f2f]">Panel de negocio</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#171412]">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2355c8]">Panel de negocio</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#0c1324]">
             Hola, {session?.user?.name?.split(' ')[0] ?? 'equipo'}
           </h1>
-          <p className="mt-1 text-sm text-[#6c625a]">
+          <p className="mt-1 text-sm text-[#647089]">
             {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
@@ -62,12 +62,12 @@ export default async function DashboardPage() {
       </div>
 
       {!center && (
-        <div className="rounded-lg border border-dashed border-[#d7cbbb] bg-white p-10 text-center shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-[#f4ded6]">
-            <AlertCircle className="h-7 w-7 text-[#9f3f2f]" />
+        <div className="rounded-lg border border-dashed border-[#d8dee9] bg-white p-10 text-center shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-[#e5edff]">
+            <AlertCircle className="h-7 w-7 text-[#2355c8]" />
           </div>
-          <h2 className="mb-2 text-xl font-black text-[#171412]">Configura tu centro</h2>
-          <p className="mx-auto mb-6 max-w-sm text-sm text-[#6c625a]">
+          <h2 className="mb-2 text-xl font-black text-[#0c1324]">Configura tu centro</h2>
+          <p className="mx-auto mb-6 max-w-sm text-sm text-[#647089]">
             Aun no tienes ningun centro configurado. Crealo en menos de 5 minutos.
           </p>
           <Link href="/dashboard/configuracion" className="btn-primary">
@@ -86,7 +86,7 @@ export default async function DashboardPage() {
                 value: todayBookings.length,
                 sub: `${confirmedToday} confirmadas · ${pendingToday} pendientes`,
                 icon: Calendar,
-                color: 'bg-[#f4ded6] text-[#9f3f2f]',
+                color: 'bg-[#e5edff] text-[#2355c8]',
                 href: '/dashboard/reservas',
               },
               {
@@ -102,7 +102,7 @@ export default async function DashboardPage() {
                 value: pendingOrders,
                 sub: 'Requieren confirmacion',
                 icon: ShoppingCart,
-                color: pendingOrders > 0 ? 'bg-amber-50 text-amber-700' : 'bg-[#eee7dd] text-[#6c625a]',
+                color: pendingOrders > 0 ? 'bg-amber-50 text-amber-700' : 'bg-[#e5eaf2] text-[#647089]',
                 href: '/dashboard/pedidos?estado=PENDING',
               },
               {
@@ -117,62 +117,62 @@ export default async function DashboardPage() {
               <Link
                 key={kpi.label}
                 href={kpi.href}
-                className="group rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_26px_70px_rgba(42,32,24,0.1)]"
+                className="group rounded-lg border border-[#d8dee9] bg-white p-5 shadow-[0_20px_55px_rgba(12,19,36,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_26px_70px_rgba(12,19,36,0.1)]"
               >
                 <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-md ${kpi.color}`}>
                   <kpi.icon className="h-5 w-5" />
                 </div>
-                <div className="text-3xl font-black tracking-tight text-[#171412]">{kpi.value}</div>
-                <div className="mt-1 text-sm font-bold text-[#332b26]">{kpi.label}</div>
-                <div className="mt-0.5 text-xs text-[#6c625a]">{kpi.sub}</div>
+                <div className="text-3xl font-black tracking-tight text-[#0c1324]">{kpi.value}</div>
+                <div className="mt-1 text-sm font-bold text-[#0c1324]">{kpi.label}</div>
+                <div className="mt-0.5 text-xs text-[#647089]">{kpi.sub}</div>
               </Link>
             ))}
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-            <div className="overflow-hidden rounded-lg border border-[#e5ded3] bg-white shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-              <div className="flex items-center justify-between border-b border-[#eee7dd] px-6 py-4">
+            <div className="overflow-hidden rounded-lg border border-[#d8dee9] bg-white shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+              <div className="flex items-center justify-between border-b border-[#e5eaf2] px-6 py-4">
                 <div>
-                  <h2 className="font-black text-[#171412]">Agenda de hoy</h2>
-                  <p className="text-xs text-[#6c625a]">Vista rapida de citas y estados.</p>
+                  <h2 className="font-black text-[#0c1324]">Agenda de hoy</h2>
+                  <p className="text-xs text-[#647089]">Vista rapida de citas y estados.</p>
                 </div>
-                <Link href="/dashboard/reservas" className="flex items-center gap-1.5 text-sm font-bold text-[#9f3f2f] hover:text-[#e36952]">
+                <Link href="/dashboard/reservas" className="flex items-center gap-1.5 text-sm font-bold text-[#2355c8] hover:text-[#2f6df6]">
                   Ver todo <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
               {todayBookings.length === 0 ? (
                 <div className="px-6 py-12 text-center">
-                  <Calendar className="mx-auto mb-3 h-10 w-10 text-[#cbbcaf]" />
-                  <p className="text-sm text-[#6c625a]">No hay citas programadas para hoy</p>
-                  <Link href="/dashboard/reservas/nueva" className="mt-3 inline-flex text-sm font-bold text-[#9f3f2f] hover:text-[#e36952]">
+                  <Calendar className="mx-auto mb-3 h-10 w-10 text-[#8b96aa]" />
+                  <p className="text-sm text-[#647089]">No hay citas programadas para hoy</p>
+                  <Link href="/dashboard/reservas/nueva" className="mt-3 inline-flex text-sm font-bold text-[#2355c8] hover:text-[#2f6df6]">
                     Anadir cita manual
                   </Link>
                 </div>
               ) : (
                 <div className="divide-y divide-[#f0e8dc]">
                   {todayBookings.map(booking => (
-                    <div key={booking.id} className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#fbfaf7]">
+                    <div key={booking.id} className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#f7f9fc]">
                       <div className="shrink-0 text-center">
-                        <p className="text-sm font-black text-[#171412]">
+                        <p className="text-sm font-black text-[#0c1324]">
                           {new Date(booking.startAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                       <div className={`h-10 w-1 shrink-0 rounded-full ${
                         booking.status === 'CONFIRMED' ? 'bg-[#9fc4aa]' :
-                        booking.status === 'PENDING' ? 'bg-amber-400' : 'bg-[#cbbcaf]'
+                        booking.status === 'PENDING' ? 'bg-amber-400' : 'bg-[#8b96aa]'
                       }`} />
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f4ded6] text-sm font-black text-[#9f3f2f]">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e5edff] text-sm font-black text-[#2355c8]">
                         {booking.customer.name[0]}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-bold text-[#171412]">{booking.customer.name}</p>
-                        <p className="truncate text-sm text-[#6c625a]">
+                        <p className="truncate font-bold text-[#0c1324]">{booking.customer.name}</p>
+                        <p className="truncate text-sm text-[#647089]">
                           {booking.service.name}{booking.staff ? ` · ${booking.staff.name}` : ''}
                         </p>
                       </div>
                       <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold ${
                         booking.status === 'CONFIRMED' ? 'bg-[#eef4eb] text-[#4b7258]' :
-                        booking.status === 'PENDING' ? 'bg-amber-50 text-amber-700' : 'bg-[#eee7dd] text-[#6c625a]'
+                        booking.status === 'PENDING' ? 'bg-amber-50 text-amber-700' : 'bg-[#e5eaf2] text-[#647089]'
                       }`}>
                         {booking.status === 'CONFIRMED' ? 'Confirmada' : booking.status === 'PENDING' ? 'Pendiente' : booking.status}
                       </span>
@@ -183,37 +183,37 @@ export default async function DashboardPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-                <h3 className="mb-4 font-black text-[#171412]">Acciones rapidas</h3>
+              <div className="rounded-lg border border-[#d8dee9] bg-white p-5 shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+                <h3 className="mb-4 font-black text-[#0c1324]">Acciones rapidas</h3>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { label: 'Nueva reserva', href: '/dashboard/reservas/nueva', icon: Calendar, color: 'bg-[#f4ded6] text-[#9f3f2f]' },
+                    { label: 'Nueva reserva', href: '/dashboard/reservas/nueva', icon: Calendar, color: 'bg-[#e5edff] text-[#2355c8]' },
                     { label: 'Servicios', href: '/dashboard/servicios', icon: Zap, color: 'bg-[#eef4eb] text-[#4b7258]' },
-                    { label: 'Clientes', href: '/dashboard/clientes', icon: Users, color: 'bg-[#eee7dd] text-[#5f554d]' },
+                    { label: 'Clientes', href: '/dashboard/clientes', icon: Users, color: 'bg-[#e5eaf2] text-[#647089]' },
                     { label: 'Pedidos', href: '/dashboard/pedidos', icon: ShoppingCart, color: 'bg-amber-50 text-amber-700' },
                   ].map(action => (
                     <Link
                       key={action.href}
                       href={action.href}
-                      className="flex flex-col items-center gap-2 rounded-md border border-[#eee7dd] p-3 text-center transition-all hover:-translate-y-0.5 hover:border-[#d7cbbb]"
+                      className="flex flex-col items-center gap-2 rounded-md border border-[#e5eaf2] p-3 text-center transition-all hover:-translate-y-0.5 hover:border-[#d8dee9]"
                     >
                       <div className={`flex h-9 w-9 items-center justify-center rounded-md ${action.color}`}>
                         <action.icon className="h-4 w-4" />
                       </div>
-                      <span className="text-xs font-bold leading-tight text-[#5f554d]">{action.label}</span>
+                      <span className="text-xs font-bold leading-tight text-[#647089]">{action.label}</span>
                     </Link>
                   ))}
                 </div>
               </div>
 
               {bookingLink && (
-                <div className="rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-                  <h3 className="mb-1 font-black text-[#171412]">Tu enlace de reserva</h3>
-                  <p className="mb-3 text-xs text-[#6c625a]">Compartelo con tus clientes.</p>
-                  <div className="flex items-center gap-2 rounded-md bg-[#f7f4ef] px-3 py-2.5">
-                    <span className="flex-1 truncate font-mono text-xs text-[#6c625a]">{bookingLink}</span>
+                <div className="rounded-lg border border-[#d8dee9] bg-white p-5 shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+                  <h3 className="mb-1 font-black text-[#0c1324]">Tu enlace de reserva</h3>
+                  <p className="mb-3 text-xs text-[#647089]">Compartelo con tus clientes.</p>
+                  <div className="flex items-center gap-2 rounded-md bg-[#f1f4f8] px-3 py-2.5">
+                    <span className="flex-1 truncate font-mono text-xs text-[#647089]">{bookingLink}</span>
                     <button
-                      className="flex shrink-0 items-center gap-1 text-xs font-bold text-[#9f3f2f] transition-colors hover:text-[#e36952]"
+                      className="flex shrink-0 items-center gap-1 text-xs font-bold text-[#2355c8] transition-colors hover:text-[#2f6df6]"
                       title="Copiar"
                     >
                       <Copy className="h-3.5 w-3.5" />
@@ -223,7 +223,7 @@ export default async function DashboardPage() {
                   <Link
                     href={`/centro/${center.slug}`}
                     target="_blank"
-                    className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#6c625a] transition-colors hover:text-[#171412]"
+                    className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#647089] transition-colors hover:text-[#0c1324]"
                   >
                     <ArrowUpRight className="h-3.5 w-3.5" />
                     Ver mi pagina publica
