@@ -53,26 +53,26 @@ export function BonoPurchaseForm({ bonoId, priceCents, centerName }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 font-black text-zinc-900">Tus datos para el bono</h2>
+      <div className="rounded-lg border border-[#d8dee9] bg-white p-6 shadow-sm">
+        <h2 className="mb-4 font-black text-[#0c1324]">Tus datos para el bono</h2>
         <div className="space-y-4">
           <div>
-            <label className="label">Nombre completo <span className="text-beauty-500">*</span></label>
+            <label className="label">Nombre completo <span className="text-[#2f6df6]">*</span></label>
             <input
               type="text" required value={name} onChange={e => setName(e.target.value)}
               className="input-base" placeholder="Tu nombre completo" autoComplete="name"
             />
           </div>
           <div>
-            <label className="label">Email <span className="text-beauty-500">*</span></label>
+            <label className="label">Email <span className="text-[#2f6df6]">*</span></label>
             <input
               type="email" required value={email} onChange={e => setEmail(e.target.value)}
               className="input-base" placeholder="tu@email.com" autoComplete="email"
             />
-            <p className="mt-1 text-xs text-zinc-400">Recibirás la referencia del bono en este email</p>
+            <p className="mt-1 text-xs text-[#8b96aa]">Recibirás la referencia del bono en este email</p>
           </div>
           <div>
-            <label className="label">Teléfono <span className="font-normal text-zinc-400">(opcional)</span></label>
+            <label className="label">Teléfono <span className="font-normal text-[#8b96aa]">(opcional)</span></label>
             <input
               type="tel" value={phone} onChange={e => setPhone(e.target.value)}
               className="input-base" placeholder="+34 600 000 000" autoComplete="tel"
@@ -81,14 +81,14 @@ export function BonoPurchaseForm({ bonoId, priceCents, centerName }: Props) {
         </div>
       </div>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors">
+      <label className="flex cursor-pointer items-start gap-3 rounded-md bg-[#f1f4f8] p-4 hover:bg-[#e5eaf2] transition-colors">
         <input
           type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-primary-600"
+          className="mt-0.5 h-4 w-4 accent-[#2f6df6]"
         />
-        <span className="text-sm text-zinc-600">
+        <span className="text-sm text-[#46546b]">
           Acepto la{' '}
-          <Link href="/privacidad" className="text-primary-600 underline hover:text-primary-700" target="_blank">
+          <Link href="/privacidad" className="text-[#2f6df6] underline hover:text-[#2355c8]" target="_blank">
             política de privacidad
           </Link>{' '}
           y el tratamiento de mis datos para gestionar este bono. *
@@ -96,7 +96,7 @@ export function BonoPurchaseForm({ bonoId, priceCents, centerName }: Props) {
       </label>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
       <button
@@ -110,7 +110,7 @@ export function BonoPurchaseForm({ bonoId, priceCents, centerName }: Props) {
           <><CheckCircle2 className="h-4 w-4" />Comprar bono · {formatPrice(priceCents)}</>
         )}
       </button>
-      <p className="text-center text-xs text-zinc-400">
+      <p className="text-center text-xs text-[#8b96aa]">
         Si el centro tiene pago online, pagarás de forma segura ahora; si no, lo abonarás en {centerName}.
       </p>
     </form>

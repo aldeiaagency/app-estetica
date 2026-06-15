@@ -15,20 +15,20 @@ const APP_URL = 'https://bellezalocal.es'
 export default function PrivacidadPage() {
   return (
     <div className="min-h-screen bg-white">
-      <header className="border-b border-zinc-100 px-6 py-4">
+      <header className="border-b border-[#e5eaf2] px-6 py-4">
         <Link href="/" className="inline-flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-700">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#2f6df6] to-[#2355c8]">
             <Sparkles className="h-3.5 w-3.5 text-white" />
           </div>
-          <span className="font-black tracking-tight text-zinc-900">BellezaLocal</span>
+          <span className="font-black tracking-tight text-[#0c1324]">BellezaLocal</span>
         </Link>
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-3xl font-black tracking-tight text-zinc-900">Política de Privacidad</h1>
-        <p className="mt-2 text-sm text-zinc-400">Última actualización: {LAST_UPDATED}</p>
+        <h1 className="text-3xl font-black tracking-tight text-[#0c1324]">Política de Privacidad</h1>
+        <p className="mt-2 text-sm text-[#8b96aa]">Última actualización: {LAST_UPDATED}</p>
 
-        <div className="mt-10 space-y-10 text-zinc-700 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h2]:mb-3 [&_p]:leading-relaxed [&_ul]:mt-2 [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_li]:leading-relaxed">
+        <div className="mt-10 space-y-10 text-[#273244] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-[#0c1324] [&_h2]:mb-3 [&_p]:leading-relaxed [&_ul]:mt-2 [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_li]:leading-relaxed">
 
           <section>
             <h2>1. Responsable del tratamiento</h2>
@@ -37,7 +37,7 @@ export default function PrivacidadPage() {
               es la entidad responsable del tratamiento de los datos personales recabados a través de {APP_URL}.
             </p>
             <p className="mt-3">
-              Puede contactar con nosotros en: <a href={`mailto:${EMAIL_DPO}`} className="text-primary-600 hover:underline">{EMAIL_DPO}</a>
+              Puede contactar con nosotros en: <a href={`mailto:${EMAIL_DPO}`} className="text-[#2f6df6] hover:underline">{EMAIL_DPO}</a>
             </p>
           </section>
 
@@ -110,13 +110,13 @@ export default function PrivacidadPage() {
             </ul>
             <p className="mt-3">
               Para ejercer estos derechos, escribe a{' '}
-              <a href={`mailto:${EMAIL_DPO}`} className="text-primary-600 hover:underline">{EMAIL_DPO}</a>{' '}
+              <a href={`mailto:${EMAIL_DPO}`} className="text-[#2f6df6] hover:underline">{EMAIL_DPO}</a>{' '}
               indicando tu identidad y el derecho que deseas ejercer.
               Responderemos en el plazo máximo de un mes (prorrogable a dos en casos complejos).
             </p>
             <p className="mt-3">
               Si consideras que el tratamiento infringe la normativa, puedes presentar una reclamación ante la{' '}
-              <a href="https://www.aepd.es" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+              <a href="https://www.aepd.es" target="_blank" rel="noopener noreferrer" className="text-[#2f6df6] hover:underline">
                 Agencia Española de Protección de Datos (AEPD)
               </a>.
             </p>
@@ -136,7 +136,7 @@ export default function PrivacidadPage() {
             <p>
               Usamos exclusivamente cookies técnicas necesarias para el funcionamiento de la plataforma.
               Consulta nuestra{' '}
-              <Link href="/cookies" className="text-primary-600 hover:underline">Política de Cookies</Link>{' '}
+              <Link href="/cookies" className="text-[#2f6df6] hover:underline">Política de Cookies</Link>{' '}
               para más detalle.
             </p>
           </section>
@@ -147,17 +147,17 @@ export default function PrivacidadPage() {
               Podemos actualizar esta política para reflejar cambios en el servicio o en la normativa.
               Te notificaremos por email con al menos 15 días de antelación si los cambios son materiales.
               La versión vigente siempre estará disponible en{' '}
-              <Link href="/privacidad" className="text-primary-600 hover:underline">{APP_URL}/privacidad</Link>.
+              <Link href="/privacidad" className="text-[#2f6df6] hover:underline">{APP_URL}/privacidad</Link>.
             </p>
           </section>
         </div>
       </main>
 
-      <footer className="border-t border-zinc-100 px-6 py-8 text-center">
-        <div className="flex flex-wrap justify-center gap-4 text-sm text-zinc-400">
-          <Link href="/" className="hover:text-zinc-600">Inicio</Link>
-          <Link href="/terminos" className="hover:text-zinc-600">Términos</Link>
-          <Link href="/cookies" className="hover:text-zinc-600">Cookies</Link>
+      <footer className="border-t border-[#e5eaf2] px-6 py-8 text-center">
+        <div className="flex flex-wrap justify-center gap-4 text-sm text-[#8b96aa]">
+          <Link href="/" className="hover:text-[#46546b]">Inicio</Link>
+          <Link href="/terminos" className="hover:text-[#46546b]">Términos</Link>
+          <Link href="/cookies" className="hover:text-[#46546b]">Cookies</Link>
         </div>
       </footer>
     </div>

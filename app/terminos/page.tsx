@@ -14,20 +14,20 @@ const EMAIL_LEGAL = 'legal@bellezalocal.es'
 export default function TerminosPage() {
   return (
     <div className="min-h-screen bg-white">
-      <header className="border-b border-zinc-100 px-6 py-4">
+      <header className="border-b border-[#e5eaf2] px-6 py-4">
         <Link href="/" className="inline-flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-700">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#2f6df6] to-[#2355c8]">
             <Sparkles className="h-3.5 w-3.5 text-white" />
           </div>
-          <span className="font-black tracking-tight text-zinc-900">BellezaLocal</span>
+          <span className="font-black tracking-tight text-[#0c1324]">BellezaLocal</span>
         </Link>
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="text-3xl font-black tracking-tight text-zinc-900">Términos y Condiciones</h1>
-        <p className="mt-2 text-sm text-zinc-400">Última actualización: {LAST_UPDATED}</p>
+        <h1 className="text-3xl font-black tracking-tight text-[#0c1324]">Términos y Condiciones</h1>
+        <p className="mt-2 text-sm text-[#8b96aa]">Última actualización: {LAST_UPDATED}</p>
 
-        <div className="mt-10 space-y-10 text-zinc-700 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h2]:mb-3 [&_p]:leading-relaxed [&_ul]:mt-2 [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_li]:leading-relaxed">
+        <div className="mt-10 space-y-10 text-[#273244] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-[#0c1324] [&_h2]:mb-3 [&_p]:leading-relaxed [&_ul]:mt-2 [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_li]:leading-relaxed">
 
           <section>
             <h2>1. Objeto</h2>
@@ -94,7 +94,7 @@ export default function TerminosPage() {
               Los pagos se procesan de forma segura a través de <strong>Stripe</strong>.
               Belleza Local no almacena datos de tarjeta de crédito o débito.
               Al realizar un pago, aceptas también los{' '}
-              <a href="https://stripe.com/es/legal" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+              <a href="https://stripe.com/es/legal" target="_blank" rel="noopener noreferrer" className="text-[#2f6df6] hover:underline">
                 Términos de Servicio de Stripe
               </a>.
             </p>
@@ -151,17 +151,17 @@ export default function TerminosPage() {
             <h2>13. Contacto</h2>
             <p>
               Para cualquier consulta sobre estos Términos, escríbenos a{' '}
-              <a href={`mailto:${EMAIL_LEGAL}`} className="text-primary-600 hover:underline">{EMAIL_LEGAL}</a>.
+              <a href={`mailto:${EMAIL_LEGAL}`} className="text-[#2f6df6] hover:underline">{EMAIL_LEGAL}</a>.
             </p>
           </section>
         </div>
       </main>
 
-      <footer className="border-t border-zinc-100 px-6 py-8 text-center">
-        <div className="flex flex-wrap justify-center gap-4 text-sm text-zinc-400">
-          <Link href="/" className="hover:text-zinc-600">Inicio</Link>
-          <Link href="/privacidad" className="hover:text-zinc-600">Privacidad</Link>
-          <Link href="/cookies" className="hover:text-zinc-600">Cookies</Link>
+      <footer className="border-t border-[#e5eaf2] px-6 py-8 text-center">
+        <div className="flex flex-wrap justify-center gap-4 text-sm text-[#8b96aa]">
+          <Link href="/" className="hover:text-[#46546b]">Inicio</Link>
+          <Link href="/privacidad" className="hover:text-[#46546b]">Privacidad</Link>
+          <Link href="/cookies" className="hover:text-[#46546b]">Cookies</Link>
         </div>
       </footer>
     </div>
