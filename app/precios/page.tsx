@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { CheckCircle2, XCircle, ArrowRight, Sparkles } from 'lucide-react'
 import { PLAN_FEATURES, PLAN_PRICES_CENTS } from '@/lib/billing/plans'
 import type { Plan } from '@prisma/client'
+import { PublicFooter } from '@/components/ui/public-footer'
 
 export const metadata: Metadata = {
   title: 'Precios — Belleza Local',
@@ -226,6 +227,7 @@ export default function PreciosPage() {
           Contactar
         </a>
       </section>
+      <PublicFooter />
     </div>
   )
 }

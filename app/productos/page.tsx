@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
 import { Prisma } from '@prisma/client'
 import { PublicHeader } from '@/components/ui/public-header'
+import { PublicFooter } from '@/components/ui/public-footer'
 import { getCategoryData, collectDescendantIds, getAncestorChain, type CatNode } from '@/lib/catalog/categories'
 
 export const metadata: Metadata = {
@@ -381,6 +382,7 @@ export default async function ProductosPage({ searchParams }: Props) {
           </div>
         </div>
       </div>
+      <PublicFooter />
     </div>
   )
 }

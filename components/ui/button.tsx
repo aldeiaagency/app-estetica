@@ -16,13 +16,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e36952] focus-visible:ring-offset-2',
+          'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6df6] focus-visible:ring-offset-2',
           {
-            'bg-[#e36952] text-white shadow-[0_14px_30px_rgba(227,105,82,0.24)] hover:bg-[#cf5845] active:scale-[0.98]': variant === 'primary',
-            'bg-[#eee7dd] text-[#332b26] hover:bg-[#e5ded3] active:scale-[0.98]': variant === 'secondary',
-            'bg-transparent text-[#5f554d] hover:bg-[#eee7dd] hover:text-[#171412]': variant === 'ghost',
+            'bg-[#2f6df6] text-white shadow-[0_14px_30px_rgba(47,109,246,0.22)] hover:bg-[#2559d8] active:scale-[0.98]': variant === 'primary',
+            'bg-[#e5edff] text-[#0c1324] hover:bg-[#d9e6ff] active:scale-[0.98]': variant === 'secondary',
+            'bg-transparent text-[#647089] hover:bg-[#edf3ff] hover:text-[#0c1324]': variant === 'ghost',
             'bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.98]': variant === 'destructive',
-            'border border-[#d7cbbb] bg-white text-[#332b26] hover:border-[#bda995] hover:bg-[#fbfaf7]': variant === 'outline',
+            'border border-[#d8dee9] bg-white text-[#0c1324] hover:border-[#b9c4d5] hover:bg-[#f7f9fc]': variant === 'outline',
             'px-3 py-1.5 text-xs': size === 'sm',
             'px-4 py-2.5 text-sm': size === 'md',
             'px-6 py-3.5 text-base': size === 'lg',
@@ -54,13 +54,13 @@ function ButtonLink({ href, variant = 'primary', size = 'md', className, childre
     <Link
       href={href}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e36952] focus-visible:ring-offset-2',
+        'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f6df6] focus-visible:ring-offset-2',
         {
-          'bg-[#e36952] text-white shadow-[0_14px_30px_rgba(227,105,82,0.24)] hover:bg-[#cf5845] active:scale-[0.98]': variant === 'primary',
-          'bg-[#eee7dd] text-[#332b26] hover:bg-[#e5ded3] active:scale-[0.98]': variant === 'secondary',
-          'bg-transparent text-[#5f554d] hover:bg-[#eee7dd] hover:text-[#171412]': variant === 'ghost',
+          'bg-[#2f6df6] text-white shadow-[0_14px_30px_rgba(47,109,246,0.22)] hover:bg-[#2559d8] active:scale-[0.98]': variant === 'primary',
+          'bg-[#e5edff] text-[#0c1324] hover:bg-[#d9e6ff] active:scale-[0.98]': variant === 'secondary',
+          'bg-transparent text-[#647089] hover:bg-[#edf3ff] hover:text-[#0c1324]': variant === 'ghost',
           'bg-red-600 text-white shadow-sm hover:bg-red-700 active:scale-[0.98]': variant === 'destructive',
-          'border border-[#d7cbbb] bg-white text-[#332b26] hover:border-[#bda995] hover:bg-[#fbfaf7]': variant === 'outline',
+          'border border-[#d8dee9] bg-white text-[#0c1324] hover:border-[#b9c4d5] hover:bg-[#f7f9fc]': variant === 'outline',
           'px-3 py-1.5 text-xs': size === 'sm',
           'px-4 py-2.5 text-sm': size === 'md',
           'px-6 py-3.5 text-base': size === 'lg',

@@ -6,6 +6,7 @@ import {
   Star, MessageSquare, Gift, Globe, Headphones, Database
 } from 'lucide-react'
 import { PublicHeader } from '@/components/ui/public-header'
+import { PublicFooter } from '@/components/ui/public-footer'
 
 export const metadata: Metadata = {
   title: 'Para negocios — Gestiona tus citas con BellezaLocal',
@@ -399,17 +400,7 @@ export default function ParaNegociosPage() {
           <p className="mt-4 text-xs text-zinc-600">Configuración en menos de 10 minutos</p>
         </div>
       </section>
-
-      {/* FOOTER */}
-      <footer className="border-t border-zinc-200 bg-white px-4 py-8 text-center text-xs text-zinc-400">
-        <Link href="/" className="inline-flex items-center gap-2 font-black text-zinc-900 mb-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-700">
-            <Sparkles className="h-3 w-3 text-white" />
-          </div>
-          BellezaLocal
-        </Link>
-        <p>© {new Date().getFullYear()} BellezaLocal · <Link href="/privacidad" className="hover:text-zinc-600">Privacidad</Link> · <Link href="/terminos" className="hover:text-zinc-600">Términos</Link></p>
-      </footer>
+      <PublicFooter />
     </div>
   )
 }

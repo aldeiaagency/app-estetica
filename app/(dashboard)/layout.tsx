@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     : null
 
   return (
-    <div className="flex min-h-screen bg-[#f7f4ef]">
+    <div className="flex min-h-screen bg-[#f1f4f8]">
       <div className="hidden md:flex">
         <SidebarNav
           userName={session.user.name}
@@ -28,14 +28,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
         />
       </div>
 
-      <div className="fixed top-0 z-40 flex w-full items-center justify-between border-b border-[#e5ded3] bg-[#f7f4ef]/95 px-4 py-3 shadow-sm backdrop-blur md:hidden">
+      <div className="fixed top-0 z-40 flex w-full items-center justify-between border-b border-[#d8dee9] bg-[#f1f4f8]/95 px-4 py-3 shadow-sm backdrop-blur md:hidden">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#e36952] shadow-sm">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2f6df6] shadow-sm">
             <Sparkles className="h-3.5 w-3.5 text-white" />
           </div>
-          <span className="font-black tracking-tight text-[#171412]">Belleza Local</span>
+          <span className="font-black tracking-tight text-[#0c1324]">Belleza Local</span>
         </Link>
-        <button className="flex h-9 w-9 items-center justify-center rounded-md text-[#5f554d] hover:bg-[#eee7dd]" aria-label="Menu">
+        <button className="flex h-9 w-9 items-center justify-center rounded-md text-[#647089] hover:bg-[#edf3ff]" aria-label="Menu">
           <Menu className="h-5 w-5" />
         </button>
       </div>

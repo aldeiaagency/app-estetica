@@ -17,6 +17,7 @@ import { prisma } from '@/lib/db/client'
 import { CATEGORY_LABELS, formatDuration, formatPrice } from '@/lib/utils'
 import { centerJsonLd } from '@/lib/seo/metadata'
 import { PublicHeader } from '@/components/ui/public-header'
+import { PublicFooter } from '@/components/ui/public-footer'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -94,33 +95,33 @@ export default async function CenterPage({ params }: Props) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <div className="min-h-screen bg-[#f7f4ef]">
+      <div className="min-h-screen bg-[#f1f4f8]">
         <PublicHeader />
 
-        <div className="border-b border-[#e5ded3] bg-[#fbfaf7] px-4 py-2.5">
-          <div className="mx-auto flex max-w-7xl items-center gap-1.5 text-xs text-[#6c625a]">
-            <Link href="/" className="transition-colors hover:text-[#171412]">Inicio</Link>
+        <div className="border-b border-[#d8dee9] bg-[#f7f9fc] px-4 py-2.5">
+          <div className="mx-auto flex max-w-7xl items-center gap-1.5 text-xs text-[#647089]">
+            <Link href="/" className="transition-colors hover:text-[#0c1324]">Inicio</Link>
             <ChevronRight className="h-3 w-3" />
-            <Link href="/buscar" className="transition-colors hover:text-[#171412]">Centros</Link>
+            <Link href="/buscar" className="transition-colors hover:text-[#0c1324]">Centros</Link>
             <ChevronRight className="h-3 w-3" />
-            <span className="truncate font-bold text-[#332b26]">{center.name}</span>
+            <span className="truncate font-bold text-[#0c1324]">{center.name}</span>
           </div>
         </div>
 
-        <section className="relative h-64 overflow-hidden bg-[#171412] md:h-96">
+        <section className="relative h-64 overflow-hidden bg-[#0c1324] md:h-96">
           {center.coverImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={center.coverImage} alt={center.name} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full items-center justify-center bg-[#eee7dd]">
-              <Sparkles className="h-16 w-16 text-[#cbbcaf]" />
+            <div className="flex h-full items-center justify-center bg-[#e5eaf2]">
+              <Sparkles className="h-16 w-16 text-[#8b96aa]" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#171412]/72 via-[#171412]/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0c1324]/72 via-[#0c1324]/10 to-transparent" />
         </section>
 
         <main className="mx-auto max-w-7xl px-4 pb-16">
-          <section className="-mt-14 mb-8 rounded-lg border border-[#e5ded3] bg-white p-6 shadow-[0_28px_80px_rgba(42,32,24,0.14)]">
+          <section className="-mt-14 mb-8 rounded-lg border border-[#d8dee9] bg-white p-6 shadow-[0_28px_80px_rgba(12,19,36,0.14)]">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -132,24 +133,24 @@ export default async function CenterPage({ params }: Props) {
                     </span>
                   )}
                 </div>
-                <h1 className="text-3xl font-black tracking-tight text-[#171412] md:text-4xl">{center.name}</h1>
-                <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-[#6c625a]">
+                <h1 className="text-3xl font-black tracking-tight text-[#0c1324] md:text-4xl">{center.name}</h1>
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-[#647089]">
                   {center.addressCity && (
                     <span className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 shrink-0 text-[#9a8f84]" />
+                      <MapPin className="h-4 w-4 shrink-0 text-[#8b96aa]" />
                       {center.addressStreet ? `${center.addressStreet}, ` : ''}{center.addressCity}
                       {center.addressProvince && center.addressProvince !== center.addressCity ? `, ${center.addressProvince}` : ''}
                     </span>
                   )}
                   {center.phone && (
-                    <a href={`tel:${center.phone}`} className="flex items-center gap-1.5 transition-colors hover:text-[#171412]">
-                      <Phone className="h-4 w-4 shrink-0 text-[#9a8f84]" />
+                    <a href={`tel:${center.phone}`} className="flex items-center gap-1.5 transition-colors hover:text-[#0c1324]">
+                      <Phone className="h-4 w-4 shrink-0 text-[#8b96aa]" />
                       {center.phone}
                     </a>
                   )}
                 </div>
                 {center.description && (
-                  <p className="mt-4 max-w-2xl text-sm leading-7 text-[#5f554d]">{center.description}</p>
+                  <p className="mt-4 max-w-2xl text-sm leading-7 text-[#647089]">{center.description}</p>
                 )}
               </div>
               <Link href={`/centro/${center.slug}/reservar`} className="btn-primary shrink-0 px-7 py-3.5">
@@ -162,22 +163,22 @@ export default async function CenterPage({ params }: Props) {
             <div className="space-y-6">
               <Panel title="Servicios">
                 {center.services.length === 0 ? (
-                  <div className="px-6 py-10 text-center text-sm text-[#6c625a]">Proximamente servicios disponibles</div>
+                  <div className="px-6 py-10 text-center text-sm text-[#647089]">Proximamente servicios disponibles</div>
                 ) : (
-                  <div className="divide-y divide-[#eee7dd]">
+                  <div className="divide-y divide-[#e5eaf2]">
                     {center.services.map(service => (
-                      <div key={service.id} className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#fbfaf7]">
+                      <div key={service.id} className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#f7f9fc]">
                         <div className="min-w-0 flex-1">
-                          <p className="font-black text-[#171412]">{service.name}</p>
-                          {service.description && <p className="mt-0.5 truncate text-sm text-[#6c625a]">{service.description}</p>}
-                          <p className="mt-1 flex items-center gap-2 text-xs text-[#6c625a]">
+                          <p className="font-black text-[#0c1324]">{service.name}</p>
+                          {service.description && <p className="mt-0.5 truncate text-sm text-[#647089]">{service.description}</p>}
+                          <p className="mt-1 flex items-center gap-2 text-xs text-[#647089]">
                             <Clock className="h-3 w-3" />
                             {formatDuration(service.durationMinutes)}
                           </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
-                          <span className="font-black text-[#171412]">{formatPrice(service.priceCents)}</span>
-                          <Link href={`/centro/${center.slug}/reservar?servicio=${service.id}`} className="rounded-md bg-[#171412] px-3.5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#2a2420]">
+                          <span className="font-black text-[#0c1324]">{formatPrice(service.priceCents)}</span>
+                          <Link href={`/centro/${center.slug}/reservar?servicio=${service.id}`} className="rounded-md bg-[#0c1324] px-3.5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#1f2a44]">
                             Reservar
                           </Link>
                         </div>
@@ -188,15 +189,15 @@ export default async function CenterPage({ params }: Props) {
               </Panel>
 
               {center.bonos.length > 0 && (
-                <Panel title="Bonos disponibles" icon={<Gift className="h-4 w-4 text-[#9f3f2f]" />}>
+                <Panel title="Bonos disponibles" icon={<Gift className="h-4 w-4 text-[#2355c8]" />}>
                   <div className="grid gap-4 p-6 sm:grid-cols-2">
                     {center.bonos.map(bono => (
                       <article key={bono.id} className="rounded-md border border-[#f2b5a7] bg-[#fff6f2] p-4">
-                        <p className="font-black text-[#171412]">{bono.name}</p>
-                        {bono.description && <p className="mt-1 line-clamp-2 text-xs text-[#6c625a]">{bono.description}</p>}
-                        <div className="mt-3 flex items-center justify-between text-xs text-[#6c625a]">
+                        <p className="font-black text-[#0c1324]">{bono.name}</p>
+                        {bono.description && <p className="mt-1 line-clamp-2 text-xs text-[#647089]">{bono.description}</p>}
+                        <div className="mt-3 flex items-center justify-between text-xs text-[#647089]">
                           <span>{bono.sessions} sesiones · {bono.validityDays}d validez</span>
-                          <span className="text-base font-black text-[#9f3f2f]">{formatPrice(bono.priceCents)}</span>
+                          <span className="text-base font-black text-[#2355c8]">{formatPrice(bono.priceCents)}</span>
                         </div>
                         <Link href={`/bono/${bono.id}`} className="btn-primary mt-3 w-full py-2 text-xs">Comprar bono</Link>
                       </article>
@@ -206,21 +207,21 @@ export default async function CenterPage({ params }: Props) {
               )}
 
               {center.products.length > 0 && (
-                <Panel title="Productos" icon={<ShoppingBag className="h-4 w-4 text-[#9f3f2f]" />}>
+                <Panel title="Productos" icon={<ShoppingBag className="h-4 w-4 text-[#2355c8]" />}>
                   <div className="grid gap-4 p-6 sm:grid-cols-2">
                     {center.products.map(product => (
-                      <article key={product.id} className="rounded-md border border-[#e5ded3] bg-[#fbfaf7] p-4">
+                      <article key={product.id} className="rounded-md border border-[#d8dee9] bg-[#f7f9fc] p-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white">
-                            <ShoppingBag className="h-5 w-5 text-[#9a8f84]" />
+                            <ShoppingBag className="h-5 w-5 text-[#8b96aa]" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-black text-[#171412]">{product.name}</p>
-                            {product.brand && <p className="text-xs text-[#6c625a]">{product.brand}</p>}
+                            <p className="truncate text-sm font-black text-[#0c1324]">{product.name}</p>
+                            {product.brand && <p className="text-xs text-[#647089]">{product.brand}</p>}
                           </div>
-                          <p className="shrink-0 font-black text-[#171412]">{formatPrice(product.priceCents)}</p>
+                          <p className="shrink-0 font-black text-[#0c1324]">{formatPrice(product.priceCents)}</p>
                         </div>
-                        <Link href={`/productos/${product.id}`} className="mt-3 flex w-full items-center justify-center rounded-md bg-[#171412] py-2 text-xs font-bold text-white transition-colors hover:bg-[#2a2420]">
+                        <Link href={`/productos/${product.id}`} className="mt-3 flex w-full items-center justify-center rounded-md bg-[#0c1324] py-2 text-xs font-bold text-white transition-colors hover:bg-[#1f2a44]">
                           Ver producto
                         </Link>
                       </article>
@@ -233,13 +234,13 @@ export default async function CenterPage({ params }: Props) {
                 <Panel title="Nuestro equipo">
                   <div className="flex flex-wrap gap-4 p-6">
                     {center.staff.map(staff => (
-                      <div key={staff.id} className="flex items-center gap-3 rounded-md border border-[#e5ded3] bg-[#fbfaf7] p-3 pr-5">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#171412] text-sm font-black text-white">
+                      <div key={staff.id} className="flex items-center gap-3 rounded-md border border-[#d8dee9] bg-[#f7f9fc] p-3 pr-5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0c1324] text-sm font-black text-white">
                           {staff.name.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-sm font-black text-[#171412]">{staff.name}</p>
-                          {staff.role && <p className="text-xs text-[#6c625a]">{staff.role}</p>}
+                          <p className="text-sm font-black text-[#0c1324]">{staff.name}</p>
+                          {staff.role && <p className="text-xs text-[#647089]">{staff.role}</p>}
                         </div>
                       </div>
                     ))}
@@ -253,27 +254,27 @@ export default async function CenterPage({ params }: Props) {
                   action={avgRating ? (
                     <span className="flex items-center gap-1.5">
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                      <span className="font-black text-[#171412]">{avgRating.toFixed(1)}</span>
-                      <span className="text-sm text-[#6c625a]">({center._count.reviews})</span>
+                      <span className="font-black text-[#0c1324]">{avgRating.toFixed(1)}</span>
+                      <span className="text-sm text-[#647089]">({center._count.reviews})</span>
                     </span>
                   ) : null}
                 >
-                  <div className="divide-y divide-[#eee7dd]">
+                  <div className="divide-y divide-[#e5eaf2]">
                     {center.reviews.map(review => (
                       <article key={review.id} className="px-6 py-4">
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="flex">
                             {Array.from({ length: 5 }).map((_, index) => (
-                              <Star key={index} className={`h-3.5 w-3.5 ${index < review.rating ? 'fill-amber-400 text-amber-400' : 'text-[#d7cbbb]'}`} />
+                              <Star key={index} className={`h-3.5 w-3.5 ${index < review.rating ? 'fill-amber-400 text-amber-400' : 'text-[#d8dee9]'}`} />
                             ))}
                           </div>
-                          <span className="text-sm font-bold text-[#332b26]">{review.customer.name}</span>
-                          <span className="flex items-center gap-1 text-xs text-[#6c625a]">
+                          <span className="text-sm font-bold text-[#0c1324]">{review.customer.name}</span>
+                          <span className="flex items-center gap-1 text-xs text-[#647089]">
                             <CheckCircle2 className="h-3 w-3 text-[#4b7258]" />
                             Verificada
                           </span>
                         </div>
-                        {review.comment && <p className="mt-2 text-sm leading-7 text-[#5f554d]">{review.comment}</p>}
+                        {review.comment && <p className="mt-2 text-sm leading-7 text-[#647089]">{review.comment}</p>}
                       </article>
                     ))}
                   </div>
@@ -282,24 +283,24 @@ export default async function CenterPage({ params }: Props) {
             </div>
 
             <aside className="space-y-4">
-              <div className="rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-                <p className="mb-1 font-black text-[#171412]">Disponibilidad real</p>
-                <p className="mb-4 text-xs text-[#6c625a]">Elige fecha y hora en segundos, sin llamar.</p>
+              <div className="rounded-lg border border-[#d8dee9] bg-white p-5 shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+                <p className="mb-1 font-black text-[#0c1324]">Disponibilidad real</p>
+                <p className="mb-4 text-xs text-[#647089]">Elige fecha y hora en segundos, sin llamar.</p>
                 <Link href={`/centro/${center.slug}/reservar`} className="btn-primary w-full py-3">Ver disponibilidad</Link>
                 <Link href={`/centro/${center.slug}/reservar`} className="btn-outline mt-2 w-full py-2.5 text-sm">Reservar ahora</Link>
               </div>
 
               {center.scheduleRules.length > 0 && (
-                <div className="rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-                  <h3 className="mb-4 flex items-center gap-2 font-black text-[#171412]">
-                    <Clock className="h-4 w-4 text-[#9a8f84]" />
+                <div className="rounded-lg border border-[#d8dee9] bg-white p-5 shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+                  <h3 className="mb-4 flex items-center gap-2 font-black text-[#0c1324]">
+                    <Clock className="h-4 w-4 text-[#8b96aa]" />
                     Horario
                   </h3>
                   <div className="space-y-2">
                     {center.scheduleRules.map(rule => (
                       <div key={rule.id} className="flex justify-between gap-4 text-sm">
-                        <span className="text-[#6c625a]">{DAY_NAMES[rule.dayOfWeek]}</span>
-                        <span className="font-bold text-[#171412]">{rule.openTime} - {rule.closeTime}</span>
+                        <span className="text-[#647089]">{DAY_NAMES[rule.dayOfWeek]}</span>
+                        <span className="font-bold text-[#0c1324]">{rule.openTime} - {rule.closeTime}</span>
                       </div>
                     ))}
                   </div>
@@ -307,19 +308,19 @@ export default async function CenterPage({ params }: Props) {
               )}
 
               {(center.addressStreet || center.addressCity) && (
-                <div className="rounded-lg border border-[#e5ded3] bg-white p-5 shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-                  <h3 className="mb-3 flex items-center gap-2 font-black text-[#171412]">
-                    <MapPin className="h-4 w-4 text-[#9a8f84]" />
+                <div className="rounded-lg border border-[#d8dee9] bg-white p-5 shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+                  <h3 className="mb-3 flex items-center gap-2 font-black text-[#0c1324]">
+                    <MapPin className="h-4 w-4 text-[#8b96aa]" />
                     Ubicacion
                   </h3>
-                  <p className="text-sm leading-7 text-[#5f554d]">
+                  <p className="text-sm leading-7 text-[#647089]">
                     {center.addressStreet && <>{center.addressStreet}<br /></>}
                     {center.addressPostalCode && <>{center.addressPostalCode} </>}
                     {center.addressCity}
                     {center.addressProvince && center.addressProvince !== center.addressCity ? `, ${center.addressProvince}` : ''}
                   </p>
                   {center.phone && (
-                    <a href={`tel:${center.phone}`} className="mt-3 flex items-center gap-1.5 text-sm font-bold text-[#9f3f2f] transition-colors hover:text-[#e36952]">
+                    <a href={`tel:${center.phone}`} className="mt-3 flex items-center gap-1.5 text-sm font-bold text-[#2355c8] transition-colors hover:text-[#2f6df6]">
                       <Phone className="h-3.5 w-3.5" />
                       {center.phone}
                     </a>
@@ -327,14 +328,14 @@ export default async function CenterPage({ params }: Props) {
                 </div>
               )}
 
-              <div className="rounded-lg border border-[#e5ded3] bg-[#fbfaf7] p-4">
+              <div className="rounded-lg border border-[#d8dee9] bg-[#f7f9fc] p-4">
                 <div className="space-y-2.5">
                   {[
                     'Disponibilidad en tiempo real',
                     'Confirmacion instantanea por email',
                     'Cancelacion gratuita 24h antes',
                   ].map(item => (
-                    <div key={item} className="flex items-center gap-2 text-xs text-[#5f554d]">
+                    <div key={item} className="flex items-center gap-2 text-xs text-[#647089]">
                       <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#4b7258]" />
                       {item}
                     </div>
@@ -345,6 +346,7 @@ export default async function CenterPage({ params }: Props) {
           </div>
         </main>
       </div>
+      <PublicFooter />
     </>
   )
 }
@@ -361,9 +363,9 @@ function Panel({
   children: React.ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-[#e5ded3] bg-white shadow-[0_20px_55px_rgba(42,32,24,0.06)]">
-      <div className="flex items-center justify-between gap-4 border-b border-[#eee7dd] px-6 py-4">
-        <h2 className="flex items-center gap-2 font-black text-[#171412]">
+    <section className="overflow-hidden rounded-lg border border-[#d8dee9] bg-white shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+      <div className="flex items-center justify-between gap-4 border-b border-[#e5eaf2] px-6 py-4">
+        <h2 className="flex items-center gap-2 font-black text-[#0c1324]">
           {icon}
           {title}
         </h2>
