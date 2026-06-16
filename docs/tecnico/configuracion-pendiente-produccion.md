@@ -24,7 +24,7 @@ Estado del codigo:
 - Programacion creada en `vercel.json`: todos los dias a las 08:00 UTC
 - Funcion: busca reservas confirmadas del dia siguiente, envia email de recordatorio y marca `reminderSentAt`
 - Ruta creada: `GET /api/cron/booking-holds`
-- Programacion creada en `vercel.json`: cada 15 minutos
+- Programacion creada en `vercel.json`: una vez al dia (03:00 UTC). El plan Hobby de Vercel no permite crons mas frecuentes que diarios; si se necesita liberar huecos con mas inmediatez, subir a plan Pro o llamar a esta ruta desde un cron externo (ej. cron-job.org) con el header `Authorization: Bearer <CRON_SECRET>`.
 - Funcion: libera reservas pendientes de senal cuando el pago no se completa dentro del plazo
 
 Configuracion pendiente en Vercel:
