@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AlertCircle, ArrowUpRight, Calendar, Copy, DollarSign, Plus, ShoppingCart, Users, Zap } from 'lucide-react'
+import { AlertCircle, ArrowUpRight, Calendar, CheckCircle2, Circle, Copy, DollarSign, Plus, ShoppingCart, Users, Zap } from 'lucide-react'
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
@@ -11,7 +11,10 @@ export default async function DashboardPage() {
   const center = orgId
     ? await prisma.center.findFirst({
         where: { organizationId: orgId },
-        include: { _count: { select: { bookings: true, customers: true } } },
+        include: {
+          scheduleRules: { where: { active: true }, select: { id: true }, take: 1 },
+          _count: { select: { bookings: true, customers: true, services: true, staff: true } },
+        },
       })
     : null
 
@@ -42,6 +45,17 @@ export default async function DashboardPage() {
   const confirmedToday = todayBookings.filter(booking => booking.status === 'CONFIRMED').length
   const pendingToday = todayBookings.filter(booking => booking.status === 'PENDING').length
   const revenueThisMonth = monthOrderRevenue?._sum?.totalCents ?? 0
+  const activationSteps = center
+    ? [
+        { label: 'Ficha del centro', done: Boolean(center.name && center.addressCity), href: '/dashboard/configuracion' },
+        { label: 'Servicios', done: center._count.services > 0, href: '/dashboard/servicios' },
+        { label: 'Profesionales', done: center._count.staff > 0, href: '/dashboard/staff' },
+        { label: 'Horario activo', done: center.scheduleRules.length > 0, href: '/dashboard/horarios' },
+        { label: 'Perfil publicado', done: center.published, href: '/dashboard/configuracion' },
+      ]
+    : []
+  const completedActivationSteps = activationSteps.filter(step => step.done).length
+  const activationComplete = center ? completedActivationSteps === activationSteps.length : false
 
   return (
     <div className="space-y-8">
@@ -79,6 +93,43 @@ export default async function DashboardPage() {
 
       {center && (
         <>
+          {!activationComplete && (
+            <div className="rounded-lg border border-[#cfe0ff] bg-[#edf3ff] p-5 shadow-[0_20px_55px_rgba(12,19,36,0.06)]">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2355c8]">Activacion</p>
+                  <h2 className="mt-1 text-xl font-black text-[#0c1324]">Prepara tu centro para recibir reservas</h2>
+                  <p className="mt-1 text-sm text-[#647089]">
+                    {completedActivationSteps} de {activationSteps.length} pasos completados.
+                  </p>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white lg:max-w-xs">
+                  <div
+                    className="h-full rounded-full bg-[#2f6df6] transition-all"
+                    style={{ width: `${(completedActivationSteps / activationSteps.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                {activationSteps.map(step => (
+                  <Link
+                    key={step.label}
+                    href={step.href}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm font-bold transition ${
+                      step.done
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-[#cfe0ff] bg-white text-[#0c1324] hover:border-[#8bb7ff]'
+                    }`}
+                  >
+                    {step.done ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <Circle className="h-4 w-4 shrink-0 text-[#8b96aa]" />}
+                    <span>{step.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {

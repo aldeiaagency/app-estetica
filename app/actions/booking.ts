@@ -19,6 +19,18 @@ const createBookingSchema = z.object({
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>
 
+const waitlistSchema = z.object({
+  centerId: z.string().cuid(),
+  serviceId: z.string().cuid(),
+  staffId: z.string().nullable(),
+  requestedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  customerName: z.string().min(2).max(100),
+  customerEmail: z.string().email(),
+  customerPhone: z.string().optional(),
+  consentGiven: z.boolean().refine(v => v === true, 'Debes aceptar la politica de privacidad'),
+  marketingConsent: z.boolean().default(false),
+})
+
 export async function createBookingAction(input: unknown): Promise<
   { success: true; confirmationCode: string } | { success: false; error: string }
 > {
@@ -137,6 +149,97 @@ export async function createBookingAction(input: unknown): Promise<
     }
     console.error('[booking] Error creating booking:', err)
     return { success: false, error: 'Error al crear la reserva. Inténtalo de nuevo.' }
+  }
+}
+
+export async function joinWaitlistAction(input: unknown): Promise<
+  { success: true; alreadyJoined?: boolean } | { success: false; error: string }
+> {
+  const parsed = waitlistSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos invalidos' }
+  }
+
+  const {
+    centerId,
+    serviceId,
+    staffId,
+    requestedDate,
+    customerName,
+    customerEmail,
+    customerPhone,
+    marketingConsent,
+  } = parsed.data
+
+  const [center, service] = await Promise.all([
+    prisma.center.findFirst({ where: { id: centerId, published: true } }),
+    prisma.service.findFirst({ where: { id: serviceId, centerId, active: true } }),
+  ])
+  if (!center) return { success: false, error: 'Centro no encontrado o no disponible' }
+  if (!service) return { success: false, error: 'Servicio no disponible' }
+
+  if (staffId) {
+    const staff = await prisma.staff.findFirst({ where: { id: staffId, centerId, active: true } })
+    if (!staff) return { success: false, error: 'Profesional no disponible' }
+  }
+
+  const date = new Date(`${requestedDate}T00:00:00.000Z`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (date < today) {
+    return { success: false, error: 'La fecha solicitada debe ser futura.' }
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.upsert({
+        where: { email_centerId: { email: customerEmail, centerId } },
+        create: {
+          centerId,
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone ?? null,
+          consentGivenAt: new Date(),
+          marketingConsent,
+          marketingConsentDate: marketingConsent ? new Date() : null,
+        },
+        update: {
+          name: customerName,
+          phone: customerPhone ?? null,
+          ...(marketingConsent ? { marketingConsent, marketingConsentDate: new Date() } : {}),
+        },
+      })
+
+      const existing = await tx.waitlistEntry.findFirst({
+        where: {
+          centerId,
+          serviceId,
+          staffId: staffId ?? null,
+          customerId: customer.id,
+          requestedDate: date,
+          status: 'WAITING',
+        },
+      })
+
+      if (existing) return { alreadyJoined: true }
+
+      await tx.waitlistEntry.create({
+        data: {
+          centerId,
+          serviceId,
+          staffId: staffId ?? null,
+          customerId: customer.id,
+          requestedDate: date,
+        },
+      })
+
+      return { alreadyJoined: false }
+    })
+
+    return { success: true, alreadyJoined: result.alreadyJoined }
+  } catch (err) {
+    console.error('[waitlist] Error joining waitlist:', err)
+    return { success: false, error: 'Error al unirte a la lista de espera. Intentalo de nuevo.' }
   }
 }
 

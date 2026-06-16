@@ -16,7 +16,7 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react'
-import { createBookingAction } from '@/app/actions/booking'
+import { createBookingAction, joinWaitlistAction } from '@/app/actions/booking'
 
 type ServiceData = {
   id: string
@@ -123,6 +123,7 @@ export function BookingWizard({
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [isWaitlistPending, startWaitlistTransition] = useTransition()
   const { data: session, status: sessionStatus } = useSession()
   const isAuthenticated = sessionStatus === 'authenticated'
 
@@ -153,6 +154,8 @@ export function BookingWizard({
   const [monthAvailability, setMonthAvailability] = useState<MonthAvailability>({})
   const [loadingMonthAvailability, setLoadingMonthAvailability] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null)
+  const [waitlistError, setWaitlistError] = useState<string | null>(null)
 
   const selectedSlotStaffName = selectedSlot
     ? (staffList.find(staff => staff.id === selectedSlot.staffId)?.name ?? selectedStaffName)
@@ -255,6 +258,8 @@ export function BookingWizard({
   function selectDate(date: Date) {
     setSelectedDate(formatDate(date))
     setSelectedSlot(null)
+    setWaitlistMessage(null)
+    setWaitlistError(null)
   }
 
   function moveMonth(direction: -1 | 1) {
@@ -295,6 +300,37 @@ export function BookingWizard({
         setSlots([])
         setStep(3)
       }
+    })
+  }
+
+  function handleJoinWaitlist() {
+    if (!selectedService || !selectedDate) return
+    setWaitlistMessage(null)
+    setWaitlistError(null)
+
+    startWaitlistTransition(async () => {
+      const result = await joinWaitlistAction({
+        centerId,
+        serviceId: selectedService.id,
+        staffId: selectedStaffId,
+        requestedDate: selectedDate,
+        customerName: custName.trim(),
+        customerEmail: custEmail.trim().toLowerCase(),
+        customerPhone: custPhone.trim() || undefined,
+        consentGiven,
+        marketingConsent,
+      })
+
+      if (result.success) {
+        setWaitlistMessage(
+          result.alreadyJoined
+            ? 'Ya estabas en la lista de espera para este dia. Te avisaremos si se libera un hueco.'
+            : 'Listo. Te avisaremos si se libera un hueco para este servicio.'
+        )
+        return
+      }
+
+      setWaitlistError(result.error)
     })
   }
 
@@ -456,7 +492,58 @@ export function BookingWizard({
                 )}
                 {selectedDate && loadingSlots && <LoadingState label="Cargando horarios..." />}
                 {selectedDate && !loadingSlots && slots.length === 0 && (
-                  <EmptyState label="Sin disponibilidad para este dia. Prueba con otra fecha." compact />
+                  <>
+                    <EmptyState label="Sin disponibilidad para este dia. Puedes probar otra fecha o apuntarte a la lista de espera." compact />
+                    <div className="mt-4 rounded-lg border border-[#cfe0ff] bg-[#edf3ff] p-4">
+                      <p className="text-sm font-black text-[#0c1324]">Lista de espera</p>
+                      <p className="mt-1 text-xs leading-5 text-[#647089]">
+                        Si alguien cancela o el centro abre nuevos huecos, podra contactarte para ofrecerte una cita.
+                      </p>
+
+                      <div className="mt-4 space-y-3">
+                        <Field label="Nombre" required>
+                          <input value={custName} onChange={event => setCustName(event.target.value)} className="input-base" placeholder="Tu nombre" autoComplete="name" />
+                        </Field>
+                        <Field label="Email" required>
+                          <input value={custEmail} onChange={event => setCustEmail(event.target.value)} className="input-base" placeholder="tu@email.com" autoComplete="email" type="email" readOnly={isAuthenticated} />
+                        </Field>
+                        <Field label="Telefono">
+                          <input value={custPhone} onChange={event => setCustPhone(event.target.value)} className="input-base" placeholder="+34 600 000 000" autoComplete="tel" type="tel" />
+                        </Field>
+                        <ConsentRow checked={consentGiven} onChange={setConsentGiven}>
+                          Acepto la{' '}
+                          <Link href="/privacidad" className="font-bold text-[#2f6df6] underline" target="_blank" rel="noreferrer">
+                            politica de privacidad
+                          </Link>{' '}
+                          y el tratamiento de mis datos para gestionar la lista de espera. *
+                        </ConsentRow>
+                        <ConsentRow checked={marketingConsent} onChange={setMarketingConsent}>
+                          Acepto recibir comunicaciones del centro sobre ofertas y novedades. <span className="text-[#8b96aa]">(Opcional)</span>
+                        </ConsentRow>
+                      </div>
+
+                      {waitlistMessage && (
+                        <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                          {waitlistMessage}
+                        </div>
+                      )}
+                      {waitlistError && (
+                        <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+                          {waitlistError}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleJoinWaitlist}
+                        disabled={isWaitlistPending || !custName.trim() || !custEmail.trim() || !consentGiven}
+                        className="btn-primary mt-4 w-full py-3 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {isWaitlistPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Avisadme si se libera
+                      </button>
+                    </div>
+                  </>
                 )}
                 {selectedDate && !loadingSlots && slots.length > 0 && (
                   <div className="mt-4 grid gap-2">

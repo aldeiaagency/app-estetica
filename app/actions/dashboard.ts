@@ -5,9 +5,23 @@ import { slugify, formatDate, formatTime } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { sendBookingConfirmation, sendBookingCancellation } from '@/lib/email/templates'
+import { PLAN_FEATURES } from '@/lib/billing/plans'
 import type { BookingStatus, CenterCategory, OrderStatus } from '@prisma/client'
 
 const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+
+async function getOrganizationFeatures(orgId: string) {
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { plan: true },
+  })
+
+  return org ? PLAN_FEATURES[org.plan] : null
+}
+
+function hasReachedLimit(current: number, limit: number) {
+  return limit !== -1 && current >= limit
+}
 
 export async function updateOrderStatusAction(
   orderId: string,
@@ -118,8 +132,18 @@ export async function createServiceAction(
   }
 
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const [features, center] = await Promise.all([
+      getOrganizationFeatures(orgId),
+      prisma.center.findFirst({
+        where: { organizationId: orgId },
+        include: { _count: { select: { services: true } } },
+      }),
+    ])
+    if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
+    if (hasReachedLimit(center._count.services, features.maxServicesPerCenter)) {
+      return { success: false, error: 'Has alcanzado el limite de servicios de tu plan. Actualiza tu plan para anadir mas.' }
+    }
 
     const lastService = await prisma.service.findFirst({
       where: { centerId: center.id },
@@ -231,8 +255,18 @@ export async function createStaffAction(
   }
 
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const [features, center] = await Promise.all([
+      getOrganizationFeatures(orgId),
+      prisma.center.findFirst({
+        where: { organizationId: orgId },
+        include: { _count: { select: { staff: true } } },
+      }),
+    ])
+    if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
+    if (hasReachedLimit(center._count.staff, features.maxStaffPerCenter)) {
+      return { success: false, error: 'Has alcanzado el limite de profesionales de tu plan. Actualiza tu plan para anadir mas.' }
+    }
 
     const lastStaff = await prisma.staff.findFirst({
       where: { centerId: center.id },
@@ -407,8 +441,15 @@ export async function createBonoAction(
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
 
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const [features, center] = await Promise.all([
+      getOrganizationFeatures(orgId),
+      prisma.center.findFirst({ where: { organizationId: orgId } }),
+    ])
+    if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
+    if (!features.hasBonos) {
+      return { success: false, error: 'Los bonos estan disponibles a partir del plan Pro.' }
+    }
 
     const bono = await prisma.bono.create({
       data: {
@@ -437,6 +478,10 @@ export async function toggleBonoActiveAction(
     const bono = await prisma.bono.findFirst({ where: { id: bonoId }, include: { center: true } })
     if (!bono) return { success: false, error: 'Bono no encontrado' }
     if (bono.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+    if (!bono.active) {
+      const features = await getOrganizationFeatures(orgId)
+      if (!features?.hasBonos) return { success: false, error: 'Los bonos estan disponibles a partir del plan Pro.' }
+    }
 
     await prisma.bono.update({ where: { id: bonoId }, data: { active: !bono.active } })
     revalidatePath('/dashboard/bonos')
@@ -472,8 +517,15 @@ export async function createProductAction(
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
 
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const [features, center] = await Promise.all([
+      getOrganizationFeatures(orgId),
+      prisma.center.findFirst({ where: { organizationId: orgId } }),
+    ])
+    if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
+    if (!features.hasProducts) {
+      return { success: false, error: 'La venta de productos esta disponible a partir del plan Pro.' }
+    }
 
     const product = await prisma.product.create({
       data: {
@@ -501,6 +553,10 @@ export async function toggleProductActiveAction(
     const product = await prisma.product.findFirst({ where: { id: productId }, include: { center: true } })
     if (!product) return { success: false, error: 'Producto no encontrado' }
     if (product.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+    if (!product.active) {
+      const features = await getOrganizationFeatures(orgId)
+      if (!features?.hasProducts) return { success: false, error: 'La venta de productos esta disponible a partir del plan Pro.' }
+    }
 
     await prisma.product.update({ where: { id: productId }, data: { active: !product.active } })
     revalidatePath('/dashboard/productos')
