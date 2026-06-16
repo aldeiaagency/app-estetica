@@ -4,6 +4,10 @@ import { prisma } from '@/lib/db/client'
 import { z } from 'zod'
 import { sendBookingConfirmation } from '@/lib/notifications/email'
 import { notifyWaitlistForBookingOpening } from '@/lib/waitlist/notifications'
+import { createBookingDepositCheckoutSession } from '@/lib/billing/checkout'
+import { isStripeConfigured } from '@/lib/billing/stripe'
+
+const DEPOSIT_HOLD_MINUTES = 35
 
 const createBookingSchema = z.object({
   centerId: z.string().cuid(),
@@ -33,7 +37,7 @@ const waitlistSchema = z.object({
 })
 
 export async function createBookingAction(input: unknown): Promise<
-  { success: true; confirmationCode: string } | { success: false; error: string }
+  { success: true; confirmationCode: string; checkoutUrl?: string } | { success: false; error: string }
 > {
   const parsed = createBookingSchema.safeParse(input)
   if (!parsed.success) {
@@ -53,6 +57,16 @@ export async function createBookingAction(input: unknown): Promise<
     where: { id: serviceId, centerId, active: true },
   })
   if (!service) return { success: false, error: 'Servicio no disponible' }
+  const depositCents = service.depositRequired && service.depositCents && service.depositCents > 0
+    ? Math.min(service.depositCents, service.priceCents)
+    : 0
+  const requiresOnlineDeposit = depositCents > 0
+  if (requiresOnlineDeposit && !isStripeConfigured()) {
+    return {
+      success: false,
+      error: 'Este servicio requiere pago de señal, pero el pago online aun no esta configurado.',
+    }
+  }
 
   // Validar staff
   if (staffId) {
@@ -73,7 +87,16 @@ export async function createBookingAction(input: unknown): Promise<
         where: {
           centerId,
           ...(staffId ? { staffId } : {}),
-          status: { in: ['PENDING', 'CONFIRMED'] },
+          OR: [
+            { status: 'CONFIRMED' },
+            {
+              status: 'PENDING',
+              OR: [
+                { depositExpiresAt: null },
+                { depositExpiresAt: { gt: new Date() } },
+              ],
+            },
+          ],
           AND: [
             { startAt: { lt: endDate } },
             { endAt: { gt: startDate } },
@@ -108,6 +131,9 @@ export async function createBookingAction(input: unknown): Promise<
       const confirmationCode = generateConfirmationCode()
 
       // Crear reserva
+      const depositExpiresAt = requiresOnlineDeposit
+        ? new Date(Date.now() + DEPOSIT_HOLD_MINUTES * 60 * 1000)
+        : null
       const booking = await tx.booking.create({
         data: {
           confirmationCode,
@@ -117,8 +143,11 @@ export async function createBookingAction(input: unknown): Promise<
           customerId: customer.id,
           startAt: startDate,
           endAt: endDate,
-          status: 'CONFIRMED',
+          status: requiresOnlineDeposit ? 'PENDING' : 'CONFIRMED',
           source: 'WEB',
+          depositCents: depositCents || null,
+          depositPaid: false,
+          depositExpiresAt,
         },
         include: {
           service: true,
@@ -131,17 +160,48 @@ export async function createBookingAction(input: unknown): Promise<
       return booking
     })
 
-    // Enviar email (no bloquea si falla)
-    sendBookingConfirmation({
-      to: result.customer.email,
-      customerName: result.customer.name,
-      centerName: result.center.name,
-      serviceName: result.service.name,
-      staffName: result.staff?.name,
-      startAt: result.startAt,
-      confirmationCode: result.confirmationCode,
-      centerSlug: result.center.slug,
-    }).catch(err => console.error('[email] Failed to send confirmation:', err))
+    if (requiresOnlineDeposit) {
+      try {
+        const checkoutUrl = await createBookingDepositCheckoutSession({
+          bookingId: result.id,
+          confirmationCode: result.confirmationCode,
+          centerSlug: result.center.slug,
+          centerName: result.center.name,
+          serviceName: result.service.name,
+          serviceId: result.serviceId,
+          depositCents,
+          depositExpiresAt: result.depositExpiresAt ?? new Date(Date.now() + DEPOSIT_HOLD_MINUTES * 60 * 1000),
+          customerEmail: result.customer.email,
+        })
+        return { success: true, confirmationCode: result.confirmationCode, checkoutUrl }
+      } catch (err) {
+        console.error('[booking] Error creating deposit checkout:', err)
+        await prisma.booking.update({
+          where: { id: result.id },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: new Date(),
+            cancelledBy: 'SYSTEM',
+            cancellationReason: 'No se pudo iniciar el pago del deposito.',
+          },
+        })
+        return { success: false, error: 'No se pudo iniciar el pago del deposito. Intentalo de nuevo.' }
+      }
+    }
+
+    if (!requiresOnlineDeposit) {
+      // Enviar email (no bloquea si falla)
+      sendBookingConfirmation({
+        to: result.customer.email,
+        customerName: result.customer.name,
+        centerName: result.center.name,
+        serviceName: result.service.name,
+        staffName: result.staff?.name,
+        startAt: result.startAt,
+        confirmationCode: result.confirmationCode,
+        centerSlug: result.center.slug,
+      }).catch(err => console.error('[email] Failed to send confirmation:', err))
+    }
 
     return { success: true, confirmationCode: result.confirmationCode }
   } catch (err) {
@@ -344,7 +404,16 @@ export async function rescheduleBookingAction(input: unknown): Promise<
         where: {
           id: { not: booking.id },
           ...(booking.staffId ? { staffId: booking.staffId } : { centerId: booking.centerId }),
-          status: { in: ['PENDING', 'CONFIRMED'] },
+          OR: [
+            { status: 'CONFIRMED' },
+            {
+              status: 'PENDING',
+              OR: [
+                { depositExpiresAt: null },
+                { depositExpiresAt: { gt: new Date() } },
+              ],
+            },
+          ],
           AND: [{ startAt: { lt: newEnd } }, { endAt: { gt: newStart } }],
         },
       })

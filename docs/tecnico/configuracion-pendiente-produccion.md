@@ -10,7 +10,7 @@ Este documento recoge configuraciones externas que no deben quedar hardcodeadas 
 |---|---|---|
 | Supabase DB | Prisma y modelos configurados | `DATABASE_URL`, `DIRECT_URL`, migraciones y datos reales |
 | Cloudflare R2 | Endpoint interno de firma y upload directo configurado | Bucket, token, dominio CDN y CORS |
-| Stripe | Checkout, webhook, suscripciones, bonos y pedidos conectados | Claves, productos/precios, webhook y portal |
+| Stripe | Checkout, webhook, suscripciones, bonos, pedidos y senales de reserva conectados | Claves, productos/precios, webhook y portal |
 | Resend | Emails transaccionales preparados | API key y dominio remitente verificado |
 | Vercel Cron | Ruta y `vercel.json` configurados | `CRON_SECRET` y despliegue activo |
 
@@ -23,12 +23,15 @@ Estado del codigo:
 - Ruta creada: `GET /api/cron/reminders`
 - Programacion creada en `vercel.json`: todos los dias a las 08:00 UTC
 - Funcion: busca reservas confirmadas del dia siguiente, envia email de recordatorio y marca `reminderSentAt`
+- Ruta creada: `GET /api/cron/booking-holds`
+- Programacion creada en `vercel.json`: cada 15 minutos
+- Funcion: libera reservas pendientes de senal cuando el pago no se completa dentro del plazo
 
 Configuracion pendiente en Vercel:
 
 | Variable | Obligatoria | Uso |
 |---|---:|---|
-| `CRON_SECRET` | Si | Protege `/api/cron/reminders` para que no pueda ejecutarlo cualquiera |
+| `CRON_SECRET` | Si | Protege `/api/cron/reminders` y `/api/cron/booking-holds` para que no pueda ejecutarlo cualquiera |
 | `RESEND_API_KEY` | Si | Permite enviar emails transaccionales |
 | `EMAIL_FROM` | Si | Remitente validado en Resend, por ejemplo `Belleza Local <noreply@bellezalocal.es>` |
 | `NEXT_PUBLIC_APP_URL` | Si | URL publica usada en enlaces de emails y confirmaciones |
@@ -39,6 +42,8 @@ Comprobacion manual recomendada:
 2. Crear una reserva confirmada para manana.
 3. Ejecutar manualmente `GET /api/cron/reminders` con cabecera `Authorization: Bearer <CRON_SECRET>`.
 4. Confirmar que llega el email y que la reserva queda con `reminderSentAt`.
+5. Crear una reserva pendiente de senal caducada y ejecutar `GET /api/cron/booking-holds`.
+6. Confirmar que la reserva pasa a cancelada por sistema y libera el hueco.
 
 ## Lista de espera
 
@@ -106,6 +111,8 @@ Estado del codigo:
 - Webhook `POST /api/webhooks/stripe`.
 - Compra online de productos y bonos con Stripe Checkout si `STRIPE_SECRET_KEY` esta configurada.
 - Degradacion elegante a pago en centro si Stripe no esta configurado.
+- Senales online por servicio: la reserva queda `PENDING`, el cliente paga en Stripe y el webhook la confirma.
+- Liberacion automatica de reservas pendientes de senal mediante `GET /api/cron/booking-holds`.
 
 Configuracion pendiente en Stripe:
 
@@ -114,6 +121,7 @@ Configuracion pendiente en Stripe:
 - Configurar `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` y `STRIPE_WEBHOOK_SECRET`.
 - Crear webhook apuntando a `https://<dominio>/api/webhooks/stripe`.
 - Eventos minimos: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+- Probar una reserva con senal real en modo test y verificar que Stripe redirige a `/reserva/confirmada/<codigo>?paid=1`.
 - Configurar Billing Portal en Stripe Dashboard.
 
 ## Supabase

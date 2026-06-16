@@ -1,20 +1,23 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle2, Calendar, Clock, MapPin, Sparkles, ArrowRight } from 'lucide-react'
+import { AlertCircle, ArrowRight, Calendar, CheckCircle2, Clock, Hourglass, MapPin, ShieldCheck, Sparkles, type LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { prisma } from '@/lib/db/client'
 
 export const metadata: Metadata = {
-  title: 'Reserva confirmada',
+  title: 'Estado de reserva',
   robots: { index: false },
 }
 
 interface Props {
   params: Promise<{ code: string }>
+  searchParams: Promise<{ paid?: string }>
 }
 
-export default async function ConfirmadaPage({ params }: Props) {
+export default async function ConfirmadaPage({ params, searchParams }: Props) {
   const { code } = await params
+  const paid = (await searchParams)?.paid === '1'
 
   const booking = await prisma.booking.findUnique({
     where: { confirmationCode: code },
@@ -44,126 +47,214 @@ export default async function ConfirmadaPage({ params }: Props) {
     return m > 0 ? `${h}h ${m}min` : `${h}h`
   }
 
+  const now = new Date()
   const isCancelled = booking.status === 'CANCELLED'
   const isCompleted = booking.status === 'COMPLETED'
+  const isPendingDeposit = booking.status === 'PENDING' && Boolean(booking.depositCents) && !booking.depositPaid
+  const isExpiredPending = isPendingDeposit && booking.depositExpiresAt && booking.depositExpiresAt < now
+  const isConfirmed = booking.status === 'CONFIRMED'
+
+  const status = getStatusMeta({
+    isCancelled,
+    isCompleted,
+    isPendingDeposit,
+    isExpiredPending: Boolean(isExpiredPending),
+    isConfirmed,
+    paid,
+  })
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-4 py-3">
-        <div className="mx-auto flex max-w-[600px] items-center gap-2">
-          <Link href="/" className="flex items-center gap-1.5 font-bold text-slate-900">
-            <Sparkles className="h-4 w-4 text-rose-600" />
-            BellezaLocal
+    <div className="min-h-screen bg-[#f1f4f8]">
+      <header className="border-b border-[#d8dee9] bg-white/90 px-4 py-3 backdrop-blur">
+        <div className="mx-auto flex max-w-[680px] items-center gap-2">
+          <Link href="/" className="flex items-center gap-1.5 font-black text-[#0c1324]">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#2f6df6]">
+              <Sparkles className="h-3.5 w-3.5 text-white" />
+            </span>
+            Belleza Local
           </Link>
         </div>
       </header>
 
-      <div className="mx-auto max-w-[600px] px-4 py-10">
-        {/* Status badge */}
+      <main className="mx-auto max-w-[680px] px-4 py-10">
         <div className="mb-6 text-center">
-          {isCancelled ? (
-            <div className="inline-flex items-center gap-2 rounded-full bg-red-100 px-4 py-2 text-sm font-semibold text-red-700">
-              Reserva cancelada
-            </div>
-          ) : isCompleted ? (
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">
-              Servicio completado
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-              <CheckCircle2 className="h-4 w-4" />
-              Reserva confirmada
-            </div>
-          )}
+          <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black ${status.badgeClass}`}>
+            <status.icon className="h-4 w-4" />
+            {status.badge}
+          </div>
+          <h1 className="mt-5 text-3xl font-black tracking-tight text-[#0c1324]">{status.title}</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#647089]">{status.description}</p>
         </div>
 
-        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <h1 className="text-xl font-bold text-slate-900">Detalles de tu cita</h1>
-            <span className="rounded-lg bg-slate-100 px-3 py-1.5 font-mono text-sm font-bold tracking-wider text-slate-700">
+        <section className="card mb-6 overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-[#e5eaf2] px-5 py-4">
+            <h2 className="font-black text-[#0c1324]">Detalles de tu cita</h2>
+            <span className="rounded-md bg-[#f1f4f8] px-3 py-1.5 font-mono text-sm font-black tracking-wider text-[#0c1324]">
               {booking.confirmationCode}
             </span>
           </div>
 
-          <div className="divide-y divide-slate-100">
-            <div className="flex items-start gap-3 pb-4">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              <div>
-                <p className="font-semibold text-slate-900">{booking.center.name}</p>
-                {booking.center.addressStreet && (
-                  <p className="text-sm text-slate-500">{booking.center.addressStreet}</p>
-                )}
-                <p className="text-sm text-slate-500">{booking.center.addressCity}</p>
-                {booking.center.phone && (
-                  <a href={`tel:${booking.center.phone}`} className="text-sm text-rose-600 hover:text-rose-700">
-                    {booking.center.phone}
-                  </a>
-                )}
-              </div>
-            </div>
+          <div className="divide-y divide-[#e5eaf2]">
+            <DetailRow icon={MapPin}>
+              <p className="font-bold text-[#0c1324]">{booking.center.name}</p>
+              {booking.center.addressStreet && <p className="text-sm text-[#647089]">{booking.center.addressStreet}</p>}
+              <p className="text-sm text-[#647089]">{booking.center.addressCity}</p>
+              {booking.center.phone && (
+                <a href={`tel:${booking.center.phone}`} className="text-sm font-bold text-[#2355c8] hover:text-[#2f6df6]">
+                  {booking.center.phone}
+                </a>
+              )}
+            </DetailRow>
 
-            <div className="flex items-start gap-3 py-4">
-              <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              <div>
-                <p className="font-semibold text-slate-900 capitalize">{fmtDate(booking.startAt)}</p>
-                <p className="text-sm text-slate-500">
-                  {fmtTime(booking.startAt)} – {fmtTime(booking.endAt)}
+            <DetailRow icon={Calendar}>
+              <p className="font-bold capitalize text-[#0c1324]">{fmtDate(booking.startAt)}</p>
+              <p className="text-sm text-[#647089]">{fmtTime(booking.startAt)} - {fmtTime(booking.endAt)}</p>
+            </DetailRow>
+
+            <DetailRow icon={Clock}>
+              <p className="font-bold text-[#0c1324]">{booking.service.name}</p>
+              <p className="text-sm text-[#647089]">
+                {fmtDuration(booking.service.durationMinutes)} · {fmtPrice(booking.service.priceCents)}
+              </p>
+              {booking.staff && (
+                <p className="text-sm text-[#647089]">
+                  Profesional: {booking.staff.name}{booking.staff.role ? ` · ${booking.staff.role}` : ''}
                 </p>
-              </div>
-            </div>
+              )}
+            </DetailRow>
 
-            <div className="flex items-start gap-3 py-4">
-              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              <div>
-                <p className="font-semibold text-slate-900">{booking.service.name}</p>
-                <p className="text-sm text-slate-500">
-                  {fmtDuration(booking.service.durationMinutes)} · {fmtPrice(booking.service.priceCents)}
+            {booking.depositCents && (
+              <DetailRow icon={ShieldCheck}>
+                <p className="font-bold text-[#0c1324]">Senal online</p>
+                <p className="text-sm text-[#647089]">
+                  {fmtPrice(booking.depositCents)} · {booking.depositPaid ? 'Pagada' : isExpiredPending ? 'Caducada' : 'Pendiente'}
                 </p>
-                {booking.staff && (
-                  <p className="text-sm text-slate-500">
-                    Profesional: {booking.staff.name}
-                    {booking.staff.role && ` · ${booking.staff.role}`}
-                  </p>
-                )}
-              </div>
-            </div>
+              </DetailRow>
+            )}
 
-            <div className="pt-4 text-sm text-slate-500">
-              Confirmación enviada a <span className="font-medium text-slate-700">{booking.customer.email}</span>
+            <div className="px-5 py-4 text-sm text-[#647089]">
+              {isPendingDeposit
+                ? 'La confirmacion definitiva se enviara por email cuando el pago quede validado.'
+                : <>Confirmacion enviada a <span className="font-bold text-[#0c1324]">{booking.customer.email}</span></>}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Instructions */}
         {!isCancelled && !isCompleted && (
-          <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-5">
-            <h2 className="mb-2 font-semibold text-slate-900">Qué hacer ahora</h2>
-            <ul className="space-y-1.5 text-sm text-slate-600">
-              <li>• Recibirás un email de confirmación con estos datos</li>
-              <li>• El centro puede enviarte recordatorio antes de tu cita</li>
-              <li>• Si necesitas cancelar, hazlo con al menos 24h de antelación</li>
+          <section className={`mb-6 rounded-lg border p-5 ${status.panelClass}`}>
+            <h2 className="mb-2 font-black text-[#0c1324]">{status.nextTitle}</h2>
+            <ul className="space-y-1.5 text-sm leading-6 text-[#647089]">
+              {status.nextSteps.map(step => <li key={step}>{step}</li>)}
             </ul>
-          </div>
+          </section>
         )}
 
-        {/* Actions */}
         <div className="flex flex-col gap-3 sm:flex-row">
-          {!isCancelled && !isCompleted && (
+          {!isCancelled && !isCompleted && !isPendingDeposit && (
             <Link
               href={`/reserva/gestionar?code=${booking.confirmationCode}`}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              className="btn-outline flex-1"
             >
               Gestionar / cancelar
             </Link>
           )}
-          <Link
-            href={`/centro/${booking.center.slug}`}
-            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-rose-600 py-3 text-sm font-semibold text-white hover:bg-rose-700 transition-colors"
-          >
+          <Link href={`/centro/${booking.center.slug}`} className="btn-primary flex-1">
             Ver el centro <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-      </div>
+      </main>
     </div>
   )
+}
+
+function DetailRow({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 px-5 py-4">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#8b96aa]" />
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
+
+function getStatusMeta({
+  isCancelled,
+  isCompleted,
+  isPendingDeposit,
+  isExpiredPending,
+  isConfirmed,
+  paid,
+}: {
+  isCancelled: boolean
+  isCompleted: boolean
+  isPendingDeposit: boolean
+  isExpiredPending: boolean
+  isConfirmed: boolean
+  paid: boolean
+}) {
+  if (isCancelled) {
+    return {
+      icon: AlertCircle,
+      badge: 'Reserva cancelada',
+      badgeClass: 'bg-red-50 text-red-700',
+      title: 'Esta reserva esta cancelada',
+      description: 'El hueco ya no esta reservado. Puedes volver al centro para elegir otra fecha disponible.',
+      panelClass: 'border-red-100 bg-red-50',
+      nextTitle: 'Estado',
+      nextSteps: ['La reserva no generara recordatorios.', 'Si necesitas otra cita, vuelve a reservar desde el perfil del centro.'],
+    }
+  }
+
+  if (isCompleted) {
+    return {
+      icon: CheckCircle2,
+      badge: 'Servicio completado',
+      badgeClass: 'bg-zinc-100 text-zinc-700',
+      title: 'Servicio completado',
+      description: 'La cita ya aparece como finalizada en el centro.',
+      panelClass: 'border-zinc-200 bg-white',
+      nextTitle: 'Estado',
+      nextSteps: ['Gracias por usar Belleza Local.'],
+    }
+  }
+
+  if (isExpiredPending) {
+    return {
+      icon: AlertCircle,
+      badge: 'Senal caducada',
+      badgeClass: 'bg-amber-50 text-amber-700',
+      title: 'La reserva no quedo confirmada',
+      description: 'El plazo de pago de la senal ha terminado. El hueco puede volver a estar disponible.',
+      panelClass: 'border-amber-100 bg-amber-50',
+      nextTitle: 'Que hacer ahora',
+      nextSteps: ['Vuelve al centro y elige de nuevo el servicio y horario.', 'Si acabas de pagar, espera unos segundos y actualiza esta pagina.'],
+    }
+  }
+
+  if (isPendingDeposit) {
+    return {
+      icon: Hourglass,
+      badge: paid ? 'Pago validandose' : 'Pendiente de senal',
+      badgeClass: 'bg-amber-50 text-amber-700',
+      title: paid ? 'Estamos confirmando el pago' : 'Tu cita esta pendiente de pago',
+      description: paid
+        ? 'Stripe ha devuelto el pago a la app y el sistema esta esperando la confirmacion final del webhook.'
+        : 'Para bloquear definitivamente el horario hay que completar el pago seguro de la senal.',
+      panelClass: 'border-amber-100 bg-amber-50',
+      nextTitle: 'Que hacer ahora',
+      nextSteps: paid
+        ? ['Actualiza esta pagina en unos segundos.', 'Recibiras el email de confirmacion cuando el pago quede validado.']
+        : ['Completa el pago desde la ventana segura de Stripe.', 'Si cancelaste el pago, vuelve a iniciar la reserva.'],
+    }
+  }
+
+  return {
+    icon: CheckCircle2,
+    badge: isConfirmed ? 'Reserva confirmada' : 'Reserva recibida',
+    badgeClass: 'bg-emerald-50 text-emerald-700',
+    title: 'Reserva confirmada',
+    description: 'Tu cita esta guardada y el centro ya tiene los datos necesarios para atenderte.',
+    panelClass: 'border-[#cfe0ff] bg-[#edf3ff]',
+    nextTitle: 'Que hacer ahora',
+    nextSteps: ['Recibiras un email de confirmacion con estos datos.', 'El centro puede enviarte recordatorio antes de tu cita.', 'Si necesitas cancelar, hazlo con al menos 24h de antelacion.'],
+  }
 }

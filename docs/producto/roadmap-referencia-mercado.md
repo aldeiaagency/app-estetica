@@ -14,9 +14,9 @@ Estas mejoras son las mas importantes antes de presentar la app a negocios reale
    - Prueba real de recordatorios y lista de espera.
 
 2. Galeria e imagenes de negocio
-   - Upload real de portada, galeria, staff y productos.
-   - Recomendado: Supabase Storage o Cloudflare R2.
-   - Sin esto, los perfiles pueden parecer demo aunque el diseño sea bueno.
+   - Estado interno: upload real de portada, galeria, staff y productos preparado con endpoint firmado.
+   - Pendiente externo: Cloudflare R2, dominio CDN y CORS.
+   - Sin las credenciales reales, los perfiles pueden parecer demo aunque el diseño sea bueno.
 
 3. Dashboard de negocio mas accionable
    - Agenda de hoy con alertas.
@@ -47,9 +47,9 @@ Estas piezas pueden hacer que el producto destaque frente a agendas basicas.
    - Ejemplo: unas cada 21 dias, cejas cada 30 dias, facial cada 45 dias.
 
 2. Depositos y politica anti no-show
-   - Permitir pedir deposito en servicios caros o clientes con historial de no-show.
-   - Integracion con Stripe.
-   - Reglas por centro y por servicio.
+   - Estado interno: senal por servicio, pago con Stripe, reserva pendiente y limpieza automatica de bloqueos caducados.
+   - Pendiente externo: claves Stripe, webhook y prueba real en modo test.
+   - Pendiente futuro: reglas automaticas segun historial de no-show del cliente.
 
 3. CRM ligero para belleza
    - Ficha de cliente con historial, preferencias, notas internas y consentimiento.
@@ -92,4 +92,3 @@ La base actual ya apunta a producto serio: reserva con calendario mensual, marke
 - Confianza: perfiles visualmente fuertes, emails correctos, politicas claras y QA real.
 - Rentabilidad para el negocio: menos no-shows, mas recurrencia, bonos, productos y rebooking.
 - Descubrimiento local: SEO, marketplace ordenado por calidad y disponibilidad real.
-

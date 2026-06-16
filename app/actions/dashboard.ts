@@ -191,6 +191,8 @@ const serviceSchema = z.object({
   description: z.string().optional(),
   durationMinutes: z.number().int().positive('La duración debe ser mayor que 0'),
   priceCents: z.number().int().min(0, 'El precio no puede ser negativo'),
+  depositRequired: z.boolean().optional(),
+  depositCents: z.number().int().min(0, 'El deposito no puede ser negativo').optional(),
   bufferMinutesBefore: z.number().int().min(0).optional(),
   bufferMinutesAfter: z.number().int().min(0).optional(),
 })
@@ -201,6 +203,8 @@ export async function createServiceAction(
     description?: string
     durationMinutes: number
     priceCents: number
+    depositRequired?: boolean
+    depositCents?: number
     bufferMinutesBefore?: number
     bufferMinutesAfter?: number
   },
@@ -209,6 +213,12 @@ export async function createServiceAction(
   const parsed = serviceSchema.safeParse(data)
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  }
+  if (parsed.data.depositRequired && (!parsed.data.depositCents || parsed.data.depositCents <= 0)) {
+    return { success: false, error: 'Introduce una señal mayor que 0' }
+  }
+  if (parsed.data.depositRequired && parsed.data.depositCents && parsed.data.depositCents > parsed.data.priceCents) {
+    return { success: false, error: 'La señal no puede superar el precio del servicio' }
   }
 
   try {
@@ -237,6 +247,8 @@ export async function createServiceAction(
         description: parsed.data.description ?? null,
         durationMinutes: parsed.data.durationMinutes,
         priceCents: parsed.data.priceCents,
+        depositRequired: parsed.data.depositRequired ?? false,
+        depositCents: parsed.data.depositRequired ? parsed.data.depositCents ?? null : null,
         bufferMinutesBefore: parsed.data.bufferMinutesBefore ?? 0,
         bufferMinutesAfter: parsed.data.bufferMinutesAfter ?? 0,
         order: (lastService?.order ?? 0) + 1,
@@ -261,6 +273,8 @@ export async function updateServiceAction(
     description?: string
     durationMinutes: number
     priceCents: number
+    depositRequired?: boolean
+    depositCents?: number
     bufferMinutesBefore?: number
     bufferMinutesAfter?: number
     active?: boolean
@@ -270,6 +284,12 @@ export async function updateServiceAction(
   const parsed = updateServiceSchema.safeParse(data)
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  }
+  if (parsed.data.depositRequired && (!parsed.data.depositCents || parsed.data.depositCents <= 0)) {
+    return { success: false, error: 'Introduce una señal mayor que 0' }
+  }
+  if (parsed.data.depositRequired && parsed.data.depositCents && parsed.data.depositCents > parsed.data.priceCents) {
+    return { success: false, error: 'La señal no puede superar el precio del servicio' }
   }
 
   try {
@@ -288,6 +308,8 @@ export async function updateServiceAction(
         description: parsed.data.description ?? null,
         durationMinutes: parsed.data.durationMinutes,
         priceCents: parsed.data.priceCents,
+        depositRequired: parsed.data.depositRequired ?? false,
+        depositCents: parsed.data.depositRequired ? parsed.data.depositCents ?? null : null,
         bufferMinutesBefore: parsed.data.bufferMinutesBefore ?? 0,
         bufferMinutesAfter: parsed.data.bufferMinutesAfter ?? 0,
         ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),

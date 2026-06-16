@@ -1,5 +1,6 @@
 import { getStripe, APP_URL } from './stripe'
 import { prisma } from '@/lib/db/client'
+import { sendBookingConfirmation } from '@/lib/notifications/email'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PRODUCTOS — Stripe Checkout Session (modo pago único) + fulfillment
@@ -160,4 +161,85 @@ export async function fulfillBonoPayment(meta: BonoCheckoutMetadata, paymentId: 
       },
     })
   })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESERVAS — deposito anti no-show
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createBookingDepositCheckoutSession(params: {
+  bookingId: string
+  confirmationCode: string
+  centerSlug: string
+  centerName: string
+  serviceName: string
+  serviceId: string
+  depositCents: number
+  depositExpiresAt: Date
+  customerEmail: string
+}): Promise<string> {
+  const session = await getStripe().checkout.sessions.create({
+    mode: 'payment',
+    customer_email: params.customerEmail,
+    expires_at: Math.floor(params.depositExpiresAt.getTime() / 1000),
+    line_items: [{
+      quantity: 1,
+      price_data: {
+        currency: 'eur',
+        unit_amount: params.depositCents,
+        product_data: { name: `Deposito reserva: ${params.serviceName}` },
+      },
+    }],
+    metadata: {
+      type: 'booking_deposit',
+      bookingId: params.bookingId,
+    },
+    payment_intent_data: {
+      metadata: {
+        type: 'booking_deposit',
+        bookingId: params.bookingId,
+      },
+    },
+    success_url: `${APP_URL}/reserva/confirmada/${params.confirmationCode}?paid=1`,
+    cancel_url: `${APP_URL}/centro/${params.centerSlug}/reservar?servicio=${params.serviceId}&pago=cancelado`,
+  })
+
+  if (!session.url) throw new Error('Stripe no devolvio URL de checkout')
+  return session.url
+}
+
+export async function fulfillBookingDeposit(bookingId: string, paymentIntentId: string | null): Promise<void> {
+  const existing = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { status: true, depositPaid: true },
+  })
+  if (!existing || existing.depositPaid) return
+  if (existing.status !== 'PENDING' && existing.status !== 'CONFIRMED') return
+
+  const booking = await prisma.booking.update({
+    where: { id: bookingId },
+    data: {
+      status: 'CONFIRMED',
+      depositPaid: true,
+      depositExpiresAt: null,
+      stripePaymentIntentId: paymentIntentId ?? undefined,
+    },
+    include: {
+      service: true,
+      staff: true,
+      center: true,
+      customer: true,
+    },
+  })
+
+  sendBookingConfirmation({
+    to: booking.customer.email,
+    customerName: booking.customer.name,
+    centerName: booking.center.name,
+    serviceName: booking.service.name,
+    staffName: booking.staff?.name,
+    startAt: booking.startAt,
+    confirmationCode: booking.confirmationCode,
+    centerSlug: booking.center.slug,
+  }).catch(err => console.error('[email] Failed to send deposit booking confirmation:', err))
 }

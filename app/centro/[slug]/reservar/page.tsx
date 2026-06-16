@@ -33,6 +33,8 @@ export default async function ReservarPage({ params, searchParams }: Props) {
           name: true,
           durationMinutes: true,
           priceCents: true,
+          depositRequired: true,
+          depositCents: true,
           description: true,
         },
       },

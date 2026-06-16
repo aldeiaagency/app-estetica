@@ -23,6 +23,8 @@ type ServiceData = {
   name: string
   durationMinutes: number
   priceCents: number
+  depositRequired: boolean
+  depositCents: number | null
   description: string | null
 }
 
@@ -166,6 +168,9 @@ export function BookingWizard({
     : selectedSlot
       ? `${selectedSlotStaffName} (asignado automaticamente)`
       : selectedStaffName
+  const selectedDepositCents = selectedService?.depositRequired && selectedService.depositCents && selectedService.depositCents > 0
+    ? selectedService.depositCents
+    : 0
 
   useEffect(() => {
     if (!session?.user) return
@@ -290,6 +295,10 @@ export function BookingWizard({
       })
 
       if (result.success) {
+        if (result.checkoutUrl) {
+          window.location.assign(result.checkoutUrl)
+          return
+        }
         router.push(`/reserva/confirmada/${result.confirmationCode}`)
         return
       }
@@ -380,6 +389,11 @@ export function BookingWizard({
                       <Clock className="h-3 w-3" />
                       {fmtDuration(service.durationMinutes)}
                     </span>
+                    {service.depositRequired && service.depositCents && service.depositCents > 0 && (
+                      <span className="mt-2 inline-flex rounded-full bg-[#e7f7f5] px-2 py-0.5 text-[11px] font-black text-[#10786f]">
+                        Senal online {fmtPrice(service.depositCents)}
+                      </span>
+                    )}
                   </span>
                   <span className="ml-4 flex shrink-0 items-center gap-2">
                     <span className="font-black text-[#0c1324]">{fmtPrice(service.priceCents)}</span>
@@ -643,6 +657,9 @@ export function BookingWizard({
                 { label: 'Fecha', value: fmtDateLong(selectedDate) },
                 { label: 'Hora', value: selectedSlot.time },
                 { label: 'Duracion', value: fmtDuration(selectedService.durationMinutes) },
+                ...(selectedDepositCents > 0
+                  ? [{ label: 'Senal online', value: fmtPrice(selectedDepositCents) }]
+                  : []),
               ].map((row, index) => (
                 <div key={row.label} className={`flex justify-between gap-4 px-5 py-3.5 text-sm ${index > 0 ? 'border-t border-[#e5eaf2]' : ''}`}>
                   <span className="text-[#647089]">{row.label}</span>
@@ -671,17 +688,19 @@ export function BookingWizard({
               {isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Confirmando...
+                  {selectedDepositCents > 0 ? 'Preparando pago...' : 'Confirmando...'}
                 </>
               ) : (
                 <>
                   <Check className="h-4 w-4" />
-                  Confirmar reserva
+                  {selectedDepositCents > 0 ? `Pagar senal de ${fmtPrice(selectedDepositCents)}` : 'Confirmar reserva'}
                 </>
               )}
             </button>
             <p className="mt-3 text-center text-xs text-[#647089]">
-              Cancelacion gratuita hasta 24h antes - Confirmacion por email
+              {selectedDepositCents > 0
+                ? 'La cita quedara confirmada cuando se complete el pago seguro.'
+                : 'Cancelacion gratuita hasta 24h antes - Confirmacion por email'}
             </p>
 
             {!isAuthenticated && (
