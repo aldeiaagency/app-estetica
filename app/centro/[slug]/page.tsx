@@ -121,9 +121,9 @@ export default async function CenterPage({ params }: Props) {
         </section>
 
         <main className="mx-auto max-w-7xl px-4 pb-16">
-          <section className="-mt-14 mb-8 rounded-lg border border-[#d8dee9] bg-white p-6 shadow-[0_28px_80px_rgba(12,19,36,0.14)]">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 flex-1">
+          <section className="relative z-10 -mt-12 mb-8 overflow-hidden rounded-lg border border-[#d8dee9] bg-white shadow-[0_28px_80px_rgba(12,19,36,0.14)]">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
+              <div className="min-w-0 p-6 lg:p-8">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <span className="badge-violet">{categoryLabel}</span>
                   {avgRating && (
@@ -153,9 +153,26 @@ export default async function CenterPage({ params }: Props) {
                   <p className="mt-4 max-w-2xl text-sm leading-7 text-[#647089]">{center.description}</p>
                 )}
               </div>
-              <Link href={`/centro/${center.slug}/reservar`} className="btn-primary shrink-0 px-7 py-3.5">
-                Reservar cita <ArrowRight className="h-4 w-4" />
-              </Link>
+              <div className="border-t border-[#e5eaf2] bg-[#f7f9fc] p-5 lg:border-l lg:border-t-0 lg:p-6">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#2f6df6]">Reserva online</p>
+                <p className="mt-2 text-sm leading-6 text-[#647089]">
+                  Elige servicio, profesional y hora libre sin llamadas.
+                </p>
+                <Link href={`/centro/${center.slug}/reservar`} className="btn-primary mt-4 w-full py-3">
+                  Reservar cita <ArrowRight className="h-4 w-4" />
+                </Link>
+                <div className="mt-4 space-y-2 border-t border-[#e5eaf2] pt-4">
+                  {[
+                    `${center.services.length} servicio${center.services.length === 1 ? '' : 's'} disponible${center.services.length === 1 ? '' : 's'}`,
+                    center.staff.length > 0 ? `${center.staff.length} profesional${center.staff.length === 1 ? '' : 'es'}` : 'Reserva directa con el centro',
+                  ].map(item => (
+                    <div key={item} className="flex items-center gap-2 text-xs text-[#647089]">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#4b7258]" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
 
@@ -167,7 +184,7 @@ export default async function CenterPage({ params }: Props) {
                 ) : (
                   <div className="divide-y divide-[#e5eaf2]">
                     {center.services.map(service => (
-                      <div key={service.id} className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-[#f7f9fc]">
+                      <div key={service.id} className="flex flex-col gap-3 px-6 py-4 transition-colors hover:bg-[#f7f9fc] sm:flex-row sm:items-center">
                         <div className="min-w-0 flex-1">
                           <p className="font-black text-[#0c1324]">{service.name}</p>
                           {service.description && <p className="mt-0.5 truncate text-sm text-[#647089]">{service.description}</p>}
@@ -176,7 +193,7 @@ export default async function CenterPage({ params }: Props) {
                             {formatDuration(service.durationMinutes)}
                           </p>
                         </div>
-                        <div className="flex shrink-0 items-center gap-3">
+                        <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
                           <span className="font-black text-[#0c1324]">{formatPrice(service.priceCents)}</span>
                           <Link href={`/centro/${center.slug}/reservar?servicio=${service.id}`} className="rounded-md bg-[#0c1324] px-3.5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#1f2a44]">
                             Reservar
