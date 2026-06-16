@@ -6,9 +6,11 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { sendBookingConfirmation, sendBookingCancellation } from '@/lib/email/templates'
 import { PLAN_FEATURES } from '@/lib/billing/plans'
-import type { BookingStatus, CenterCategory, OrderStatus } from '@prisma/client'
+import { notifyWaitlistEntry, notifyWaitlistForBookingOpening } from '@/lib/waitlist/notifications'
+import type { BookingStatus, CenterCategory, OrderStatus, WaitlistStatus } from '@prisma/client'
 
 const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+const VALID_WAITLIST_STATUSES: WaitlistStatus[] = ['WAITING', 'NOTIFIED', 'BOOKED', 'EXPIRED']
 
 async function getOrganizationFeatures(orgId: string) {
   const org = await prisma.organization.findUnique({
@@ -67,18 +69,28 @@ export async function updateBookingStatusAction(
     if (!booking) return { success: false, error: 'Reserva no encontrada' }
     if (booking.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
 
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status,
-        ...(status === 'CANCELLED'
-          ? {
-              cancelledAt: new Date(),
-              cancelledBy: 'BUSINESS',
-              ...(reason ? { cancellationReason: reason } : {}),
-            }
-          : {}),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status,
+          ...(status === 'CANCELLED'
+            ? {
+                cancelledAt: new Date(),
+                cancelledBy: 'BUSINESS',
+                ...(reason ? { cancellationReason: reason } : {}),
+              }
+            : {}),
+          ...(status === 'NO_SHOW' ? { noShowAt: new Date() } : {}),
+        },
+      })
+
+      if (status === 'NO_SHOW' && booking.status !== 'NO_SHOW') {
+        await tx.customer.update({
+          where: { id: booking.customerId },
+          data: { noShowCount: { increment: 1 } },
+        })
+      }
     })
 
     // Send email — fire and forget (do not block the action)
@@ -97,12 +109,66 @@ export async function updateBookingStatusAction(
       sendBookingConfirmation(emailParams).catch(() => {})
     } else if (status === 'CANCELLED') {
       sendBookingCancellation({ ...emailParams, reason }).catch(() => {})
+      notifyWaitlistForBookingOpening({
+        centerId: booking.centerId,
+        serviceId: booking.serviceId,
+        staffId: booking.staffId,
+        startAt: booking.startAt,
+      }).catch(() => {})
     }
+
+    revalidatePath('/dashboard/reservas')
+    if (status === 'NO_SHOW') revalidatePath('/dashboard/clientes')
+    return { success: true }
+  } catch {
+    return { success: false, error: 'Error al actualizar el estado' }
+  }
+}
+
+export async function notifyWaitlistEntryAction(
+  entryId: string,
+  orgId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const result = await notifyWaitlistEntry(entryId, { orgId })
+    revalidatePath('/dashboard/reservas')
+    return result
+  } catch {
+    return { success: false, error: 'Error al avisar al cliente' }
+  }
+}
+
+export async function updateWaitlistStatusAction(
+  entryId: string,
+  status: WaitlistStatus,
+  orgId: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!VALID_WAITLIST_STATUSES.includes(status)) {
+    return { success: false, error: 'Estado invalido' }
+  }
+
+  try {
+    const entry = await prisma.waitlistEntry.findUnique({
+      where: { id: entryId },
+      include: { center: { select: { organizationId: true } } },
+    })
+
+    if (!entry) return { success: false, error: 'Solicitud no encontrada' }
+    if (entry.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+
+    await prisma.waitlistEntry.update({
+      where: { id: entryId },
+      data: {
+        status,
+        ...(status === 'NOTIFIED' ? { notifiedAt: new Date() } : {}),
+        ...(status === 'WAITING' ? { notifiedAt: null } : {}),
+      },
+    })
 
     revalidatePath('/dashboard/reservas')
     return { success: true }
   } catch {
-    return { success: false, error: 'Error al actualizar el estado' }
+    return { success: false, error: 'Error al actualizar la lista de espera' }
   }
 }
 

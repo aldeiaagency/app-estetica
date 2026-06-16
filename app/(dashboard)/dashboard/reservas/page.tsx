@@ -2,10 +2,10 @@ import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
 import { formatDate, formatTime } from '@/lib/utils'
-import { updateBookingStatusAction } from '@/app/actions/dashboard'
+import { notifyWaitlistEntryAction, updateBookingStatusAction, updateWaitlistStatusAction } from '@/app/actions/dashboard'
 import { BookingCalendar, type CalendarBooking } from '@/components/dashboard/booking-calendar'
 import { StatusBadge } from '@/components/ui/badge'
-import type { BookingStatus } from '@prisma/client'
+import type { BookingStatus, WaitlistStatus } from '@prisma/client'
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
   CONFIRMED:  'Confirmada',
@@ -17,6 +17,13 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
 
 const VALID_STATUSES: BookingStatus[] = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW']
 function isValidStatus(s: string): s is BookingStatus { return VALID_STATUSES.includes(s as BookingStatus) }
+
+const WAITLIST_LABELS: Record<WaitlistStatus, string> = {
+  WAITING:  'En espera',
+  NOTIFIED: 'Avisada',
+  BOOKED:   'Reservada',
+  EXPIRED:  'Cerrada',
+}
 
 export default async function ReservasPage({
   searchParams,
@@ -32,24 +39,46 @@ export default async function ReservasPage({
 
   const { estado, vista } = await searchParams
   const estadoFilter = estado && isValidStatus(estado) ? estado : undefined
-  const view = vista === 'lista' ? 'lista' : 'calendario'
+  const view = vista === 'lista' || vista === 'lista-espera' ? vista : 'calendario'
 
   // Fetch bookings: last month + next 3 months for calendar
   const calStart = new Date(); calStart.setMonth(calStart.getMonth() - 1); calStart.setDate(1); calStart.setHours(0,0,0,0)
   const calEnd   = new Date(); calEnd.setMonth(calEnd.getMonth() + 3); calEnd.setDate(0); calEnd.setHours(23,59,59,999)
 
-  const allBookings = await prisma.booking.findMany({
-    where: {
-      centerId: center.id,
-      startAt: { gte: calStart, lte: calEnd },
-    },
-    include: {
-      service:  { select: { name: true } },
-      staff:    { select: { name: true } },
-      customer: { select: { name: true, email: true, phone: true } },
-    },
-    orderBy: { startAt: 'asc' },
-  })
+  const [allBookings, waitlistEntries] = await Promise.all([
+    prisma.booking.findMany({
+      where: {
+        centerId: center.id,
+        startAt: { gte: calStart, lte: calEnd },
+      },
+      include: {
+        service:  { select: { name: true } },
+        staff:    { select: { name: true } },
+        customer: { select: { name: true, email: true, phone: true } },
+      },
+      orderBy: { startAt: 'asc' },
+    }),
+    prisma.waitlistEntry.findMany({
+      where: { centerId: center.id },
+      include: { customer: { select: { name: true, email: true, phone: true } } },
+      orderBy: [{ status: 'asc' }, { requestedDate: 'asc' }, { createdAt: 'asc' }],
+      take: 100,
+    }),
+  ])
+
+  const serviceIds = Array.from(new Set(waitlistEntries.map(entry => entry.serviceId)))
+  const staffIds = Array.from(new Set(waitlistEntries.map(entry => entry.staffId).filter((id): id is string => Boolean(id))))
+  const [waitlistServices, waitlistStaff] = await Promise.all([
+    serviceIds.length
+      ? prisma.service.findMany({ where: { id: { in: serviceIds }, centerId: center.id }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    staffIds.length
+      ? prisma.staff.findMany({ where: { id: { in: staffIds }, centerId: center.id }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+  ])
+  const serviceById = new Map(waitlistServices.map(service => [service.id, service.name]))
+  const staffById = new Map(waitlistStaff.map(staff => [staff.id, staff.name]))
+  const activeWaitlistCount = waitlistEntries.filter(entry => entry.status === 'WAITING').length
 
   // Serialize for client component
   const calendarBookings: CalendarBooking[] = allBookings.map(b => ({
@@ -79,10 +108,10 @@ export default async function ReservasPage({
 
       {/* View toggle + status filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-1">
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-100 p-1">
           <a
             href="/dashboard/reservas"
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-all ${
+            className={`shrink-0 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all ${
               view === 'calendario'
                 ? 'bg-white text-zinc-900 shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-700'
@@ -92,13 +121,23 @@ export default async function ReservasPage({
           </a>
           <a
             href="/dashboard/reservas?vista=lista"
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-all ${
+            className={`shrink-0 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all ${
               view === 'lista'
                 ? 'bg-white text-zinc-900 shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-700'
             }`}
           >
             Lista
+          </a>
+          <a
+            href="/dashboard/reservas?vista=lista-espera"
+            className={`shrink-0 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all ${
+              view === 'lista-espera'
+                ? 'bg-white text-zinc-900 shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-700'
+            }`}
+          >
+            Lista de espera{activeWaitlistCount > 0 ? ` (${activeWaitlistCount})` : ''}
           </a>
         </div>
 
@@ -208,6 +247,151 @@ export default async function ReservasPage({
             </div>
           )}
         </>
+      )}
+
+      {view === 'lista-espera' && (
+        <WaitlistPanel
+          entries={waitlistEntries.map(entry => ({
+            id: entry.id,
+            status: entry.status,
+            requestedDate: entry.requestedDate,
+            createdAt: entry.createdAt,
+            notifiedAt: entry.notifiedAt,
+            customer: entry.customer,
+            serviceName: serviceById.get(entry.serviceId) ?? 'Servicio eliminado',
+            staffName: entry.staffId ? staffById.get(entry.staffId) ?? 'Profesional eliminado' : null,
+          }))}
+          orgId={orgId}
+        />
+      )}
+    </div>
+  )
+}
+
+type WaitlistPanelEntry = {
+  id: string
+  status: WaitlistStatus
+  requestedDate: Date
+  createdAt: Date
+  notifiedAt: Date | null
+  customer: { name: string; email: string; phone: string | null }
+  serviceName: string
+  staffName: string | null
+}
+
+function WaitlistPanel({ entries, orgId }: { entries: WaitlistPanelEntry[]; orgId: string }) {
+  if (entries.length === 0) {
+    return (
+      <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-white py-16 text-center">
+        <p className="text-sm font-semibold text-zinc-700">Aun no hay solicitudes en lista de espera</p>
+        <p className="mt-1 text-sm text-zinc-400">Cuando no haya huecos disponibles, los clientes podran apuntarse desde la reserva.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div className="border-b border-zinc-100 bg-[#f7f9fc] px-6 py-4">
+        <h2 className="text-base font-black text-zinc-900">Lista de espera</h2>
+        <p className="mt-1 text-sm text-zinc-500">Clientes que quieren reservar si se libera disponibilidad.</p>
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-zinc-100 bg-zinc-50">
+              {['Cliente', 'Solicitud', 'Fecha', 'Estado', 'Acciones'].map((h) => (
+                <th key={h} className={`px-6 py-3 text-xs font-bold uppercase tracking-wider text-zinc-400 ${h === 'Acciones' ? 'text-right' : 'text-left'}`}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-50">
+            {entries.map(entry => (
+              <tr key={entry.id} className="transition-colors hover:bg-zinc-50/50">
+                <td className="px-6 py-4">
+                  <p className="font-semibold text-zinc-900">{entry.customer.name}</p>
+                  <p className="text-xs text-zinc-400">{entry.customer.email}</p>
+                  {entry.customer.phone && <p className="text-xs text-zinc-400">{entry.customer.phone}</p>}
+                </td>
+                <td className="px-6 py-4">
+                  <p className="font-medium text-zinc-900">{entry.serviceName}</p>
+                  <p className="text-xs text-zinc-400">{entry.staffName ?? 'Cualquier profesional disponible'}</p>
+                </td>
+                <td className="px-6 py-4">
+                  <p className="font-medium text-zinc-900">{formatDate(entry.requestedDate, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</p>
+                  <p className="text-xs text-zinc-400">Solicitada {formatDate(entry.createdAt, { day: 'numeric', month: 'short' })}</p>
+                </td>
+                <td className="px-6 py-4">
+                  <WaitlistStatusBadge status={entry.status} />
+                  {entry.notifiedAt && <p className="mt-1 text-xs text-zinc-400">Avisada {formatDate(entry.notifiedAt, { day: 'numeric', month: 'short' })}</p>}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <WaitlistActions entry={entry} orgId={orgId} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="divide-y divide-zinc-100 md:hidden">
+        {entries.map(entry => (
+          <div key={entry.id} className="p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-zinc-900">{entry.customer.name}</p>
+                <p className="text-sm text-zinc-500">{entry.serviceName}</p>
+                <p className="text-xs text-zinc-400">{formatDate(entry.requestedDate, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</p>
+              </div>
+              <WaitlistStatusBadge status={entry.status} />
+            </div>
+            <WaitlistActions entry={entry} orgId={orgId} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function WaitlistStatusBadge({ status }: { status: WaitlistStatus }) {
+  const cls = status === 'WAITING'
+    ? 'bg-blue-50 text-blue-700 border-blue-100'
+    : status === 'NOTIFIED'
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+      : status === 'BOOKED'
+        ? 'bg-zinc-900 text-white border-zinc-900'
+        : 'bg-zinc-100 text-zinc-500 border-zinc-200'
+
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${cls}`}>
+      {WAITLIST_LABELS[status]}
+    </span>
+  )
+}
+
+function WaitlistActions({ entry, orgId }: { entry: WaitlistPanelEntry; orgId: string }) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      {entry.status === 'WAITING' && (
+        <form action={async () => { 'use server'; await notifyWaitlistEntryAction(entry.id, orgId) }}>
+          <button type="submit" className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700">
+            Avisar
+          </button>
+        </form>
+      )}
+      {entry.status !== 'BOOKED' && (
+        <form action={async () => { 'use server'; await updateWaitlistStatusAction(entry.id, 'BOOKED', orgId) }}>
+          <button type="submit" className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50">
+            Marcar reservada
+          </button>
+        </form>
+      )}
+      {entry.status !== 'EXPIRED' && (
+        <form action={async () => { 'use server'; await updateWaitlistStatusAction(entry.id, 'EXPIRED', orgId) }}>
+          <button type="submit" className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100">
+            Cerrar
+          </button>
+        </form>
       )}
     </div>
   )

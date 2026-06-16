@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/db/client'
 import { z } from 'zod'
 import { sendBookingConfirmation } from '@/lib/notifications/email'
+import { notifyWaitlistForBookingOpening } from '@/lib/waitlist/notifications'
 
 const createBookingSchema = z.object({
   centerId: z.string().cuid(),
@@ -284,6 +285,13 @@ export async function cancelBookingAction(
       cancellationReason: reason ?? null,
     },
   })
+
+  notifyWaitlistForBookingOpening({
+    centerId: booking.centerId,
+    serviceId: booking.serviceId,
+    staffId: booking.staffId,
+    startAt: booking.startAt,
+  }).catch(err => console.error('[waitlist] Failed to notify after cancellation:', err))
 
   return { success: true }
 }

@@ -202,3 +202,56 @@ export async function sendBookingReminder(params: BookingEmailParams) {
     html,
   })
 }
+interface WaitlistAvailabilityParams {
+  to: string
+  customerName: string
+  serviceName: string
+  centerName: string
+  centerSlug: string
+  requestedDate: string
+}
+
+export async function sendWaitlistAvailability(params: WaitlistAvailabilityParams) {
+  const { to, customerName, serviceName, centerName, centerSlug, requestedDate } = params
+  const bookingUrl = `${APP_URL}/centro/${centerSlug}/reservar`
+
+  const html = baseLayout(
+    `
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:900;color:#18181b;">Hay una oportunidad para reservar</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#71717a;">Hola ${customerName}, se ha liberado disponibilidad relacionada con tu solicitud.</p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#eef6f3;border-radius:12px;padding:20px;margin-bottom:28px;border:1px solid #c9ded4;">
+      <tr><td style="padding:6px 0;">
+        <span style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Servicio</span><br/>
+        <strong style="font-size:15px;color:#18181b;">${serviceName}</strong>
+      </td></tr>
+      <tr><td style="padding:6px 0;border-top:1px solid #c9ded4;">
+        <span style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Centro</span><br/>
+        <strong style="font-size:15px;color:#18181b;">${centerName}</strong>
+      </td></tr>
+      <tr><td style="padding:6px 0;border-top:1px solid #c9ded4;">
+        <span style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Fecha solicitada</span><br/>
+        <strong style="font-size:15px;color:#18181b;">${requestedDate}</strong>
+      </td></tr>
+    </table>
+
+    <div style="text-align:center;margin-bottom:28px;">
+      <a href="${bookingUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;text-decoration:none;">
+        Ver horarios disponibles
+      </a>
+    </div>
+
+    <p style="margin:0;font-size:13px;color:#a1a1aa;text-align:center;">
+      La disponibilidad puede cambiar rapidamente y no queda bloqueada hasta completar la reserva.
+    </p>
+    `,
+    `Disponibilidad para ${serviceName} en ${centerName}`
+  )
+
+  return resend.emails.send({
+    from: EMAIL_FROM,
+    to,
+    subject: `Nueva disponibilidad: ${serviceName} en ${centerName}`,
+    html,
+  })
+}
