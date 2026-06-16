@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import { createProductAction, toggleProductActiveAction } from '@/app/actions/dashboard'
+import { UploadHiddenInput } from '@/components/dashboard/upload-hidden-input'
 import { ShoppingBag, Package } from 'lucide-react'
 
 export default async function ProductosPage() {
@@ -52,8 +53,15 @@ export default async function ProductosPage() {
                   <tr key={p.id} className="hover:bg-zinc-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
-                          <Package className="h-5 w-5 text-primary-500" />
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-primary-50">
+                          {p.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <Package className="h-5 w-5 text-primary-500" />
+                            </div>
+                          )}
                         </div>
                         <div>
                           <p className="font-semibold text-zinc-900">{p.name}</p>
@@ -86,6 +94,16 @@ export default async function ProductosPage() {
           <div className="md:hidden divide-y divide-zinc-100">
             {productos.map((p) => (
               <div key={p.id} className="p-4">
+                <div className="mb-3 h-32 overflow-hidden rounded-xl bg-primary-50">
+                  {p.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <Package className="h-8 w-8 text-primary-400" />
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
                     <p className="font-semibold text-zinc-900">{p.name}</p>
@@ -129,6 +147,7 @@ function NuevoProductoForm({ orgId }: { orgId: string }) {
       name:        formData.get('name') as string,
       description: (formData.get('description') as string) || undefined,
       brand:       (formData.get('brand') as string) || undefined,
+      image:       (formData.get('image') as string) || undefined,
       priceCents:  Math.round(precioEuros * 100),
       stock:       stockStr ? parseInt(stockStr, 10) : undefined,
     }, orgId)
@@ -147,6 +166,14 @@ function NuevoProductoForm({ orgId }: { orgId: string }) {
       <div>
         <label className="label">Marca</label>
         <input name="brand" placeholder="Ej: Kerastase" className="input-base" />
+      </div>
+      <div>
+        <UploadHiddenInput
+          name="image"
+          label="Imagen"
+          kind="product"
+          helper="Se mostrara en el marketplace y en la ficha del producto."
+        />
       </div>
       <div>
         <label className="label">Precio (€) <span className="text-beauty-500">*</span></label>

@@ -5,9 +5,39 @@ import { slugify, formatDate, formatTime } from '@/lib/utils'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { sendBookingConfirmation, sendBookingCancellation } from '@/lib/email/templates'
-import type { BookingStatus, CenterCategory, OrderStatus } from '@prisma/client'
+import { PLAN_FEATURES } from '@/lib/billing/plans'
+import { notifyWaitlistEntry, notifyWaitlistForBookingOpening } from '@/lib/waitlist/notifications'
+import type { BookingStatus, CenterCategory, OrderStatus, WaitlistStatus } from '@prisma/client'
 
 const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+const VALID_WAITLIST_STATUSES: WaitlistStatus[] = ['WAITING', 'NOTIFIED', 'BOOKED', 'EXPIRED']
+
+async function getOrganizationFeatures(orgId: string) {
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { plan: true },
+  })
+
+  return org ? PLAN_FEATURES[org.plan] : null
+}
+
+function hasReachedLimit(current: number, limit: number) {
+  return limit !== -1 && current >= limit
+}
+
+const optionalUrl = z.string().url('URL invalida').optional().or(z.literal(''))
+
+function cleanOptionalUrl(value?: string | null) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function cleanUrlList(values?: string[]) {
+  return (values ?? [])
+    .map(value => value.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+}
 
 export async function updateOrderStatusAction(
   orderId: string,
@@ -53,18 +83,28 @@ export async function updateBookingStatusAction(
     if (!booking) return { success: false, error: 'Reserva no encontrada' }
     if (booking.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
 
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status,
-        ...(status === 'CANCELLED'
-          ? {
-              cancelledAt: new Date(),
-              cancelledBy: 'BUSINESS',
-              ...(reason ? { cancellationReason: reason } : {}),
-            }
-          : {}),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status,
+          ...(status === 'CANCELLED'
+            ? {
+                cancelledAt: new Date(),
+                cancelledBy: 'BUSINESS',
+                ...(reason ? { cancellationReason: reason } : {}),
+              }
+            : {}),
+          ...(status === 'NO_SHOW' ? { noShowAt: new Date() } : {}),
+        },
+      })
+
+      if (status === 'NO_SHOW' && booking.status !== 'NO_SHOW') {
+        await tx.customer.update({
+          where: { id: booking.customerId },
+          data: { noShowCount: { increment: 1 } },
+        })
+      }
     })
 
     // Send email — fire and forget (do not block the action)
@@ -83,12 +123,66 @@ export async function updateBookingStatusAction(
       sendBookingConfirmation(emailParams).catch(() => {})
     } else if (status === 'CANCELLED') {
       sendBookingCancellation({ ...emailParams, reason }).catch(() => {})
+      notifyWaitlistForBookingOpening({
+        centerId: booking.centerId,
+        serviceId: booking.serviceId,
+        staffId: booking.staffId,
+        startAt: booking.startAt,
+      }).catch(() => {})
     }
+
+    revalidatePath('/dashboard/reservas')
+    if (status === 'NO_SHOW') revalidatePath('/dashboard/clientes')
+    return { success: true }
+  } catch {
+    return { success: false, error: 'Error al actualizar el estado' }
+  }
+}
+
+export async function notifyWaitlistEntryAction(
+  entryId: string,
+  orgId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const result = await notifyWaitlistEntry(entryId, { orgId })
+    revalidatePath('/dashboard/reservas')
+    return result
+  } catch {
+    return { success: false, error: 'Error al avisar al cliente' }
+  }
+}
+
+export async function updateWaitlistStatusAction(
+  entryId: string,
+  status: WaitlistStatus,
+  orgId: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!VALID_WAITLIST_STATUSES.includes(status)) {
+    return { success: false, error: 'Estado invalido' }
+  }
+
+  try {
+    const entry = await prisma.waitlistEntry.findUnique({
+      where: { id: entryId },
+      include: { center: { select: { organizationId: true } } },
+    })
+
+    if (!entry) return { success: false, error: 'Solicitud no encontrada' }
+    if (entry.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+
+    await prisma.waitlistEntry.update({
+      where: { id: entryId },
+      data: {
+        status,
+        ...(status === 'NOTIFIED' ? { notifiedAt: new Date() } : {}),
+        ...(status === 'WAITING' ? { notifiedAt: null } : {}),
+      },
+    })
 
     revalidatePath('/dashboard/reservas')
     return { success: true }
   } catch {
-    return { success: false, error: 'Error al actualizar el estado' }
+    return { success: false, error: 'Error al actualizar la lista de espera' }
   }
 }
 
@@ -97,6 +191,8 @@ const serviceSchema = z.object({
   description: z.string().optional(),
   durationMinutes: z.number().int().positive('La duración debe ser mayor que 0'),
   priceCents: z.number().int().min(0, 'El precio no puede ser negativo'),
+  depositRequired: z.boolean().optional(),
+  depositCents: z.number().int().min(0, 'El deposito no puede ser negativo').optional(),
   bufferMinutesBefore: z.number().int().min(0).optional(),
   bufferMinutesAfter: z.number().int().min(0).optional(),
 })
@@ -107,6 +203,8 @@ export async function createServiceAction(
     description?: string
     durationMinutes: number
     priceCents: number
+    depositRequired?: boolean
+    depositCents?: number
     bufferMinutesBefore?: number
     bufferMinutesAfter?: number
   },
@@ -116,10 +214,26 @@ export async function createServiceAction(
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
   }
+  if (parsed.data.depositRequired && (!parsed.data.depositCents || parsed.data.depositCents <= 0)) {
+    return { success: false, error: 'Introduce una señal mayor que 0' }
+  }
+  if (parsed.data.depositRequired && parsed.data.depositCents && parsed.data.depositCents > parsed.data.priceCents) {
+    return { success: false, error: 'La señal no puede superar el precio del servicio' }
+  }
 
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const [features, center] = await Promise.all([
+      getOrganizationFeatures(orgId),
+      prisma.center.findFirst({
+        where: { organizationId: orgId },
+        include: { _count: { select: { services: true } } },
+      }),
+    ])
+    if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
+    if (hasReachedLimit(center._count.services, features.maxServicesPerCenter)) {
+      return { success: false, error: 'Has alcanzado el limite de servicios de tu plan. Actualiza tu plan para anadir mas.' }
+    }
 
     const lastService = await prisma.service.findFirst({
       where: { centerId: center.id },
@@ -133,6 +247,8 @@ export async function createServiceAction(
         description: parsed.data.description ?? null,
         durationMinutes: parsed.data.durationMinutes,
         priceCents: parsed.data.priceCents,
+        depositRequired: parsed.data.depositRequired ?? false,
+        depositCents: parsed.data.depositRequired ? parsed.data.depositCents ?? null : null,
         bufferMinutesBefore: parsed.data.bufferMinutesBefore ?? 0,
         bufferMinutesAfter: parsed.data.bufferMinutesAfter ?? 0,
         order: (lastService?.order ?? 0) + 1,
@@ -157,6 +273,8 @@ export async function updateServiceAction(
     description?: string
     durationMinutes: number
     priceCents: number
+    depositRequired?: boolean
+    depositCents?: number
     bufferMinutesBefore?: number
     bufferMinutesAfter?: number
     active?: boolean
@@ -166,6 +284,12 @@ export async function updateServiceAction(
   const parsed = updateServiceSchema.safeParse(data)
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  }
+  if (parsed.data.depositRequired && (!parsed.data.depositCents || parsed.data.depositCents <= 0)) {
+    return { success: false, error: 'Introduce una señal mayor que 0' }
+  }
+  if (parsed.data.depositRequired && parsed.data.depositCents && parsed.data.depositCents > parsed.data.priceCents) {
+    return { success: false, error: 'La señal no puede superar el precio del servicio' }
   }
 
   try {
@@ -184,6 +308,8 @@ export async function updateServiceAction(
         description: parsed.data.description ?? null,
         durationMinutes: parsed.data.durationMinutes,
         priceCents: parsed.data.priceCents,
+        depositRequired: parsed.data.depositRequired ?? false,
+        depositCents: parsed.data.depositRequired ? parsed.data.depositCents ?? null : null,
         bufferMinutesBefore: parsed.data.bufferMinutesBefore ?? 0,
         bufferMinutesAfter: parsed.data.bufferMinutesAfter ?? 0,
         ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),
@@ -223,16 +349,30 @@ export async function toggleServiceActiveAction(
 }
 
 export async function createStaffAction(
-  data: { name: string; role?: string; bio?: string },
+  data: { name: string; role?: string; bio?: string; image?: string },
   orgId: string
 ): Promise<{ success: boolean; error?: string; staffId?: string }> {
   if (!data.name || data.name.trim().length < 2) {
     return { success: false, error: 'El nombre debe tener al menos 2 caracteres' }
   }
+  const parsedImage = optionalUrl.safeParse(data.image ?? '')
+  if (!parsedImage.success) {
+    return { success: false, error: parsedImage.error.errors[0]?.message ?? 'URL invalida' }
+  }
 
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const [features, center] = await Promise.all([
+      getOrganizationFeatures(orgId),
+      prisma.center.findFirst({
+        where: { organizationId: orgId },
+        include: { _count: { select: { staff: true } } },
+      }),
+    ])
+    if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
+    if (hasReachedLimit(center._count.staff, features.maxStaffPerCenter)) {
+      return { success: false, error: 'Has alcanzado el limite de profesionales de tu plan. Actualiza tu plan para anadir mas.' }
+    }
 
     const lastStaff = await prisma.staff.findFirst({
       where: { centerId: center.id },
@@ -245,6 +385,7 @@ export async function createStaffAction(
         name: data.name.trim(),
         role: data.role?.trim() ?? null,
         bio: data.bio?.trim() ?? null,
+        image: cleanOptionalUrl(parsedImage.data),
         order: (lastStaff?.order ?? 0) + 1,
       },
     })
@@ -258,9 +399,14 @@ export async function createStaffAction(
 
 export async function updateStaffAction(
   staffId: string,
-  data: { name?: string; role?: string; bio?: string },
+  data: { name?: string; role?: string; bio?: string; image?: string },
   orgId: string
 ): Promise<{ success: boolean; error?: string }> {
+  const parsedImage = data.image === undefined ? null : optionalUrl.safeParse(data.image)
+  if (parsedImage && !parsedImage.success) {
+    return { success: false, error: parsedImage.error.errors[0]?.message ?? 'URL invalida' }
+  }
+
   try {
     const staff = await prisma.staff.findFirst({
       where: { id: staffId },
@@ -276,6 +422,7 @@ export async function updateStaffAction(
         ...(data.name ? { name: data.name.trim() } : {}),
         ...(data.role !== undefined ? { role: data.role?.trim() ?? null } : {}),
         ...(data.bio !== undefined ? { bio: data.bio?.trim() ?? null } : {}),
+        ...(data.image !== undefined ? { image: cleanOptionalUrl(parsedImage?.data) } : {}),
       },
     })
 
@@ -373,6 +520,8 @@ const centerSchema = z.object({
   whatsapp: z.string().optional(),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   website: z.string().optional(),
+  coverImage: optionalUrl,
+  galleryImages: z.array(z.string().url('URL de galeria invalida')).max(8).optional(),
   addressStreet: z.string().optional(),
   addressCity: z.string().min(1, 'La ciudad es obligatoria'),
   addressProvince: z.string().min(1, 'La provincia es obligatoria'),
@@ -407,8 +556,15 @@ export async function createBonoAction(
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
 
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const [features, center] = await Promise.all([
+      getOrganizationFeatures(orgId),
+      prisma.center.findFirst({ where: { organizationId: orgId } }),
+    ])
+    if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
+    if (!features.hasBonos) {
+      return { success: false, error: 'Los bonos estan disponibles a partir del plan Pro.' }
+    }
 
     const bono = await prisma.bono.create({
       data: {
@@ -437,6 +593,10 @@ export async function toggleBonoActiveAction(
     const bono = await prisma.bono.findFirst({ where: { id: bonoId }, include: { center: true } })
     if (!bono) return { success: false, error: 'Bono no encontrado' }
     if (bono.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+    if (!bono.active) {
+      const features = await getOrganizationFeatures(orgId)
+      if (!features?.hasBonos) return { success: false, error: 'Los bonos estan disponibles a partir del plan Pro.' }
+    }
 
     await prisma.bono.update({ where: { id: bonoId }, data: { active: !bono.active } })
     revalidatePath('/dashboard/bonos')
@@ -454,6 +614,7 @@ const productSchema = z.object({
   name:        z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   description: z.string().optional(),
   brand:       z.string().optional(),
+  image:       optionalUrl,
   priceCents:  z.number().int().min(0, 'El precio no puede ser negativo'),
   stock:       z.number().int().min(0).optional(),
 })
@@ -463,6 +624,7 @@ export async function createProductAction(
     name: string
     description?: string
     brand?: string
+    image?: string
     priceCents: number
     stock?: number
   },
@@ -472,8 +634,15 @@ export async function createProductAction(
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
 
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const [features, center] = await Promise.all([
+      getOrganizationFeatures(orgId),
+      prisma.center.findFirst({ where: { organizationId: orgId } }),
+    ])
+    if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
+    if (!features.hasProducts) {
+      return { success: false, error: 'La venta de productos esta disponible a partir del plan Pro.' }
+    }
 
     const product = await prisma.product.create({
       data: {
@@ -481,6 +650,7 @@ export async function createProductAction(
         name:        parsed.data.name,
         description: parsed.data.description || null,
         brand:       parsed.data.brand || null,
+        image:       cleanOptionalUrl(parsed.data.image),
         priceCents:  parsed.data.priceCents,
         stock:       parsed.data.stock ?? null,
       },
@@ -501,6 +671,10 @@ export async function toggleProductActiveAction(
     const product = await prisma.product.findFirst({ where: { id: productId }, include: { center: true } })
     if (!product) return { success: false, error: 'Producto no encontrado' }
     if (product.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
+    if (!product.active) {
+      const features = await getOrganizationFeatures(orgId)
+      if (!features?.hasProducts) return { success: false, error: 'La venta de productos esta disponible a partir del plan Pro.' }
+    }
 
     await prisma.product.update({ where: { id: productId }, data: { active: !product.active } })
     revalidatePath('/dashboard/productos')
@@ -520,6 +694,8 @@ export async function upsertCenterAction(
     whatsapp?: string
     email?: string
     website?: string
+    coverImage?: string
+    galleryImages?: string[]
     addressStreet?: string
     addressCity: string
     addressProvince: string
@@ -544,6 +720,8 @@ export async function upsertCenterAction(
       whatsapp: parsed.data.whatsapp || null,
       email: parsed.data.email || null,
       website: parsed.data.website || null,
+      coverImage: cleanOptionalUrl(parsed.data.coverImage),
+      galleryImages: cleanUrlList(parsed.data.galleryImages),
       addressStreet: parsed.data.addressStreet || '',
       addressCity: parsed.data.addressCity,
       addressProvince: parsed.data.addressProvince,

@@ -170,6 +170,8 @@ model Service {
   description        String?
   durationMinutes    Int
   priceCents         Int
+  depositRequired    Boolean @default(false)
+  depositCents       Int?
   bufferMinutesBefore Int    @default(0)
   bufferMinutesAfter  Int    @default(10)
   maxCapacity        Int     @default(1)
@@ -342,6 +344,7 @@ model Booking {
 
   depositCents          Int?
   depositPaid           Boolean @default(false)
+  depositExpiresAt      DateTime?
   stripePaymentIntentId String?
 
   notes            String?
@@ -366,6 +369,7 @@ model Booking {
   @@index([centerId, status])
   @@index([customerId])
   @@index([staffId, startAt, endAt])
+  @@index([status, depositExpiresAt])
 }
 
 model WaitlistEntry {

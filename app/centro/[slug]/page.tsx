@@ -178,6 +178,23 @@ export default async function CenterPage({ params }: Props) {
 
           <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
             <div className="space-y-6">
+              {center.galleryImages.length > 0 && (
+                <Panel title="Galeria">
+                  <div className="grid gap-3 p-6 sm:grid-cols-2 lg:grid-cols-4">
+                    {center.galleryImages.slice(0, 8).map((image, index) => (
+                      <div key={image} className={`overflow-hidden rounded-md border border-[#d8dee9] bg-[#f7f9fc] ${index === 0 ? 'sm:col-span-2 sm:row-span-2' : ''}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={image}
+                          alt={`${center.name} - imagen ${index + 1}`}
+                          className={`w-full object-cover ${index === 0 ? 'h-64' : 'h-32'}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              )}
+
               <Panel title="Servicios">
                 {center.services.length === 0 ? (
                   <div className="px-6 py-10 text-center text-sm text-[#647089]">Proximamente servicios disponibles</div>
@@ -228,10 +245,17 @@ export default async function CenterPage({ params }: Props) {
                   <div className="grid gap-4 p-6 sm:grid-cols-2">
                     {center.products.map(product => (
                       <article key={product.id} className="rounded-md border border-[#d8dee9] bg-[#f7f9fc] p-4">
+                        <div className="mb-3 h-36 overflow-hidden rounded-md bg-white">
+                          {product.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <ShoppingBag className="h-7 w-7 text-[#8b96aa]" />
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white">
-                            <ShoppingBag className="h-5 w-5 text-[#8b96aa]" />
-                          </div>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-black text-[#0c1324]">{product.name}</p>
                             {product.brand && <p className="text-xs text-[#647089]">{product.brand}</p>}
@@ -252,8 +276,15 @@ export default async function CenterPage({ params }: Props) {
                   <div className="flex flex-wrap gap-4 p-6">
                     {center.staff.map(staff => (
                       <div key={staff.id} className="flex items-center gap-3 rounded-md border border-[#d8dee9] bg-[#f7f9fc] p-3 pr-5">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0c1324] text-sm font-black text-white">
-                          {staff.name.charAt(0)}
+                        <div className="h-12 w-12 overflow-hidden rounded-full bg-[#0c1324]">
+                          {staff.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={staff.image} alt={staff.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-sm font-black text-white">
+                              {staff.name.charAt(0)}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <p className="text-sm font-black text-[#0c1324]">{staff.name}</p>

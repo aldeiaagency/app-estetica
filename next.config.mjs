@@ -38,7 +38,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
               "frame-src https://js.stripe.com https://hooks.stripe.com",
-              "connect-src 'self' https://api.stripe.com https://eu.posthog.com",
+              "connect-src 'self' https: https://api.stripe.com https://eu.posthog.com",
               "worker-src 'self' blob:",
             ].join('; '),
           },

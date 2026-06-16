@@ -139,7 +139,16 @@ async function getSlotsForStaff({
   const existingBookings = await prisma.booking.findMany({
     where: {
       staffId,
-      status: { in: ['PENDING', 'CONFIRMED'] },
+      OR: [
+        { status: 'CONFIRMED' },
+        {
+          status: 'PENDING',
+          OR: [
+            { depositExpiresAt: null },
+            { depositExpiresAt: { gt: new Date() } },
+          ],
+        },
+      ],
       startAt: { lt: dayEnd },
       endAt: { gt: dayStart },
     },
@@ -202,7 +211,16 @@ export async function createBookingWithLock({
     const conflicts = await tx.booking.count({
       where: {
         staffId,
-        status: { in: ['PENDING', 'CONFIRMED'] },
+        OR: [
+          { status: 'CONFIRMED' },
+          {
+            status: 'PENDING',
+            OR: [
+              { depositExpiresAt: null },
+              { depositExpiresAt: { gt: new Date() } },
+            ],
+          },
+        ],
         AND: [{ startAt: { lt: endAt } }, { endAt: { gt: startAt } }],
       },
     })

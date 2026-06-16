@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/billing/stripe'
 import { prisma } from '@/lib/db/client'
 import { PRICE_ID_TO_PLAN } from '@/lib/billing/price-map'
-import { fulfillOrderPayment, fulfillBonoPayment, type BonoCheckoutMetadata } from '@/lib/billing/checkout'
+import { fulfillOrderPayment, fulfillBonoPayment, fulfillBookingDeposit, type BonoCheckoutMetadata } from '@/lib/billing/checkout'
 import type Stripe from 'stripe'
 import type { Plan } from '@prisma/client'
 
@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
             await fulfillOrderPayment(meta.orderId, paymentIntentId)
           } else if (meta.type === 'bono' && meta.bonoId) {
             await fulfillBonoPayment(meta as unknown as BonoCheckoutMetadata, paymentIntentId ?? session.id)
+          } else if (meta.type === 'booking_deposit' && meta.bookingId) {
+            await fulfillBookingDeposit(meta.bookingId, paymentIntentId ?? session.id)
           }
           break
         }

@@ -85,7 +85,7 @@ Ir a **Vercel Dashboard → Project → Settings → Environment Variables** y a
 Vercel Dashboard → Project → Settings → Domains → Add `bellezalocal.es`
 Apuntar DNS a los nameservers de Vercel (o añadir registros A/CNAME según Vercel indique).
 
-### Cron jobs (recordatorios)
+### Cron jobs
 
 En `vercel.json`:
 
@@ -94,13 +94,17 @@ En `vercel.json`:
   "crons": [
     {
       "path": "/api/cron/reminders",
-      "schedule": "0 * * * *"
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/booking-holds",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
 ```
 
-Requiere plan Vercel Pro para cron jobs en producción. En Hobby plan, los crons están limitados.
+`/api/cron/reminders` envia recordatorios de reservas. `/api/cron/booking-holds` libera reservas pendientes de senal caducadas. Requiere `CRON_SECRET`; en planes con limites de cron hay que ajustar la frecuencia si Vercel no permite intervalos de 15 minutos.
 
 ## Cloudflare R2 para imágenes
 
