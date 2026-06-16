@@ -16,6 +16,7 @@ export default async function ConfiguracionPage() {
       select: {
         id: true, name: true, description: true, descriptionLong: true,
         category: true, phone: true, whatsapp: true, email: true, website: true,
+        coverImage: true, galleryImages: true,
         addressStreet: true, addressCity: true, addressProvince: true,
         addressPostalCode: true, published: true,
       },

@@ -50,3 +50,18 @@ Configuracion pendiente:
 - Verificar dominio remitente en Resend.
 - Confirmar que el cron aparece activo en Vercel despues del despliegue.
 
+## Imagenes y galeria
+
+Estado del codigo:
+
+- El dashboard permite guardar URL de portada y galeria del centro.
+- El dashboard permite guardar URL de foto de profesionales.
+- El dashboard permite guardar URL de imagen de producto.
+- El perfil publico, marketplace y flujo de reserva usan esas imagenes cuando existen.
+
+Configuracion pendiente:
+
+- Decidir storage real para subida de archivos: Supabase Storage o Cloudflare R2.
+- Definir limites de peso, formato y dimensiones.
+- Anadir compresion/conversion a WebP antes de guardar.
+- Migrar los inputs de URL a subida directa cuando el storage este decidido.

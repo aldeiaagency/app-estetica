@@ -25,6 +25,20 @@ function hasReachedLimit(current: number, limit: number) {
   return limit !== -1 && current >= limit
 }
 
+const optionalUrl = z.string().url('URL invalida').optional().or(z.literal(''))
+
+function cleanOptionalUrl(value?: string | null) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function cleanUrlList(values?: string[]) {
+  return (values ?? [])
+    .map(value => value.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+}
+
 export async function updateOrderStatusAction(
   orderId: string,
   status: OrderStatus,
@@ -313,11 +327,15 @@ export async function toggleServiceActiveAction(
 }
 
 export async function createStaffAction(
-  data: { name: string; role?: string; bio?: string },
+  data: { name: string; role?: string; bio?: string; image?: string },
   orgId: string
 ): Promise<{ success: boolean; error?: string; staffId?: string }> {
   if (!data.name || data.name.trim().length < 2) {
     return { success: false, error: 'El nombre debe tener al menos 2 caracteres' }
+  }
+  const parsedImage = optionalUrl.safeParse(data.image ?? '')
+  if (!parsedImage.success) {
+    return { success: false, error: parsedImage.error.errors[0]?.message ?? 'URL invalida' }
   }
 
   try {
@@ -345,6 +363,7 @@ export async function createStaffAction(
         name: data.name.trim(),
         role: data.role?.trim() ?? null,
         bio: data.bio?.trim() ?? null,
+        image: cleanOptionalUrl(parsedImage.data),
         order: (lastStaff?.order ?? 0) + 1,
       },
     })
@@ -358,9 +377,14 @@ export async function createStaffAction(
 
 export async function updateStaffAction(
   staffId: string,
-  data: { name?: string; role?: string; bio?: string },
+  data: { name?: string; role?: string; bio?: string; image?: string },
   orgId: string
 ): Promise<{ success: boolean; error?: string }> {
+  const parsedImage = data.image === undefined ? null : optionalUrl.safeParse(data.image)
+  if (parsedImage && !parsedImage.success) {
+    return { success: false, error: parsedImage.error.errors[0]?.message ?? 'URL invalida' }
+  }
+
   try {
     const staff = await prisma.staff.findFirst({
       where: { id: staffId },
@@ -376,6 +400,7 @@ export async function updateStaffAction(
         ...(data.name ? { name: data.name.trim() } : {}),
         ...(data.role !== undefined ? { role: data.role?.trim() ?? null } : {}),
         ...(data.bio !== undefined ? { bio: data.bio?.trim() ?? null } : {}),
+        ...(data.image !== undefined ? { image: cleanOptionalUrl(parsedImage?.data) } : {}),
       },
     })
 
@@ -473,6 +498,8 @@ const centerSchema = z.object({
   whatsapp: z.string().optional(),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   website: z.string().optional(),
+  coverImage: optionalUrl,
+  galleryImages: z.array(z.string().url('URL de galeria invalida')).max(8).optional(),
   addressStreet: z.string().optional(),
   addressCity: z.string().min(1, 'La ciudad es obligatoria'),
   addressProvince: z.string().min(1, 'La provincia es obligatoria'),
@@ -565,6 +592,7 @@ const productSchema = z.object({
   name:        z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   description: z.string().optional(),
   brand:       z.string().optional(),
+  image:       optionalUrl,
   priceCents:  z.number().int().min(0, 'El precio no puede ser negativo'),
   stock:       z.number().int().min(0).optional(),
 })
@@ -574,6 +602,7 @@ export async function createProductAction(
     name: string
     description?: string
     brand?: string
+    image?: string
     priceCents: number
     stock?: number
   },
@@ -599,6 +628,7 @@ export async function createProductAction(
         name:        parsed.data.name,
         description: parsed.data.description || null,
         brand:       parsed.data.brand || null,
+        image:       cleanOptionalUrl(parsed.data.image),
         priceCents:  parsed.data.priceCents,
         stock:       parsed.data.stock ?? null,
       },
@@ -642,6 +672,8 @@ export async function upsertCenterAction(
     whatsapp?: string
     email?: string
     website?: string
+    coverImage?: string
+    galleryImages?: string[]
     addressStreet?: string
     addressCity: string
     addressProvince: string
@@ -666,6 +698,8 @@ export async function upsertCenterAction(
       whatsapp: parsed.data.whatsapp || null,
       email: parsed.data.email || null,
       website: parsed.data.website || null,
+      coverImage: cleanOptionalUrl(parsed.data.coverImage),
+      galleryImages: cleanUrlList(parsed.data.galleryImages),
       addressStreet: parsed.data.addressStreet || '',
       addressCity: parsed.data.addressCity,
       addressProvince: parsed.data.addressProvince,

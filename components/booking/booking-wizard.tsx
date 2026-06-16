@@ -30,6 +30,7 @@ type StaffMember = {
   id: string
   name: string
   role: string | null
+  image: string | null
 }
 
 type SlotData = {
@@ -420,8 +421,15 @@ export function BookingWizard({
                     onClick={() => selectStaff(staff.id, staff.name)}
                     className="group flex w-full items-center gap-4 rounded-md border border-[#d8dee9] p-4 text-left transition-all hover:border-[#b9c4d5] hover:bg-[#f7f9fc]"
                   >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0c1324] text-sm font-black text-white">
-                      {staff.name.charAt(0)}
+                    <span className="h-10 w-10 overflow-hidden rounded-full bg-[#0c1324]">
+                      {staff.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={staff.image} alt={staff.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-sm font-black text-white">
+                          {staff.name.charAt(0)}
+                        </span>
+                      )}
                     </span>
                     <span>
                       <span className="block font-black text-[#0c1324]">{staff.name}</span>

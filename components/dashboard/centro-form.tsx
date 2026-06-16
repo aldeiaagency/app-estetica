@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { upsertCenterAction } from '@/app/actions/dashboard'
 import { generateDescriptionAction, generateSeoDescriptionAction } from '@/app/actions/ai'
 import { AiBtn } from '@/components/dashboard/ai-btn'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, ImagePlus } from 'lucide-react'
 
 const CATEGORIES = [
   'PELUQUERIA', 'ESTETICA', 'UNAS', 'CEJAS_PESTANAS',
@@ -32,6 +32,8 @@ interface CenterData {
   whatsapp: string | null
   email: string | null
   website: string | null
+  coverImage: string | null
+  galleryImages: string[]
   addressStreet: string
   addressCity: string
   addressProvince: string
@@ -48,6 +50,8 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
   const router = useRouter()
   const [description,     setDescription]     = useState(center?.description     ?? '')
   const [descriptionLong, setDescriptionLong] = useState(center?.descriptionLong ?? '')
+  const [coverImage, setCoverImage]           = useState(center?.coverImage ?? '')
+  const [galleryText, setGalleryText]         = useState((center?.galleryImages ?? []).join('\n'))
   const [isPending, startTransition]           = useTransition()
   const [status, setStatus]                    = useState<'idle' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg]                = useState('')
@@ -57,6 +61,11 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    const galleryImages = galleryText
+      .split(/\r?\n/)
+      .map(url => url.trim())
+      .filter(Boolean)
+
     startTransition(async () => {
       const result = await upsertCenterAction(
         {
@@ -68,6 +77,8 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
           whatsapp:         (fd.get('whatsapp') as string) || undefined,
           email:            (fd.get('email') as string) || undefined,
           website:          (fd.get('website') as string) || undefined,
+          coverImage:       coverImage || undefined,
+          galleryImages,
           addressStreet:    (fd.get('addressStreet') as string) || undefined,
           addressCity:      fd.get('addressCity') as string,
           addressProvince:  fd.get('addressProvince') as string,
@@ -85,6 +96,12 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
       }
     })
   }
+
+  const galleryPreview = galleryText
+    .split(/\r?\n/)
+    .map(url => url.trim())
+    .filter(Boolean)
+    .slice(0, 8)
 
   async function handleGenerateDescription() {
     if (!centerId) return
@@ -184,6 +201,54 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
         />
         {!centerId && (
           <p className="mt-0.5 text-xs text-zinc-400">Guarda primero el centro para activar la generación con IA.</p>
+        )}
+      </div>
+
+      {/* Visual identity */}
+      <div className="sm:col-span-2 border-t border-zinc-100 pt-4">
+        <div className="mb-3 flex items-center gap-2">
+          <ImagePlus className="h-4 w-4 text-[#2355c8]" />
+          <p className="text-sm font-semibold text-zinc-700">Imagenes del perfil publico</p>
+        </div>
+      </div>
+
+      <div className="sm:col-span-2">
+        <label className={labelCls}>Imagen de portada</label>
+        <input
+          type="url"
+          value={coverImage}
+          onChange={event => setCoverImage(event.target.value)}
+          placeholder="https://..."
+          className={inputCls}
+        />
+        <p className="mt-1 text-xs text-zinc-400">Se muestra en el hero de tu ficha, buscador y marketplace.</p>
+        {coverImage && (
+          <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={coverImage} alt="Vista previa de portada" className="h-44 w-full object-cover" />
+          </div>
+        )}
+      </div>
+
+      <div className="sm:col-span-2">
+        <label className={labelCls}>Galeria</label>
+        <textarea
+          rows={4}
+          value={galleryText}
+          onChange={event => setGalleryText(event.target.value)}
+          placeholder={'Una URL por linea. Maximo 8 imagenes.'}
+          className={`${inputCls} resize-none`}
+        />
+        <p className="mt-1 text-xs text-zinc-400">Ideal para cabinas, trabajos, productos destacados o ambiente del centro.</p>
+        {galleryPreview.length > 0 && (
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {galleryPreview.map(url => (
+              <div key={url} className="overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="Imagen de galeria" className="h-24 w-full object-cover" />
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
