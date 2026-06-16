@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { upsertCenterAction } from '@/app/actions/dashboard'
 import { generateDescriptionAction, generateSeoDescriptionAction } from '@/app/actions/ai'
 import { AiBtn } from '@/components/dashboard/ai-btn'
+import { ImageUploadField } from '@/components/dashboard/image-upload-field'
 import { CheckCircle2, AlertCircle, ImagePlus } from 'lucide-react'
 
 const CATEGORIES = [
@@ -102,6 +103,14 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
     .map(url => url.trim())
     .filter(Boolean)
     .slice(0, 8)
+
+  function appendGalleryImage(url: string) {
+    if (!url) return
+    setGalleryText(current => {
+      const existing = current.split(/\r?\n/).map(item => item.trim()).filter(Boolean)
+      return [...existing, url].slice(0, 8).join('\n')
+    })
+  }
 
   async function handleGenerateDescription() {
     if (!centerId) return
@@ -213,21 +222,26 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
       </div>
 
       <div className="sm:col-span-2">
-        <label className={labelCls}>Imagen de portada</label>
-        <input
-          type="url"
+        <ImageUploadField
+          label="Imagen de portada"
           value={coverImage}
-          onChange={event => setCoverImage(event.target.value)}
-          placeholder="https://..."
-          className={inputCls}
+          onChange={setCoverImage}
+          kind="center-cover"
+          helper="Se muestra en el hero de tu ficha, buscador y marketplace."
         />
-        <p className="mt-1 text-xs text-zinc-400">Se muestra en el hero de tu ficha, buscador y marketplace.</p>
-        {coverImage && (
-          <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={coverImage} alt="Vista previa de portada" className="h-44 w-full object-cover" />
-          </div>
-        )}
+      </div>
+
+      <div className="sm:col-span-2">
+        <ImageUploadField
+          key={galleryPreview.length}
+          label="Subir imagen a galeria"
+          value=""
+          onChange={appendGalleryImage}
+          kind="center-gallery"
+          helper="Cada imagen subida se anade a la lista inferior. Maximo 8 imagenes."
+          previewClassName="hidden"
+          showUrlInput={false}
+        />
       </div>
 
       <div className="sm:col-span-2">

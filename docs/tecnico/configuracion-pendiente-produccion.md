@@ -4,6 +4,18 @@ Ultima actualizacion: 2026-06-16
 
 Este documento recoge configuraciones externas que no deben quedar hardcodeadas en la app y que hay que revisar antes de dar por listo un despliegue real.
 
+## Estado real por herramienta
+
+| Herramienta | Estado interno en la app | Pendiente externo |
+|---|---|---|
+| Supabase DB | Prisma y modelos configurados | `DATABASE_URL`, `DIRECT_URL`, migraciones y datos reales |
+| Cloudflare R2 | Endpoint interno de firma y upload directo configurado | Bucket, token, dominio CDN y CORS |
+| Stripe | Checkout, webhook, suscripciones, bonos y pedidos conectados | Claves, productos/precios, webhook y portal |
+| Resend | Emails transaccionales preparados | API key y dominio remitente verificado |
+| Vercel Cron | Ruta y `vercel.json` configurados | `CRON_SECRET` y despliegue activo |
+
+Importante: no se deben guardar secretos en el repositorio. Todo lo externo va en variables de entorno de Vercel y, para desarrollo local, en `.env.local`.
+
 ## Recordatorios automaticos de reservas
 
 Estado del codigo:
@@ -54,14 +66,67 @@ Configuracion pendiente:
 
 Estado del codigo:
 
-- El dashboard permite guardar URL de portada y galeria del centro.
-- El dashboard permite guardar URL de foto de profesionales.
-- El dashboard permite guardar URL de imagen de producto.
+- El dashboard permite subir portada y galeria del centro a storage compatible S3/R2.
+- El dashboard permite subir foto de profesionales.
+- El dashboard permite subir imagen de producto.
+- Tambien se mantiene input URL para casos manuales o migraciones.
 - El perfil publico, marketplace y flujo de reserva usan esas imagenes cuando existen.
+- Ruta interna creada: `POST /api/upload/sign`.
+- Seguridad: requiere usuario autenticado con `organizationId`.
+- Limites: solo JPG, PNG, WebP o AVIF; maximo 5 MB por imagen.
 
 Configuracion pendiente:
 
-- Decidir storage real para subida de archivos: Supabase Storage o Cloudflare R2.
-- Definir limites de peso, formato y dimensiones.
-- Anadir compresion/conversion a WebP antes de guardar.
-- Migrar los inputs de URL a subida directa cuando el storage este decidido.
+- Crear bucket en Cloudflare R2: `belleza-local-uploads`.
+- Configurar variables: `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `STORAGE_BUCKET`, `NEXT_PUBLIC_CDN_URL`.
+- Configurar dominio publico del bucket, por ejemplo `https://cdn.bellezalocal.es`.
+- Configurar CORS del bucket para permitir `PUT` desde el dominio de la app.
+- Anadir compresion/conversion a WebP como mejora posterior si se quiere optimizar costes.
+
+CORS recomendado para R2:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://bellezalocal.es", "https://www.bellezalocal.es", "http://localhost:3000"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["content-type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+## Stripe
+
+Estado del codigo:
+
+- Suscripciones de planes con Stripe Checkout.
+- Billing Portal para clientes con suscripcion.
+- Webhook `POST /api/webhooks/stripe`.
+- Compra online de productos y bonos con Stripe Checkout si `STRIPE_SECRET_KEY` esta configurada.
+- Degradacion elegante a pago en centro si Stripe no esta configurado.
+
+Configuracion pendiente en Stripe:
+
+- Crear productos/precios para Basic, Pro, Growth y Premium.
+- Copiar IDs a `STRIPE_PRICE_BASIC_MONTHLY`, `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_GROWTH_MONTHLY`, `STRIPE_PRICE_PREMIUM_MONTHLY`.
+- Configurar `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` y `STRIPE_WEBHOOK_SECRET`.
+- Crear webhook apuntando a `https://<dominio>/api/webhooks/stripe`.
+- Eventos minimos: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+- Configurar Billing Portal en Stripe Dashboard.
+
+## Supabase
+
+Estado del codigo:
+
+- Prisma usa `DATABASE_URL` para runtime.
+- Prisma schema incluye `directUrl = env("DIRECT_URL")` para migraciones.
+- Multi-tenant por `organizationId` en dashboard y acciones principales.
+
+Configuracion pendiente:
+
+- Configurar `DATABASE_URL` con pooler de Supabase.
+- Configurar `DIRECT_URL` para migraciones.
+- Ejecutar migraciones antes de produccion.
+- Confirmar backups y region del proyecto.

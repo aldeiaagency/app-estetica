@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
 import { createStaffAction, toggleStaffActiveAction } from '@/app/actions/dashboard'
+import { UploadHiddenInput } from '@/components/dashboard/upload-hidden-input'
 import { UserCircle } from 'lucide-react'
 
 export default async function StaffPage() {
@@ -118,9 +119,12 @@ function NuevoStaffForm({ orgId }: { orgId: string }) {
       </div>
 
       <div className="sm:col-span-2">
-        <label className="label">Foto</label>
-        <input name="image" type="url" placeholder="https://..." className="input-base" />
-        <p className="mt-1 text-xs text-zinc-400">Se mostrara en la ficha publica y en el flujo de reserva.</p>
+        <UploadHiddenInput
+          name="image"
+          label="Foto"
+          kind="staff"
+          helper="Se mostrara en la ficha publica y en el flujo de reserva."
+        />
       </div>
 
       <div className="sm:col-span-2">

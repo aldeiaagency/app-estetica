@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import { createProductAction, toggleProductActiveAction } from '@/app/actions/dashboard'
+import { UploadHiddenInput } from '@/components/dashboard/upload-hidden-input'
 import { ShoppingBag, Package } from 'lucide-react'
 
 export default async function ProductosPage() {
@@ -167,8 +168,12 @@ function NuevoProductoForm({ orgId }: { orgId: string }) {
         <input name="brand" placeholder="Ej: Kerastase" className="input-base" />
       </div>
       <div>
-        <label className="label">Imagen</label>
-        <input name="image" type="url" placeholder="https://..." className="input-base" />
+        <UploadHiddenInput
+          name="image"
+          label="Imagen"
+          kind="product"
+          helper="Se mostrara en el marketplace y en la ficha del producto."
+        />
       </div>
       <div>
         <label className="label">Precio (€) <span className="text-beauty-500">*</span></label>
