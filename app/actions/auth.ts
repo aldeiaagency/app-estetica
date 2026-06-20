@@ -11,6 +11,9 @@ const registerSchema = z.object({
   password: z.string().min(8),
   businessName: z.string().optional(),
   role: z.enum(['CUSTOMER', 'BUSINESS_ADMIN']).default('CUSTOMER'),
+  termsAccepted: z.literal('on', {
+    errorMap: () => ({ message: 'Debes aceptar los terminos y la politica de privacidad.' }),
+  }),
 })
 
 export async function registerUser(prevState: { error: string } | null, formData: FormData) {
@@ -20,6 +23,7 @@ export async function registerUser(prevState: { error: string } | null, formData
     password: formData.get('password'),
     businessName: formData.get('businessName') ?? undefined,
     role: formData.get('role') ?? 'CUSTOMER',
+    termsAccepted: formData.get('termsAccepted'),
   })
 
   if (!parsed.success) {

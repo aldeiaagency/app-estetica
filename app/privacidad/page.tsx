@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   robots: { index: false },
 }
 
-const LAST_UPDATED = '10 de junio de 2026'
+const LAST_UPDATED = '20 de junio de 2026'
 const EMAIL_DPO = 'privacidad@bellezalocal.es'
 const APP_URL = 'https://bellezalocal.es'
 
@@ -47,10 +47,14 @@ export default function PrivacidadPage() {
             <ul>
               <li><strong>Registro de cuenta:</strong> nombre, correo electrónico, contraseña (hash bcrypt).</li>
               <li><strong>Reservas:</strong> nombre, email, teléfono del cliente; fecha, hora y servicio reservado.</li>
+              <li><strong>Beauty Profile:</strong> objetivos de belleza, preferencias, presupuesto orientativo, estilo, rutina, productos guardados y beneficios reclamados.</li>
               <li><strong>Centros de belleza:</strong> nombre del negocio, dirección, teléfono, imágenes.</li>
               <li><strong>Pagos:</strong> procesados íntegramente por Stripe. No almacenamos datos de tarjeta.</li>
               <li><strong>Datos de uso:</strong> dirección IP, páginas visitadas, tipo de dispositivo (solo si activas analytics).</li>
             </ul>
+            <p className="mt-3">
+              No solicitamos diagnósticos médicos ni datos clínicos. Las preguntas del Beauty Profile se limitan a preferencias de belleza, cuidado y compra.
+            </p>
           </section>
 
           <section>
@@ -60,7 +64,8 @@ export default function PrivacidadPage() {
               <li><strong>Comunicaciones transaccionales</strong> (art. 6.1.b RGPD): confirmaciones de reserva, cancelaciones y recordatorios por email.</li>
               <li><strong>Cumplimiento legal</strong> (art. 6.1.c RGPD): facturación, obligaciones contables y fiscales.</li>
               <li><strong>Interés legítimo</strong> (art. 6.1.f RGPD): prevención de fraude, seguridad de la plataforma.</li>
-              <li><strong>Consentimiento</strong> (art. 6.1.a RGPD): newsletters y comunicaciones comerciales (si te suscribes).</li>
+              <li><strong>Consentimiento de personalización</strong> (art. 6.1.a RGPD): crear tu Beauty Profile, Beauty Plan, rutina, reposición y recomendaciones.</li>
+              <li><strong>Consentimiento de marketing</strong> (art. 6.1.a RGPD): newsletters, campañas y comunicaciones comerciales, siempre separado de las comunicaciones necesarias del servicio.</li>
             </ul>
           </section>
 
@@ -69,6 +74,7 @@ export default function PrivacidadPage() {
             <ul>
               <li>Datos de cuenta activa: mientras mantengas la cuenta.</li>
               <li>Reservas y transacciones: 5 años (obligación fiscal, art. 30 LIVA).</li>
+              <li>Beauty Profile, planes, rutinas y reposición: mientras mantengas el consentimiento de personalización o hasta que los borres desde tu cuenta.</li>
               <li>Logs de seguridad: 12 meses.</li>
               <li>Datos con consentimiento retirado: supresión en 30 días hábiles.</li>
             </ul>
@@ -113,6 +119,12 @@ export default function PrivacidadPage() {
               <a href={`mailto:${EMAIL_DPO}`} className="text-[#2f6df6] hover:underline">{EMAIL_DPO}</a>{' '}
               indicando tu identidad y el derecho que deseas ejercer.
               Responderemos en el plazo máximo de un mes (prorrogable a dos en casos complejos).
+            </p>
+            <p className="mt-3">
+              Si tienes cuenta, también puedes descargar una copia de tus datos, retirar consentimientos de marketing
+              y borrar datos de personalización desde <Link href="/cuenta" className="text-[#2f6df6] hover:underline">Mi cuenta</Link>.
+              El borrado automático de personalización no elimina reservas, pedidos o bonos que debamos conservar para prestar el servicio,
+              atender reclamaciones o cumplir obligaciones legales.
             </p>
             <p className="mt-3">
               Si consideras que el tratamiento infringe la normativa, puedes presentar una reclamación ante la{' '}

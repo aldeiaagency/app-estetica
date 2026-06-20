@@ -19,6 +19,89 @@ export interface PlanFeatures {
   notificationChannels: ('email' | 'sms' | 'whatsapp')[]
 }
 
+export interface PlanMarketing {
+  name: string
+  technicalName: Plan
+  slug: string
+  tagline: string
+  description: string
+  idealFor: string
+  cta: string
+  featured: boolean
+  contactSales?: boolean
+  highlights: string[]
+}
+
+export const PLAN_ORDER: Plan[] = ['BASIC', 'PRO', 'GROWTH', 'PREMIUM']
+
+export const PLAN_MARKETING: Record<Plan, PlanMarketing> = {
+  BASIC: {
+    name: 'Presencia',
+    technicalName: 'BASIC',
+    slug: 'presencia',
+    tagline: 'Para aparecer con criterio',
+    description: 'Perfil publico, agenda y base operativa para empezar a captar clientas sin depender solo de redes.',
+    idealFor: 'Negocios pequenos que quieren ordenar su presencia y aceptar reservas online.',
+    cta: 'Empezar con Presencia',
+    featured: false,
+    highlights: [
+      'Perfil en Belleza Local',
+      'Reservas online y confirmaciones por email',
+      'Hasta 10 servicios y 3 profesionales',
+      'Base preparada para crecer a seguimiento',
+    ],
+  },
+  PRO: {
+    name: 'Growth',
+    technicalName: 'PRO',
+    slug: 'growth',
+    tagline: 'Para convertir clientas en recurrentes',
+    description: 'Packs, beneficios, productos y seguimiento postservicio para aumentar repeticion sin mensajes improvisados.',
+    idealFor: 'Centros que ya tienen demanda y quieren mejorar recurrencia, ticket medio y recompra.',
+    cta: 'Activar Growth',
+    featured: true,
+    highlights: [
+      'Packs por objetivo y bonos',
+      'Productos, rutina y reposicion',
+      'Beneficios para fidelizar clientas',
+      'Lista de espera y seguimiento basico',
+    ],
+  },
+  GROWTH: {
+    name: 'Elite',
+    technicalName: 'GROWTH',
+    slug: 'elite',
+    tagline: 'Para equipos con operativa comercial',
+    description: 'CRM, campanas, recurrencia avanzada y multi-centro para gestionar crecimiento con mas control.',
+    idealFor: 'Centros con equipo, cartera activa y necesidad de medir oportunidades de vuelta.',
+    cta: 'Subir a Elite',
+    featured: false,
+    highlights: [
+      'Hasta 3 centros',
+      'CRM y campanas segmentadas',
+      'Oportunidades de rebooking',
+      'Prioridad comercial en marketplace',
+    ],
+  },
+  PREMIUM: {
+    name: 'Partner',
+    technicalName: 'PREMIUM',
+    slug: 'partner',
+    tagline: 'Para grupos y acuerdos a medida',
+    description: 'Capacidades avanzadas, integraciones y acompanamiento para operar varios centros con soporte cercano.',
+    idealFor: 'Grupos, franquicias o partners con necesidades de integracion, datos y soporte dedicado.',
+    cta: 'Hablar con ventas',
+    featured: false,
+    contactSales: true,
+    highlights: [
+      'Centros ilimitados',
+      'White-label e integraciones API',
+      'Canales avanzados segun disponibilidad',
+      'Acompanamiento de implantacion',
+    ],
+  },
+}
+
 export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
   BASIC: {
     maxCenters: 1,
@@ -48,7 +131,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     hasPromotions: true,
     hasReviews: true,
     hasWaitlist: true,
-    hasCRM: false,
+    hasCRM: true,
     hasMultiCenter: false,
     hasFeaturedListing: false,
     hasWhiteLabelOption: false,
@@ -95,10 +178,10 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
 }
 
 export const PLAN_PRICES_CENTS: Record<Plan, { monthly: number; annual: number }> = {
-  BASIC: { monthly: 2400, annual: 24000 },   // 24€/mes, 200€/año
-  PRO: { monthly: 5900, annual: 59000 },     // 59€/mes, 490€/año
-  GROWTH: { monthly: 14900, annual: 149000 }, // 149€/mes, 1.240€/año
-  PREMIUM: { monthly: 39900, annual: 399000 },// 399€/mes, 3.300€/año
+  BASIC: { monthly: 2400, annual: 24000 },
+  PRO: { monthly: 5900, annual: 59000 },
+  GROWTH: { monthly: 14900, annual: 149000 },
+  PREMIUM: { monthly: 39900, annual: 399000 },
 }
 
 export function canUsePlanFeature<K extends keyof PlanFeatures>(
@@ -109,7 +192,15 @@ export function canUsePlanFeature<K extends keyof PlanFeatures>(
 }
 
 export function getPlanUpgrade(current: Plan): Plan | null {
-  const order: Plan[] = ['BASIC', 'PRO', 'GROWTH', 'PREMIUM']
-  const idx = order.indexOf(current)
-  return idx < order.length - 1 ? order[idx + 1] : null
+  const idx = PLAN_ORDER.indexOf(current)
+  return idx < PLAN_ORDER.length - 1 ? PLAN_ORDER[idx + 1] : null
+}
+
+export function getPlanPublicName(plan: Plan) {
+  return PLAN_MARKETING[plan].name
+}
+
+export function getPlanBySlug(slug: string | null | undefined): Plan | null {
+  if (!slug) return null
+  return PLAN_ORDER.find(plan => PLAN_MARKETING[plan].slug === slug.toLowerCase()) ?? null
 }

@@ -18,7 +18,7 @@ export async function createCheckoutSessionAction(plan: Plan): Promise<never> {
 
   const priceId = PLAN_TO_PRICE_ID[plan]
   if (!priceId) {
-    throw new Error(`No Stripe price ID configured for plan ${plan}. Set STRIPE_PRICE_${plan}_MONTHLY in env.`)
+    throw new Error(`No Stripe price ID configured for plan ${plan}. Configure the matching STRIPE_PRICE_*_MONTHLY env var.`)
   }
 
   // Reuse existing Stripe customer or create a new one

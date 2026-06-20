@@ -7,10 +7,11 @@ import { Prisma } from '@prisma/client'
 import { PublicHeader } from '@/components/ui/public-header'
 import { PublicFooter } from '@/components/ui/public-footer'
 import { getCategoryData, collectDescendantIds, getAncestorChain, type CatNode } from '@/lib/catalog/categories'
+import { getSmartProducts } from '@/app/actions/beauty-routine'
 
 export const metadata: Metadata = {
   title: 'Productos de belleza',
-  description: 'Descubre y compra productos de belleza de los mejores centros cerca de ti. Recógelos en tu próxima cita.',
+  description: 'Descubre y compra productos de belleza de centros cerca de ti. Recógelos en tu próxima cita.',
   robots: { index: false }, // noindex mientras haya filtros por query; catálogo aún sin volumen real
 }
 
@@ -39,6 +40,21 @@ const ORDER_BY: Record<SortOption, Prisma.ProductOrderByWithRelationInput> = {
   'recientes':  { createdAt: 'desc' },
   'precio-asc': { priceCents: 'asc' },
   'precio-desc':{ priceCents: 'desc' },
+}
+
+const STEP_BADGE_LABELS: Record<string, string> = {
+  CLEANSER: 'Limpieza',
+  TONER: 'Tonico',
+  SERUM: 'Serum',
+  MOISTURIZER: 'Hidratacion',
+  SPF: 'SPF',
+  MASK: 'Mascarilla',
+  HAIR_CARE: 'Cabello',
+  NAIL_CARE: 'Unas',
+  BODY_CARE: 'Cuerpo',
+  MAKEUP: 'Maquillaje',
+  WELLNESS: 'Bienestar',
+  OTHER: 'Rutina',
 }
 
 export default async function ProductosPage({ searchParams }: Props) {
@@ -103,6 +119,8 @@ export default async function ProductosPage({ searchParams }: Props) {
 
   const cities = cityRows.map(c => c.addressCity).filter(Boolean)
   const brands = brandRows.map(b => b.brand).filter((b): b is string => !!b)
+  const smartProducts = await getSmartProducts(products.map(product => product.id))
+  const smartById = new Map(smartProducts.map(product => [product.id, product]))
 
   // ─── Navegación de categorías por niveles ────────────────────────────────────
   const ancestors = selectedCat ? getAncestorChain(selectedCat, categoryData.byId) : []
@@ -324,12 +342,20 @@ export default async function ProductosPage({ searchParams }: Props) {
             {/* Grid */}
             {products.length > 0 && (
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                {products.map(p => (
-                  <Link
-                    key={p.id}
-                    href={`/productos/${p.id}`}
-                    className="group block overflow-hidden rounded-lg border border-[#d8dee9] bg-white shadow-sm transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1"
-                  >
+                {products.map(p => {
+                  const smart = smartById.get(p.id)
+                  const badges = [
+                    smart?.routineStepType ? STEP_BADGE_LABELS[smart.routineStepType] : null,
+                    smart?.expectedDurationDays ? `${smart.expectedDurationDays} dias` : null,
+                    smart?.recommendationTags?.[0] ?? null,
+                  ].filter((badge): badge is string => Boolean(badge))
+
+                  return (
+                    <Link
+                      key={p.id}
+                      href={`/productos/${p.id}`}
+                      className="group block overflow-hidden rounded-lg border border-[#d8dee9] bg-white shadow-sm transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1"
+                    >
                     <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-[#e5edff] to-[#e7f7f5]">
                       {p.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -357,10 +383,19 @@ export default async function ProductosPage({ searchParams }: Props) {
                       )}
                     </div>
 
-                    <div className="p-4">
-                      {p.brand && (
-                        <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#8b96aa]">{p.brand}</p>
-                      )}
+                      <div className="p-4">
+                        {badges.length > 0 && (
+                          <div className="mb-3 flex flex-wrap gap-1.5">
+                            {badges.slice(0, 3).map(badge => (
+                              <span key={badge} className="rounded-full bg-[#e5edff] px-2 py-0.5 text-[10px] font-black text-[#2355c8]">
+                                {badge}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {p.brand && (
+                          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#8b96aa]">{p.brand}</p>
+                        )}
                       <h3 className="font-bold leading-snug text-[#0c1324] group-hover:text-[#2f6df6] transition-colors line-clamp-2">
                         {p.name}
                       </h3>
@@ -374,9 +409,10 @@ export default async function ProductosPage({ searchParams }: Props) {
                           <Sparkles className="h-3 w-3" />Ver
                         </span>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                      </div>
+                    </Link>
+                  )
+                })}
               </div>
             )}
           </div>

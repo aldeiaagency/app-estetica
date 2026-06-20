@@ -255,3 +255,46 @@ export async function sendWaitlistAvailability(params: WaitlistAvailabilityParam
     html,
   })
 }
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+interface FollowUpEmailParams {
+  to: string
+  subject: string
+  body: string
+  centerName: string
+  marketing?: boolean
+}
+
+export async function sendFollowUpMessage(params: FollowUpEmailParams) {
+  const { to, subject, body, centerName, marketing } = params
+  const safeBody = escapeHtml(body).replace(/\r?\n/g, '<br/>')
+  const safeCenter = escapeHtml(centerName)
+
+  const html = baseLayout(
+    `
+    <p style="margin:0 0 12px;font-size:12px;color:#a1a1aa;text-transform:uppercase;letter-spacing:0.5px;">${safeCenter}</p>
+    <div style="font-size:15px;line-height:1.6;color:#3f3f46;">${safeBody}</div>
+    ${marketing ? `<p style="margin:28px 0 0;padding-top:16px;border-top:1px solid #e4e4e7;font-size:12px;color:#a1a1aa;">
+      Recibes este mensaje porque aceptaste comunicaciones de ${safeCenter}. Puedes
+      <a href="${APP_URL}/cuenta" style="color:#a1a1aa;text-decoration:underline;">gestionar tus preferencias</a>
+      cuando quieras.
+    </p>` : ''}
+    `,
+    subject
+  )
+
+  return resend.emails.send({
+    from: EMAIL_FROM,
+    to,
+    subject,
+    html,
+  })
+}

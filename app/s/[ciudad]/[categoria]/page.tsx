@@ -4,12 +4,12 @@ import Link from 'next/link'
 import { prisma } from '@/lib/db/client'
 import {
   localityPageMetadata, cityToSlug, slugToCity,
-  categoryToSlug, slugToCategory, itemListJsonLd,
+  categoryToSlug, slugToCategory, itemListJsonLd, faqPageJsonLd,
 } from '@/lib/seo/metadata'
-import { CATEGORY_LABELS } from '@/lib/utils'
+import { CATEGORY_LABELS, formatPrice } from '@/lib/utils'
 import Image from 'next/image'
 import { PublicHeader } from '@/components/ui/public-header'
-import { MapPin, Star, ArrowRight } from 'lucide-react'
+import { MapPin, Star, ArrowRight, Sparkles } from 'lucide-react'
 import type { CenterCategory } from '@prisma/client'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
@@ -58,7 +58,14 @@ export default async function CiudadCategoriaPage({ params }: Props) {
     select:  {
       id: true, slug: true, name: true, category: true,
       description: true, coverImage: true,
-      _count: { select: { reviews: true } },
+      services: {
+        where: { active: true },
+        orderBy: { order: 'asc' },
+        take: 3,
+        select: { id: true, name: true, priceCents: true },
+      },
+      reviews: { where: { approved: true }, select: { rating: true }, take: 50 },
+      _count: { select: { reviews: true, bookings: true } },
     },
     orderBy: { createdAt: 'asc' },
   })
@@ -77,10 +84,26 @@ export default async function CiudadCategoriaPage({ params }: Props) {
       position: i + 1,
     })),
   })
+  const faqItems = [
+    {
+      question: `Como comparar centros de ${categoryDisplay} en ${cityDisplay}?`,
+      answer: `Para comparar centros de ${categoryDisplay} en ${cityDisplay}, revisa servicios activos, precio visible, resenas verificadas, disponibilidad online y si la ficha explica para que tipo de objetivo encaja mejor.`,
+    },
+    {
+      question: `Puedo reservar ${categoryDisplay} online en ${cityDisplay}?`,
+      answer: `Si, cada centro publicado puede mostrar servicios reservables y acceso a cita online. La disponibilidad y los precios dependen de la ficha de cada negocio.`,
+    },
+    {
+      question: `Que mirar antes de elegir un centro de ${categoryDisplay}?`,
+      answer: `Antes de elegir, comprueba que el servicio coincide con tu objetivo, que el precio es claro cuando aplica y que las resenas aportan contexto sobre servicios reales.`,
+    },
+  ]
+  const faqJsonLd = faqPageJsonLd(faqItems)
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <div className="min-h-screen bg-[#f1f4f8]">
         <PublicHeader />
 
@@ -100,55 +123,99 @@ export default async function CiudadCategoriaPage({ params }: Props) {
             <p className="mt-3 text-[#647089]">
               {centers.length} centro{centers.length !== 1 ? 's' : ''} · Reserva online · Sin llamadas
             </p>
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-[#647089]">
+              Esta pagina agrupa centros publicados de {categoryDisplay} en {cityDisplay} para comparar servicios, precio visible cuando existe, resenas y disponibilidad antes de reservar.
+            </p>
           </div>
         </section>
 
         {/* Center grid */}
         <section className="mx-auto max-w-5xl px-6 py-10">
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {centers.map(center => (
-              <Link
-                key={center.id}
-                href={`/centro/${center.slug}`}
-                className="group flex flex-col rounded-lg border border-[#d8dee9] bg-white shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
-              >
-                <div className="h-36 bg-gradient-to-br from-[#e5edff] to-[#e7f7f5] relative overflow-hidden">
-                  {center.coverImage ? (
-                    <Image src={center.coverImage} alt={center.name} fill className="object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-4xl">💆</div>
-                  )}
-                  <span className="absolute top-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-[#273244]">
-                    {categoryDisplay}
-                  </span>
-                </div>
+            {centers.map(center => {
+              const minPrice = center.services.length > 0
+                ? Math.min(...center.services.map(service => service.priceCents))
+                : null
+              const avgRating = center.reviews.length > 0
+                ? center.reviews.reduce((sum, review) => sum + review.rating, 0) / center.reviews.length
+                : null
 
-                <div className="flex flex-1 flex-col p-5">
-                  <h2 className="font-black text-[#0c1324] group-hover:text-[#2355c8] transition-colors line-clamp-1">
-                    {center.name}
-                  </h2>
-                  <div className="mt-1 flex items-center gap-1.5 text-xs text-[#8b96aa]">
-                    <MapPin className="h-3 w-3" />
-                    {cityDisplay}
-                    {center._count.reviews > 0 && (
-                      <>
-                        <span className="mx-1">·</span>
-                        <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                        <span>{center._count.reviews} reseña{center._count.reviews !== 1 ? 's' : ''}</span>
-                      </>
+              return (
+                <Link
+                  key={center.id}
+                  href={`/centro/${center.slug}`}
+                  className="group flex flex-col rounded-lg border border-[#d8dee9] bg-white shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                  <div className="h-36 bg-[#e5eaf2] relative overflow-hidden">
+                    {center.coverImage ? (
+                      <Image src={center.coverImage} alt={center.name} fill className="object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Sparkles className="h-9 w-9 text-[#8b96aa]" />
+                      </div>
                     )}
+                    <span className="absolute top-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-[#273244]">
+                      {categoryDisplay}
+                    </span>
                   </div>
-                  {center.description && (
-                    <p className="mt-2 text-sm text-[#647089] line-clamp-2">{center.description}</p>
-                  )}
-                  <div className="mt-auto pt-4 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-[#2f6df6]">Reservar cita</span>
-                    <ArrowRight className="h-4 w-4 text-[#8bb7ff] group-hover:translate-x-0.5 transition-transform" />
+
+                  <div className="flex flex-1 flex-col p-5">
+                    <h2 className="font-black text-[#0c1324] group-hover:text-[#2355c8] transition-colors line-clamp-1">
+                      {center.name}
+                    </h2>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[#8b96aa]">
+                      <MapPin className="h-3 w-3" />
+                      {cityDisplay}
+                      {avgRating && (
+                        <>
+                          <span className="mx-1">·</span>
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          <span>{avgRating.toFixed(1)} ({center._count.reviews})</span>
+                        </>
+                      )}
+                    </div>
+                    {center.description && (
+                      <p className="mt-2 text-sm text-[#647089] line-clamp-2">{center.description}</p>
+                    )}
+                    {center.services.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {center.services.slice(0, 2).map(service => (
+                          <span key={service.id} className="rounded-full bg-[#f1f4f8] px-2.5 py-1 text-xs text-[#647089]">
+                            {service.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-auto pt-4 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-[#2f6df6]">
+                        {minPrice !== null ? `Desde ${formatPrice(minPrice)}` : 'Consultar precio'}
+                      </span>
+                      <ArrowRight className="h-4 w-4 text-[#8bb7ff] group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
+
+          <section className="mt-12 border-t border-[#d8dee9] pt-8">
+            <h2 className="text-2xl font-black tracking-tight text-[#0c1324]">Como elegir {categoryDisplay} en {cityDisplay}</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-[#647089]">
+              Compara si el centro ofrece el servicio concreto que buscas, si el precio aparece antes de reservar y si las resenas hablan de experiencias relacionadas con {categoryDisplay.toLowerCase()}. Para objetivos con continuidad, revisa tambien packs, beneficios o seguimiento disponible.
+            </p>
+          </section>
+
+          <section className="mt-10">
+            <h2 className="text-2xl font-black tracking-tight text-[#0c1324]">Preguntas frecuentes</h2>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {faqItems.map(item => (
+                <article key={item.question} className="rounded-lg border border-[#d8dee9] bg-white p-5">
+                  <h3 className="font-black leading-snug text-[#0c1324]">{item.question}</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#647089]">{item.answer}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
           {/* Back to city */}
           <div className="mt-10 text-center">

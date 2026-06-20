@@ -4,8 +4,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")       // Supabase pooled (PgBouncer) — para queries
-  directUrl = env("DIRECT_URL")         // Supabase direct — para migraciones
+  url       = env("DATABASE_URL") // Supabase pooled (PgBouncer) — para queries
+  directUrl = env("DIRECT_URL") // Supabase direct — para migraciones
 }
 
 // ─────────────────────────────────────────────────────
@@ -24,8 +24,9 @@ model User {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
 
-  accounts Account[]
-  sessions Session[]
+  accounts      Account[]
+  sessions      Session[]
+  beautyProfile BeautyProfile?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -70,6 +71,142 @@ model VerificationToken {
 }
 
 // ─────────────────────────────────────────────────────
+// BEAUTY CONCIERGE - PERFIL Y OBJETIVOS
+// ─────────────────────────────────────────────────────
+
+model BeautyProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  skinType           SkinType?
+  hairType           HairType?
+  beautyStyle        BeautyStyle?
+  monthlyBudgetCents Int?
+  maintenanceLevel   MaintenanceLevel?
+
+  mainConcern      String?
+  secondaryConcern String?
+  priceSensitivity PriceSensitivity?
+  buyingMotivation BuyingMotivation?
+  fear             BeautyFear?
+
+  consentPersonalizationAt DateTime?
+  profileCompletedAt       DateTime?
+
+  goals         BeautyGoal[]
+  plans         BeautyPlan[]
+  benefits      UserBenefit[]
+  routines      BeautyRoutine[]
+  productUsages ProductUsage[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BeautyGoal {
+  id        String @id @default(cuid())
+  profileId String
+
+  area      BeautyArea
+  objective String
+  priority  Int        @default(0)
+  active    Boolean    @default(true)
+
+  createdAt DateTime @default(now())
+
+  profile BeautyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, active])
+}
+
+model BeautyPlan {
+  id        String @id @default(cuid())
+  profileId String
+
+  title                String
+  month                String
+  summary              String?
+  status               BeautyPlanStatus @default(ACTIVE)
+  estimatedBudgetCents Int?
+
+  items BeautyPlanItem[]
+
+  profile BeautyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, month])
+}
+
+model BeautyPlanItem {
+  id     String @id @default(cuid())
+  planId String
+
+  type     BeautyPlanItemType
+  title    String
+  reason   String?
+  priority Int                @default(0)
+
+  serviceId String?
+  productId String?
+  packId    String?
+  centerId  String?
+
+  recommendedDate     DateTime?
+  estimatedPriceCents Int?
+  status              BeautyPlanItemStatus @default(PENDING)
+
+  plan BeautyPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  pack BeautyPack? @relation(fields: [packId], references: [id])
+
+  @@index([planId])
+  @@index([status])
+}
+
+model BeautyBenefit {
+  id       String  @id @default(cuid())
+  centerId String?
+
+  title       String
+  description String?
+  benefitType BeautyBenefitType
+  value       String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  active      Boolean           @default(true)
+
+  minPlanRequired Plan?
+  membersOnly     Boolean @default(false)
+
+  center       Center?       @relation(fields: [centerId], references: [id])
+  userBenefits UserBenefit[]
+
+  createdAt DateTime @default(now())
+
+  @@index([centerId, active])
+  @@index([active])
+}
+
+model UserBenefit {
+  id        String @id @default(cuid())
+  profileId String
+  benefitId String
+
+  status    UserBenefitStatus @default(ACTIVE)
+  claimedAt DateTime?
+  usedAt    DateTime?
+
+  profile BeautyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  benefit BeautyBenefit @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, benefitId])
+  @@index([profileId, status])
+}
+
+// ─────────────────────────────────────────────────────
 // ORGANIZACIÓN Y CENTROS
 // ─────────────────────────────────────────────────────
 
@@ -78,65 +215,69 @@ model Organization {
   name String
   slug String @unique
 
-  plan              Plan      @default(BASIC)
-  planExpiresAt     DateTime?
-  stripeCustomerId  String?   @unique
-  stripeSubscriptionId String? @unique
-  maxCenters        Int       @default(1)
+  plan                 Plan      @default(BASIC)
+  planExpiresAt        DateTime?
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  maxCenters           Int       @default(1)
 
-  users    User[]
-  centers  Center[]
-  addOns   OrganizationAddOn[]
+  users   User[]
+  centers Center[]
+  addOns  OrganizationAddOn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Center {
-  id             String   @id @default(cuid())
-  organizationId String
-  name           String
-  slug           String   @unique
-  description    String?
+  id              String  @id @default(cuid())
+  organizationId  String
+  name            String
+  slug            String  @unique
+  description     String?
   descriptionLong String?
 
-  category     CenterCategory
-  phone        String?
-  whatsapp     String?
-  email        String?
-  website      String?
+  category CenterCategory
+  phone    String?
+  whatsapp String?
+  email    String?
+  website  String?
 
-  addressStreet     String  @default("")
+  addressStreet     String   @default("")
   addressCity       String
   addressProvince   String
-  addressPostalCode String  @default("")
+  addressPostalCode String   @default("")
   addressLat        Decimal? @db.Decimal(9, 6)
   addressLng        Decimal? @db.Decimal(9, 6)
 
   coverImage    String?
   galleryImages String[] @default([])
 
-  published   Boolean   @default(false)
-  approvedAt  DateTime?
-  approvedBy  String?
-  seoNoindex  Boolean   @default(false)
+  published  Boolean   @default(false)
+  approvedAt DateTime?
+  approvedBy String?
+  seoNoindex Boolean   @default(false)
 
-  organization    Organization     @relation(fields: [organizationId], references: [id])
-  services        Service[]
-  staff           Staff[]
-  resources       Resource[]
-  bookings        Booking[]
-  customers       Customer[]
-  scheduleRules   ScheduleRule[]
-  exceptions      ScheduleException[]
-  manualBlocks    ManualBlock[]
-  bonos           Bono[]
-  products        Product[]
-  orders          Order[]
-  promotions      Promotion[]
-  reviews         Review[]
-  featuredListings FeaturedListing[]
-  waitlistEntries WaitlistEntry[]
+  organization      Organization        @relation(fields: [organizationId], references: [id])
+  services          Service[]
+  staff             Staff[]
+  resources         Resource[]
+  bookings          Booking[]
+  customers         Customer[]
+  scheduleRules     ScheduleRule[]
+  exceptions        ScheduleException[]
+  manualBlocks      ManualBlock[]
+  bonos             Bono[]
+  products          Product[]
+  orders            Order[]
+  promotions        Promotion[]
+  reviews           Review[]
+  featuredListings  FeaturedListing[]
+  waitlistEntries   WaitlistEntry[]
+  beautyBenefits    BeautyBenefit[]
+  beautyPacks       BeautyPack[]
+  followUpTemplates FollowUpTemplate[]
+  followUpMessages  FollowUpMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -166,17 +307,17 @@ model Service {
   centerId   String
   categoryId String?
 
-  name               String
-  description        String?
-  durationMinutes    Int
-  priceCents         Int
-  depositRequired    Boolean @default(false)
-  depositCents       Int?
-  bufferMinutesBefore Int    @default(0)
-  bufferMinutesAfter  Int    @default(10)
-  maxCapacity        Int     @default(1)
-  active             Boolean @default(true)
-  order              Int     @default(0)
+  name                String
+  description         String?
+  durationMinutes     Int
+  priceCents          Int
+  depositRequired     Boolean @default(false)
+  depositCents        Int?
+  bufferMinutesBefore Int     @default(0)
+  bufferMinutesAfter  Int     @default(10)
+  maxCapacity         Int     @default(1)
+  active              Boolean @default(true)
+  order               Int     @default(0)
 
   center   Center           @relation(fields: [centerId], references: [id])
   category ServiceCategory? @relation(fields: [categoryId], references: [id])
@@ -216,12 +357,12 @@ model Staff {
   active Boolean @default(true)
   order  Int     @default(0)
 
-  center       Center         @relation(fields: [centerId], references: [id])
-  bookings     Booking[]
-  serviceStaff ServiceStaff[]
+  center        Center              @relation(fields: [centerId], references: [id])
+  bookings      Booking[]
+  serviceStaff  ServiceStaff[]
   scheduleRules ScheduleRule[]
-  exceptions   ScheduleException[]
-  manualBlocks ManualBlock[]
+  exceptions    ScheduleException[]
+  manualBlocks  ManualBlock[]
 
   createdAt DateTime @default(now())
 
@@ -314,11 +455,12 @@ model Customer {
   marketingConsentDate DateTime?
   consentGivenAt       DateTime  @default(now())
 
-  center   Center    @relation(fields: [centerId], references: [id])
-  bookings Booking[]
-  bonoInstances BonoInstance[]
-  waitlistEntries WaitlistEntry[]
-  reviews  Review[]
+  center           Center            @relation(fields: [centerId], references: [id])
+  bookings         Booking[]
+  bonoInstances    BonoInstance[]
+  waitlistEntries  WaitlistEntry[]
+  reviews          Review[]
+  followUpMessages FollowUpMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -343,24 +485,25 @@ model Booking {
   source  BookingSource @default(WEB)
 
   depositCents          Int?
-  depositPaid           Boolean @default(false)
+  depositPaid           Boolean   @default(false)
   depositExpiresAt      DateTime?
   stripePaymentIntentId String?
 
-  notes            String?
-  internalNotes    String?
-  reminderSentAt   DateTime?
-  noShowAt         DateTime?
-  cancelledAt      DateTime?
-  cancelledBy      CancelledBy?
+  notes              String?
+  internalNotes      String?
+  reminderSentAt     DateTime?
+  noShowAt           DateTime?
+  cancelledAt        DateTime?
+  cancelledBy        CancelledBy?
   cancellationReason String?
 
-  center   Center    @relation(fields: [centerId], references: [id])
-  service  Service   @relation(fields: [serviceId], references: [id])
-  staff    Staff?    @relation(fields: [staffId], references: [id])
-  resource Resource? @relation(fields: [resourceId], references: [id])
-  customer Customer  @relation(fields: [customerId], references: [id])
-  review   Review?
+  center           Center            @relation(fields: [centerId], references: [id])
+  service          Service           @relation(fields: [serviceId], references: [id])
+  staff            Staff?            @relation(fields: [staffId], references: [id])
+  resource         Resource?         @relation(fields: [resourceId], references: [id])
+  customer         Customer          @relation(fields: [customerId], references: [id])
+  review           Review?
+  followUpMessages FollowUpMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -373,7 +516,7 @@ model Booking {
 }
 
 model WaitlistEntry {
-  id         String @id @default(cuid())
+  id         String  @id @default(cuid())
   centerId   String
   serviceId  String
   staffId    String?
@@ -392,9 +535,66 @@ model WaitlistEntry {
 }
 
 // ─────────────────────────────────────────────────────
-// COMERCIO (plan Pro)
+// SEGUIMIENTO Y RECURRENCIA B2B
 // ─────────────────────────────────────────────────────
 
+model FollowUpTemplate {
+  id       String @id @default(cuid())
+  centerId String
+
+  name            String
+  category        FollowUpTemplateCategory @default(GENERIC)
+  purpose         CommunicationPurpose     @default(FOLLOW_UP)
+  channel         CommunicationChannel     @default(EMAIL)
+  serviceKeyword  String?
+  subject         String
+  body            String
+  sendAfterDays   Int                      @default(14)
+  consentRequired Boolean                  @default(false)
+  active          Boolean                  @default(true)
+
+  center   Center            @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  messages FollowUpMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([centerId, active])
+  @@index([category, active])
+}
+
+model FollowUpMessage {
+  id         String  @id @default(cuid())
+  centerId   String
+  customerId String
+  bookingId  String?
+  templateId String?
+
+  channel CommunicationChannel
+  purpose CommunicationPurpose
+  status  FollowUpMessageStatus @default(SCHEDULED)
+
+  subject      String
+  body         String
+  scheduledFor DateTime
+  sentAt       DateTime?
+  dismissedAt  DateTime?
+
+  center   Center            @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  customer Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  booking  Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  template FollowUpTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bookingId, templateId])
+  @@index([centerId, status, scheduledFor])
+  @@index([customerId, status])
+  @@index([purpose, status])
+}
+
+// COMERCIO (plan Pro)
 model Bono {
   id       String @id @default(cuid())
   centerId String
@@ -407,13 +607,66 @@ model Bono {
   serviceId    String?
   active       Boolean @default(true)
 
-  center    Center       @relation(fields: [centerId], references: [id])
-  service   Service?     @relation(fields: [serviceId], references: [id])
-  instances BonoInstance[]
+  center      Center         @relation(fields: [centerId], references: [id])
+  service     Service?       @relation(fields: [serviceId], references: [id])
+  instances   BonoInstance[]
+  beautyPacks BeautyPack[]
 
   createdAt DateTime @default(now())
 
   @@index([centerId])
+}
+
+model BeautyPack {
+  id       String  @id @default(cuid())
+  centerId String
+  bonoId   String?
+
+  name                String
+  slug                String?
+  objective           String
+  description         String?
+  audience            String?
+  notFor              String?
+  expectedResult      String?
+  priceCents          Int
+  compareAtPriceCents Int?
+  durationDays        Int?
+  preferredArea       BeautyArea?
+  minMaintenanceLevel MaintenanceLevel?
+  active              Boolean           @default(true)
+  featured            Boolean           @default(false)
+
+  center    Center           @relation(fields: [centerId], references: [id])
+  bono      Bono?            @relation(fields: [bonoId], references: [id], onDelete: SetNull)
+  items     BeautyPackItem[]
+  planItems BeautyPlanItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([centerId, slug])
+  @@index([centerId, active])
+  @@index([preferredArea, active])
+}
+
+model BeautyPackItem {
+  id     String @id @default(cuid())
+  packId String
+
+  label     String
+  itemType  BeautyPackItemType @default(SERVICE)
+  quantity  Int                @default(1)
+  serviceId String?
+  productId String?
+  note      String?
+  order     Int                @default(0)
+
+  pack BeautyPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([packId])
 }
 
 model BonoInstance {
@@ -423,7 +676,7 @@ model BonoInstance {
   centerId   String
 
   sessionsRemaining Int
-  purchasedAt       DateTime @default(now())
+  purchasedAt       DateTime  @default(now())
   activatedAt       DateTime?
   expiresAt         DateTime?
   stripePaymentId   String?
@@ -436,6 +689,74 @@ model BonoInstance {
 }
 
 // Categoría de producto global (espejo de ServiceCategory), con jerarquía opcional.
+model BeautyRoutine {
+  id        String @id @default(cuid())
+  profileId String
+
+  title  String
+  status BeautyRoutineStatus @default(ACTIVE)
+
+  profile BeautyProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  steps   BeautyRoutineStep[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, status])
+}
+
+model BeautyRoutineStep {
+  id        String  @id @default(cuid())
+  routineId String
+  productId String?
+
+  title        String
+  stepType     BeautyRoutineStepType   @default(OTHER)
+  moment       BeautyRoutineMoment     @default(AS_NEEDED)
+  instructions String?
+  order        Int                     @default(0)
+  status       BeautyRoutineStepStatus @default(ACTIVE)
+  pausedAt     DateTime?
+  finishedAt   DateTime?
+
+  routine BeautyRoutine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  product Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  usages  ProductUsage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([routineId, status])
+  @@index([productId])
+}
+
+model ProductUsage {
+  id        String  @id @default(cuid())
+  profileId String
+  productId String
+  stepId    String?
+
+  status                    ProductUsageStatus @default(IN_USE)
+  startedAt                 DateTime           @default(now())
+  expectedEndAt             DateTime?
+  finishedAt                DateTime?
+  pausedAt                  DateTime?
+  replenishmentEnabled      Boolean            @default(false)
+  replenishmentIntervalDays Int?
+  lastReminderAt            DateTime?
+
+  profile BeautyProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  product Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  step    BeautyRoutineStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([profileId, status])
+  @@index([productId])
+  @@index([expectedEndAt, replenishmentEnabled])
+}
+
 model ProductCategory {
   id          String  @id @default(cuid())
   name        String
@@ -468,9 +789,23 @@ model Product {
   images      String[] @default([])
   active      Boolean  @default(true)
 
-  center     Center           @relation(fields: [centerId], references: [id])
-  category   ProductCategory? @relation(fields: [categoryId], references: [id])
-  orderItems OrderItem[]
+  usageInstructions         String?
+  recommendedFor            String?
+  notRecommendedFor         String?
+  expectedDurationDays      Int?
+  replenishmentIntervalDays Int?
+  routineStepType           BeautyRoutineStepType?
+  compatibilityTags         String[]               @default([])
+  recommendationTags        String[]               @default([])
+  alternativeProductId      String?
+
+  center             Center              @relation(fields: [centerId], references: [id])
+  category           ProductCategory?    @relation(fields: [categoryId], references: [id])
+  orderItems         OrderItem[]
+  routineSteps       BeautyRoutineStep[]
+  productUsages      ProductUsage[]
+  alternativeProduct Product?            @relation("ProductAlternative", fields: [alternativeProductId], references: [id], onDelete: SetNull)
+  alternativeFor     Product[]           @relation("ProductAlternative")
 
   createdAt DateTime @default(now())
 
@@ -478,6 +813,7 @@ model Product {
   @@index([centerId])
   @@index([categoryId])
   @@index([brand])
+  @@index([routineStepType, active])
 }
 
 model Order {
@@ -531,7 +867,7 @@ model Promotion {
   serviceId     String?
   startsAt      DateTime
   endsAt        DateTime
-  active        Boolean @default(true)
+  active        Boolean      @default(true)
 
   center  Center   @relation(fields: [centerId], references: [id])
   service Service? @relation(fields: [serviceId], references: [id])
@@ -554,7 +890,7 @@ model Review {
   rating      Int
   comment     String?
   publishedAt DateTime?
-  approved    Boolean @default(false)
+  approved    Boolean   @default(false)
   moderatedBy String?
   reply       String?
   repliedAt   DateTime?
@@ -573,15 +909,15 @@ model Review {
 // ─────────────────────────────────────────────────────
 
 model OrganizationAddOn {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   organizationId String
   centerId       String?
 
-  addOnType              AddOnType
-  activeFrom             DateTime
-  activeTo               DateTime?
+  addOnType                AddOnType
+  activeFrom               DateTime
+  activeTo                 DateTime?
   stripeSubscriptionItemId String?
-  active                 Boolean @default(true)
+  active                   Boolean   @default(true)
 
   organization Organization @relation(fields: [organizationId], references: [id])
 
@@ -599,10 +935,10 @@ model FeaturedListing {
   city     String
   category CenterCategory?
   service  String?
-  priority Int     @default(0)
+  priority Int             @default(0)
   startsAt DateTime
   endsAt   DateTime
-  active   Boolean @default(true)
+  active   Boolean         @default(true)
 
   center Center @relation(fields: [centerId], references: [id])
 
@@ -693,13 +1029,13 @@ enum DiscountType {
 }
 
 enum OrderStatus {
-  PENDING      // creado, pendiente de pago
-  PAID         // pagado, el centro lo está preparando
-  READY        // listo para recoger en el centro (click & collect)
-  COMPLETED    // recogido por el cliente
-  CONFIRMED    // (legacy) confirmado manualmente sin cobro online
-  SHIPPED      // (deprecated) no se usa en v1 click & collect
-  DELIVERED    // (deprecated) no se usa en v1 click & collect
+  PENDING // creado, pendiente de pago
+  PAID // pagado, el centro lo está preparando
+  READY // listo para recoger en el centro (click & collect)
+  COMPLETED // recogido por el cliente
+  CONFIRMED // (legacy) confirmado manualmente sin cobro online
+  SHIPPED // (deprecated) no se usa en v1 click & collect
+  DELIVERED // (deprecated) no se usa en v1 click & collect
   CANCELLED
 }
 
@@ -714,4 +1050,194 @@ enum AddOnType {
   PRIORITY_SUPPORT
   DATA_MIGRATION
   ASSISTED_ONBOARDING
+}
+
+enum BeautyPlanStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum BeautyPlanItemType {
+  SERVICE
+  PRODUCT
+  PACK
+  REMINDER
+  AVOID
+  EDUCATION
+}
+
+enum BeautyPlanItemStatus {
+  PENDING
+  DONE
+  SKIPPED
+  DISMISSED
+}
+
+enum BeautyPackItemType {
+  SERVICE
+  PRODUCT
+  BONUS_SESSION
+  CONSULTATION
+  FOLLOW_UP
+  OTHER
+}
+
+enum FollowUpTemplateCategory {
+  GENERIC
+  MANICURE
+  FACIAL
+  COLORATION
+  BROWS_LASHES
+  WELLNESS
+}
+
+enum CommunicationPurpose {
+  TRANSACTIONAL
+  FOLLOW_UP
+  MARKETING
+}
+
+enum CommunicationChannel {
+  EMAIL
+  IN_APP
+}
+
+enum FollowUpMessageStatus {
+  SCHEDULED
+  READY
+  SENT
+  DISMISSED
+  CANCELLED
+  FAILED
+}
+
+enum BeautyRoutineStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum BeautyRoutineStepStatus {
+  ACTIVE
+  PAUSED
+  FINISHED
+  REMOVED
+}
+
+enum BeautyRoutineStepType {
+  CLEANSER
+  TONER
+  SERUM
+  MOISTURIZER
+  SPF
+  MASK
+  HAIR_CARE
+  NAIL_CARE
+  BODY_CARE
+  MAKEUP
+  WELLNESS
+  OTHER
+}
+
+enum BeautyRoutineMoment {
+  MORNING
+  EVENING
+  WEEKLY
+  AS_NEEDED
+}
+
+enum ProductUsageStatus {
+  IN_USE
+  PAUSED
+  FINISHED
+  REPLENISH_SOON
+}
+
+enum BeautyBenefitType {
+  DISCOUNT
+  PRIORITY_BOOKING
+  FREE_DIAGNOSIS
+  GIFT
+  MEMBER_ONLY_PACK
+  FREE_REVIEW
+  CASHBACK
+  POINTS
+}
+
+enum UserBenefitStatus {
+  ACTIVE
+  CLAIMED
+  USED
+  EXPIRED
+}
+
+enum SkinType {
+  DRY
+  OILY
+  COMBINATION
+  SENSITIVE
+  NORMAL
+  UNKNOWN
+}
+
+enum HairType {
+  STRAIGHT
+  WAVY
+  CURLY
+  COILY
+  FINE
+  THICK
+  COLORED
+  DAMAGED
+  UNKNOWN
+}
+
+enum BeautyStyle {
+  NATURAL
+  ELEGANT
+  BOLD
+  MINIMAL
+  PREMIUM
+  PRACTICAL
+}
+
+enum MaintenanceLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum PriceSensitivity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum BuyingMotivation {
+  ROUTINE
+  EVENT
+  PROBLEM_SOLVING
+  SELF_CARE
+  IMPULSE
+  RECOMMENDATION
+}
+
+enum BeautyFear {
+  WASTING_MONEY
+  LOOKING_ARTIFICIAL
+  NOT_KNOWING_WHAT_TO_CHOOSE
+  BAD_EXPERIENCE
+  TOO_MUCH_MAINTENANCE
+  IRRITATION_OR_REACTION
+}
+
+enum BeautyArea {
+  SKIN
+  HAIR
+  NAILS
+  BROWS_LASHES
+  MAKEUP
+  BODY
+  WELLNESS
 }

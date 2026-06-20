@@ -2,13 +2,15 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Building2, Calendar, Menu, ShoppingBag, Sparkles, Store, User, X } from 'lucide-react'
+import { Building2, Calendar, ListChecks, Menu, ShoppingBag, Sparkles, Store, User, X } from 'lucide-react'
 
 interface PublicHeaderProps {
   theme?: 'light' | 'dark'
 }
 
 const NAV_LINKS = [
+  { href: '/mi-plan', label: 'Mi plan', icon: Sparkles },
+  { href: '/rutina', label: 'Rutina', icon: ListChecks },
   { href: '/buscar', label: 'Servicios', icon: Calendar },
   { href: '/productos', label: 'Marketplace', icon: Store },
   { href: '/precios', label: 'Precios', icon: null },
@@ -61,6 +63,17 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
 
         <div className="flex items-center gap-1.5">
           <Link
+            href="/diagnostico"
+            className={`hidden items-center gap-1.5 rounded-md px-3 py-2 text-sm font-bold transition-colors sm:flex ${
+              isDark
+                ? 'bg-white text-[#0c1324] hover:bg-white/90'
+                : 'bg-[#0c1324] text-white hover:bg-[#1f2a44]'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            Crear perfil
+          </Link>
+          <Link
             href="/carrito"
             aria-label="Carrito"
             className={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${actionLinkClass}`}
@@ -100,6 +113,18 @@ export function PublicHeader({ theme = 'light' }: PublicHeaderProps) {
               </Link>
             ))}
             <div className={`my-2 border-t ${isDark ? 'border-white/10' : 'border-[#d8dee9]'}`} />
+            <Link
+              href="/diagnostico"
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-3 rounded-md px-4 py-3 text-sm font-bold transition-colors ${
+                isDark
+                  ? 'bg-white text-[#0c1324] hover:bg-white/90'
+                  : 'bg-[#0c1324] text-white hover:bg-[#1f2a44]'
+              }`}
+            >
+              <Sparkles className="h-4 w-4 shrink-0" />
+              Crear Beauty Profile
+            </Link>
             <Link
               href="/cuenta"
               onClick={() => setOpen(false)}

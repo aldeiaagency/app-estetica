@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
 import { updateOrganizationPlanAction } from '@/app/actions/admin'
 import { Building2 } from 'lucide-react'
+import { PLAN_MARKETING, PLAN_ORDER } from '@/lib/billing/plans'
 
 const PLAN_COLORS: Record<string, string> = {
   BASIC: 'bg-slate-100 text-slate-600',
@@ -79,7 +80,7 @@ export default async function AdminOrganizacionesPage() {
                       PLAN_COLORS[org.plan] ?? 'bg-slate-100 text-slate-600'
                     }`}
                   >
-                    {org.plan}
+                    {PLAN_MARKETING[org.plan].name}
                   </span>
                 </div>
 
@@ -118,10 +119,9 @@ export default async function AdminOrganizacionesPage() {
                     defaultValue={org.plan}
                     className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 shadow-sm focus:border-rose-300 focus:outline-none focus:ring-1 focus:ring-rose-300"
                   >
-                    <option value="BASIC">Basic</option>
-                    <option value="PRO">Pro</option>
-                    <option value="GROWTH">Growth</option>
-                    <option value="PREMIUM">Premium</option>
+                    {PLAN_ORDER.map(plan => (
+                      <option key={plan} value={plan}>{PLAN_MARKETING[plan].name}</option>
+                    ))}
                   </select>
                   <button
                     type="submit"

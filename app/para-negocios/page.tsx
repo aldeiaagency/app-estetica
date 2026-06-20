@@ -1,405 +1,308 @@
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
-  Sparkles, Calendar, Users, Bell, ShoppingBag,
-  BarChart3, ArrowRight, CheckCircle2, Check, Zap, Shield,
-  Star, MessageSquare, Gift, Globe, Headphones, Database
+  ArrowRight,
+  Bell,
+  CalendarCheck,
+  CheckCircle2,
+  Gift,
+  LineChart,
+  ListChecks,
+  MessageSquareText,
+  PackageCheck,
+  Repeat2,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Users,
 } from 'lucide-react'
+import { PLAN_MARKETING, PLAN_ORDER, PLAN_PRICES_CENTS } from '@/lib/billing/plans'
+import { formatPrice } from '@/lib/utils'
 import { PublicHeader } from '@/components/ui/public-header'
 import { PublicFooter } from '@/components/ui/public-footer'
 
 export const metadata: Metadata = {
-  title: 'Para negocios — Gestiona tus citas con BellezaLocal',
-  description:
-    'La plataforma de gestión de citas que usan los mejores profesionales de belleza. Empieza gratis, sin tarjeta.',
+  title: 'Belleza Local para negocios',
+  description: 'Plataforma para centros de belleza que quieren convertir reservas, packs, productos y seguimiento en clientas recurrentes.',
   robots: { index: true },
 }
 
-const FEATURES = [
+const OPERATING_LOOP = [
   {
-    icon: Calendar,
-    title: 'Agenda online 24/7',
-    desc: 'Tus clientes reservan solas en cualquier momento. Sincronización en tiempo real.',
+    icon: Sparkles,
+    title: 'La clienta llega con contexto',
+    text: 'Beauty Profile, objetivos y preferencias ayudan a que la recomendacion no empiece desde cero.',
   },
   {
-    icon: Bell,
-    title: 'Recordatorios automáticos',
-    desc: 'Reduce no-shows hasta un 70% con recordatorios por email y WhatsApp.',
+    icon: PackageCheck,
+    title: 'El centro vende por objetivo',
+    text: 'Packs, beneficios y productos se presentan con para quien es, para quien no es y precio visible.',
   },
   {
-    icon: Users,
-    title: 'CRM de clientes',
-    desc: 'Historial completo, preferencias, frecuencia de visita y gasto por cliente.',
-  },
-  {
-    icon: ShoppingBag,
-    title: 'Venta de bonos y productos',
-    desc: 'Vende bonos de sesiones y productos directamente desde tu perfil.',
-  },
-  {
-    icon: BarChart3,
-    title: 'Analíticas en tiempo real',
-    desc: 'Ingresos, ocupación, servicios top, clientes nuevos vs. recurrentes.',
-  },
-  {
-    icon: Globe,
-    title: 'Presencia en el marketplace',
-    desc: 'Aparece en búsquedas de tu ciudad y categoría. SEO incluido.',
+    icon: Repeat2,
+    title: 'La vuelta queda preparada',
+    text: 'Seguimientos, reposicion y oportunidades de rebooking convierten la visita en continuidad.',
   },
 ]
 
-const PLANS = [
+const BUSINESS_MODULES = [
   {
-    name: 'Basic',
-    price: 0,
-    period: '/mes',
-    desc: 'Para empezar. Sin sorpresas.',
-    cta: 'Empezar gratis',
-    href: '/auth/signup',
-    highlight: false,
-    features: [
-      '1 centro',
-      'Reservas online ilimitadas',
-      'Hasta 3 servicios',
-      'Confirmaciones por email',
-      'Perfil en marketplace',
-    ],
+    icon: CalendarCheck,
+    title: 'Reservas con base comercial',
+    text: 'Agenda, servicios, staff, senales y lista de espera conectados al perfil publico del centro.',
   },
   {
-    name: 'Pro',
-    price: 39,
-    period: '/mes',
-    desc: 'El más elegido por profesionales.',
-    cta: 'Empezar 14 días gratis',
-    href: '/auth/signup?plan=pro',
-    highlight: true,
-    features: [
-      'Todo lo del plan Basic',
-      'Servicios y staff ilimitados',
-      'Reseñas verificadas',
-      'Venta de bonos',
-      'CRM completo de clientes',
-      'Analíticas básicas',
-      'Soporte por chat',
-    ],
+    icon: Gift,
+    title: 'Packs y beneficios',
+    text: 'Ofertas por objetivo, bonos legacy y beneficios visibles para que la clienta entienda el valor.',
   },
   {
-    name: 'Growth',
-    price: 79,
-    period: '/mes',
-    desc: 'Para centros en expansión.',
-    cta: 'Hablar con ventas',
-    href: '/para-negocios#contacto',
-    highlight: false,
-    features: [
-      'Todo lo del plan Pro',
-      'Hasta 3 centros',
-      'Analíticas avanzadas',
-      'Venta de productos',
-      'Campañas de fidelización',
-      'WhatsApp automático',
-      'Prioridad en búsquedas',
-    ],
+    icon: ShoppingBag,
+    title: 'Productos inteligentes',
+    text: 'Venta de productos con rutina, duracion, compatibilidad, reposicion y alternativas.',
   },
   {
-    name: 'Premium',
-    price: 149,
-    period: '/mes',
-    desc: 'Para grupos y franquicias.',
-    cta: 'Hablar con ventas',
-    href: '/para-negocios#contacto',
-    highlight: false,
-    features: [
-      'Todo lo del plan Growth',
-      'Centros ilimitados',
-      'Dominio personalizado',
-      'API de integraciones',
-      'Gestor de cuenta dedicado',
-      'SLA de soporte premium',
-      'Migración de datos asistida',
-    ],
+    icon: MessageSquareText,
+    title: 'Seguimiento postservicio',
+    text: 'Plantillas por categoria para recordar cuidados, recomendar repeticion y separar marketing con opt-in.',
+  },
+  {
+    icon: Users,
+    title: 'CRM accionable',
+    text: 'Clientes, historial, oportunidades de vuelta y segmentacion para no depender de memoria o hojas sueltas.',
+  },
+  {
+    icon: LineChart,
+    title: 'Decision con datos propios',
+    text: 'Visibilidad de reservas, pedidos, packs, beneficios y oportunidades antes de invertir mas.',
   },
 ]
 
 const ADD_ONS = [
-  { icon: MessageSquare, name: 'WhatsApp automático', price: '€19/mes', desc: 'Confirmaciones y recordatorios por WhatsApp.' },
-  { icon: Bell,          name: 'SMS recordatorios',   price: '€12/mes', desc: 'SMS automáticos para reducir no-shows.' },
-  { icon: Zap,           name: 'AI Recepcionista',    price: '€29/mes', desc: 'Chatbot que responde y reserva por WhatsApp.' },
-  { icon: Star,          name: 'Featured Listing',    price: '€49/mes', desc: 'Posición top en búsquedas de tu ciudad.' },
-  { icon: Gift,          name: 'Migración de datos',  price: '€199 único', desc: 'Importamos tus clientes y citas actuales.' },
-  { icon: Database,      name: 'Onboarding asistido', price: '€299 único', desc: 'Un experto configura todo por ti.' },
-]
-
-const TESTIMONIALS = [
   {
-    name: 'Carmen Rodríguez',
-    role: 'Peluquería El Rincón · Madrid',
-    text: 'Desde que uso BellezaLocal mis reservas online representan el 60% del total. Los recordatorios automáticos me han eliminado casi todos los no-shows.',
-    rating: 5,
+    icon: Bell,
+    title: 'Canales avanzados',
+    text: 'WhatsApp y SMS quedan como add-on o plan avanzado cuando el negocio tenga consentimiento y necesidad real.',
   },
   {
-    name: 'Marta Sánchez',
-    role: 'Centro de Estética Glow · Barcelona',
-    text: 'El panel de analíticas me ha ayudado a entender qué servicios son más rentables. He triplicado la venta de bonos en 3 meses.',
-    rating: 5,
+    icon: ListChecks,
+    title: 'Onboarding asistido',
+    text: 'Configuracion de servicios, packs, productos y plantillas para empezar con una estructura limpia.',
   },
   {
-    name: 'David Torres',
-    role: 'Barbería Classic · Sevilla',
-    text: 'Muy fácil de configurar. En menos de una hora ya tenía mi agenda funcionando. El soporte es excelente.',
-    rating: 5,
+    icon: ShieldCheck,
+    title: 'Migracion cuidada',
+    text: 'Importacion de datos revisada caso a caso para evitar prometer compatibilidades que aun no estan validadas.',
   },
 ]
 
 const FAQS = [
   {
-    q: '¿Necesito tarjeta de crédito para empezar?',
-    a: 'No. El plan Basic es gratis para siempre. Para los planes de pago ofrecemos 14 días gratis sin necesidad de tarjeta.',
+    q: 'Hay permanencia?',
+    a: 'No planteamos permanencia como condicion base. Si hay implantacion, integraciones o migracion, se acuerda por separado.',
   },
   {
-    q: '¿Puedo importar mis clientes y citas actuales?',
-    a: 'Sí. Con el add-on de Migración de datos nuestro equipo importa toda tu información desde cualquier sistema.',
+    q: 'Cobra comision por reserva?',
+    a: 'Los planes B2B se plantean con cuota mensual. Las compras o pagos procesados por Stripe pueden tener sus costes de pasarela.',
   },
   {
-    q: '¿Hay comisión por reserva?',
-    a: 'No. Nunca cobramos comisión. Solo pagas la cuota mensual del plan que elijas.',
+    q: 'Puedo empezar solo con presencia?',
+    a: 'Si. Presencia sirve para ordenar el perfil y aceptar reservas. Growth anade recurrencia, packs, beneficios y productos.',
   },
   {
-    q: '¿Puedo cancelar cuando quiera?',
-    a: 'Sí, sin permanencia. Cancela desde tu panel en cualquier momento y no se te cobrará el siguiente período.',
-  },
-  {
-    q: '¿Funciona en móvil?',
-    a: 'Completamente. Tanto el panel de gestión como la página de reservas para clientes están optimizados para móvil.',
+    q: 'WhatsApp esta incluido?',
+    a: 'No lo damos por hecho en todos los planes. Es un canal sensible y se activa como add-on o capacidad avanzada cuando hay consentimiento y operativa preparada.',
   },
 ]
 
+function priceLabel(plan: (typeof PLAN_ORDER)[number]) {
+  return formatPrice(PLAN_PRICES_CENTS[plan].monthly).replace(',00', '')
+}
+
 export default function ParaNegociosPage() {
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <PublicHeader />
+    <div className="min-h-screen bg-[#f1f4f8]">
+      <PublicHeader theme="dark" />
 
-      {/* ─── HERO ─── */}
-      <section className="relative overflow-hidden bg-[#09090B] pb-24 pt-20">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-primary-600/20 blur-[120px]" />
-          <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-beauty-500/10 blur-[100px]" />
+      <section className="relative min-h-[620px] overflow-hidden bg-[#0c1324] text-white">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/beauty-studio-hero.png')" }}
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-[#0c1324]/72" aria-hidden="true" />
+        <div className="relative mx-auto flex min-h-[620px] max-w-7xl flex-col justify-end px-4 pb-16 pt-28 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/90">
+              <Sparkles className="h-3.5 w-3.5" />
+              Para centros de belleza, estetica y bienestar
+            </p>
+            <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-6xl">
+              Belleza Local para negocios
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-white/78 sm:text-lg">
+              No es solo una agenda. Es una forma de convertir reservas, packs, productos y seguimiento en clientas que entienden por que volver.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/auth/signup?plan=growth" className="inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-black text-[#0c1324] transition hover:bg-[#e5edff]">
+                Empezar con Growth
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href="#planes" className="inline-flex items-center justify-center gap-2 rounded-md border border-white/25 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10">
+                Ver planes
+              </Link>
+            </div>
+          </div>
         </div>
-        <div className="relative mx-auto max-w-4xl px-4 text-center">
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary-500/30 bg-primary-500/10 px-4 py-1.5 text-xs font-semibold text-primary-300">
-            <Sparkles className="h-3 w-3" />
-            Para profesionales de la belleza
-          </span>
-          <h1 className="text-5xl font-black leading-[1.05] tracking-tight text-white md:text-6xl">
-            Tu agenda, siempre llena
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-zinc-400">
-            La plataforma de gestión de citas diseñada para centros de belleza, estética y bienestar.
-            Más reservas, menos no-shows, más tiempo para lo que importa.
+      </section>
+
+      <section className="border-b border-[#d8dee9] bg-white">
+        <div className="mx-auto grid max-w-7xl gap-5 px-4 py-8 sm:px-6 md:grid-cols-3 lg:px-8">
+          {OPERATING_LOOP.map(item => (
+            <article key={item.title} className="rounded-lg border border-[#d8dee9] bg-[#f7f9fc] p-5">
+              <item.icon className="h-5 w-5 text-[#2355c8]" />
+              <h2 className="mt-4 text-lg font-black text-[#0c1324]">{item.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-[#647089]">{item.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="max-w-3xl">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2355c8]">Sistema de recurrencia</p>
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-[#0c1324]">Lo que el negocio puede activar por fases</h2>
+          <p className="mt-3 text-sm leading-6 text-[#647089]">
+            La propuesta se apoya en piezas que ya existen en la app: reservas, marketplace, productos, packs, beneficios, seguimiento y wallet.
           </p>
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link href="/auth/signup" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-700 active:scale-[0.97]">
-              Empezar gratis <ArrowRight className="h-5 w-5" />
-            </Link>
-            <Link href="#planes" className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-7 py-3.5 text-base font-semibold text-zinc-300 transition-all hover:border-white/30 hover:text-white">
-              Ver planes y precios
-            </Link>
-          </div>
-          <p className="mt-5 text-xs text-zinc-600">Sin tarjeta · Plan gratis disponible · Cancela cuando quieras</p>
         </div>
-      </section>
-
-      {/* ─── STATS ─── */}
-      <section className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-10">
-          <div className="grid grid-cols-2 gap-8 text-center md:grid-cols-4">
-            {[
-              { value: '350+',   label: 'Negocios activos' },
-              { value: '12.000+',label: 'Reservas gestionadas' },
-              { value: '70%',    label: 'Reducción de no-shows' },
-              { value: '4.9/5',  label: 'Satisfacción media' },
-            ].map((s) => (
-              <div key={s.label}>
-                <p className="text-3xl font-black tracking-tight text-zinc-900">{s.value}</p>
-                <p className="mt-1 text-sm text-zinc-500">{s.label}</p>
+        <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {BUSINESS_MODULES.map(item => (
+            <article key={item.title} className="rounded-lg border border-[#d8dee9] bg-white p-5 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#e5edff] text-[#2355c8]">
+                <item.icon className="h-5 w-5" />
               </div>
-            ))}
-          </div>
+              <h3 className="mt-4 text-lg font-black text-[#0c1324]">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-[#647089]">{item.text}</p>
+            </article>
+          ))}
         </div>
       </section>
 
-      {/* ─── FEATURES ─── */}
-      <section className="bg-zinc-50 py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="mb-14 text-center">
-            <p className="section-eyebrow">Funcionalidades</p>
-            <h2 className="section-title mt-2">Todo lo que necesitas para crecer</h2>
-            <p className="section-subtitle">Una sola plataforma que reemplaza tu agenda en papel, las llamadas y las hojas de cálculo.</p>
+      <section id="planes" className="border-y border-[#d8dee9] bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2355c8]">Planes</p>
+              <h2 className="mt-2 text-3xl font-black tracking-tight text-[#0c1324]">Presencia, Growth, Elite y Partner</h2>
+            </div>
+            <Link href="/precios" className="inline-flex items-center gap-2 text-sm font-black text-[#2355c8]">
+              Comparativa completa
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-all hover:shadow-card-hover hover:-translate-y-0.5">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50">
-                  <f.icon className="h-5.5 w-5.5 text-primary-600" style={{ width: 22, height: 22 }} />
-                </div>
-                <h3 className="font-bold text-zinc-900">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-500">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ─── PLANS ─── */}
-      <section id="planes" className="bg-white py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="mb-14 text-center">
-            <p className="section-eyebrow">Precios</p>
-            <h2 className="section-title mt-2">Planes para cada negocio</h2>
-            <p className="section-subtitle">Sin comisiones por reserva. Solo pagas tu cuota mensual.</p>
-          </div>
-          <div className="grid gap-5 lg:grid-cols-4">
-            {PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative flex flex-col rounded-3xl border p-6 transition-all ${
-                  plan.highlight
-                    ? 'border-primary-500 bg-primary-600 shadow-glow-violet'
-                    : 'border-zinc-200 bg-white shadow-sm hover:shadow-card-hover'
-                }`}
-              >
-                {plan.highlight && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                    <span className="rounded-full bg-white px-4 py-1 text-xs font-bold text-primary-600 shadow-sm">
-                      Más popular
-                    </span>
-                  </div>
-                )}
-                <div className="mb-5">
-                  <p className={`text-sm font-bold ${plan.highlight ? 'text-primary-200' : 'text-zinc-500'}`}>{plan.name}</p>
-                  <div className="mt-1 flex items-end gap-1">
-                    <span className={`text-4xl font-black tracking-tight ${plan.highlight ? 'text-white' : 'text-zinc-900'}`}>
-                      {plan.price === 0 ? 'Gratis' : `€${plan.price}`}
-                    </span>
-                    {plan.price > 0 && (
-                      <span className={`mb-1 text-sm ${plan.highlight ? 'text-primary-200' : 'text-zinc-400'}`}>{plan.period}</span>
-                    )}
-                  </div>
-                  <p className={`mt-1 text-xs ${plan.highlight ? 'text-primary-200' : 'text-zinc-400'}`}>{plan.desc}</p>
-                </div>
-                <Link
-                  href={plan.href}
-                  className={`mb-6 block rounded-xl py-2.5 text-center text-sm font-semibold transition-all active:scale-[0.97] ${
-                    plan.highlight
-                      ? 'bg-white text-primary-600 hover:bg-primary-50'
-                      : 'border border-zinc-200 text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50'
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {PLAN_ORDER.map(plan => {
+              const marketing = PLAN_MARKETING[plan]
+              const featured = marketing.featured
+
+              return (
+                <article
+                  key={plan}
+                  className={`relative flex flex-col rounded-lg border p-5 shadow-sm ${
+                    featured ? 'border-[#2f6df6] bg-[#2f6df6] text-white' : 'border-[#d8dee9] bg-white'
                   }`}
                 >
-                  {plan.cta}
-                </Link>
-                <ul className="flex-1 space-y-2.5">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className={`flex items-start gap-2 text-sm ${plan.highlight ? 'text-primary-100' : 'text-zinc-600'}`}>
-                      <Check className={`mt-0.5 h-4 w-4 shrink-0 ${plan.highlight ? 'text-primary-200' : 'text-primary-500'}`} />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          {/* Add-ons */}
-          <div className="mt-16">
-            <div className="mb-8 text-center">
-              <p className="section-eyebrow">Add-ons</p>
-              <h3 className="mt-2 text-2xl font-bold text-zinc-900">Potencia tu plan</h3>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {ADD_ONS.map((addon) => (
-                <div key={addon.name} className="flex items-start gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
-                    <addon.icon className="h-5 w-5 text-primary-600" />
+                  {featured && (
+                    <span className="absolute -top-3 left-5 rounded-full bg-white px-3 py-1 text-xs font-black text-[#2355c8] shadow-sm">
+                      Recomendado
+                    </span>
+                  )}
+                  <p className={`text-sm font-black ${featured ? 'text-white' : 'text-[#0c1324]'}`}>{marketing.name}</p>
+                  <p className={`mt-1 text-xs font-semibold ${featured ? 'text-[#cfe0ff]' : 'text-[#647089]'}`}>{marketing.tagline}</p>
+                  <div className="mt-5">
+                    <span className={`text-4xl font-black tracking-tight ${featured ? 'text-white' : 'text-[#0c1324]'}`}>
+                      {priceLabel(plan)}
+                    </span>
+                    <span className={`ml-1 text-sm ${featured ? 'text-[#cfe0ff]' : 'text-[#647089]'}`}>/mes</span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold text-zinc-900">{addon.name}</p>
-                      <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-600">{addon.price}</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-zinc-500">{addon.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  <p className={`mt-4 text-sm leading-6 ${featured ? 'text-[#e5edff]' : 'text-[#46546b]'}`}>
+                    {marketing.idealFor}
+                  </p>
+                  <ul className={`mt-5 flex-1 space-y-2.5 text-sm ${featured ? 'text-[#e5edff]' : 'text-[#46546b]'}`}>
+                    {marketing.highlights.map(feature => (
+                      <li key={feature} className="flex items-start gap-2">
+                        <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${featured ? 'text-white' : 'text-[#10786f]'}`} />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={marketing.contactSales ? '#contacto' : `/auth/signup?plan=${marketing.slug}`}
+                    className={`mt-6 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-black transition ${
+                      featured ? 'bg-white text-[#2355c8] hover:bg-[#e5edff]' : 'bg-[#0c1324] text-white hover:bg-[#1f2a44]'
+                    }`}
+                  >
+                    {marketing.cta}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </article>
+              )
+            })}
           </div>
         </div>
       </section>
 
-      {/* ─── TESTIMONIALS ─── */}
-      <section className="bg-zinc-50 py-16">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="mb-12 text-center">
-            <p className="section-eyebrow">Testimonios</p>
-            <h2 className="section-title mt-2">Lo que dicen nuestros clientes</h2>
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2355c8]">Add-ons y cuidado operativo</p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-[#0c1324]">Lo avanzado se activa cuando aporta valor real</h2>
+            <p className="mt-3 text-sm leading-6 text-[#647089]">
+              Evitamos vender automatizaciones sensibles como si fueran universales. Canales, migraciones y soporte se preparan segun consentimiento, volumen y capacidad del equipo.
+            </p>
           </div>
-          <div className="grid gap-5 md:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-                <div className="mb-4 flex">
-                  {[...Array(t.rating)].map((_, i) => <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />)}
-                </div>
-                <p className="text-sm leading-relaxed text-zinc-600">&ldquo;{t.text}&rdquo;</p>
-                <div className="mt-4 border-t border-zinc-100 pt-4">
-                  <p className="text-sm font-bold text-zinc-900">{t.name}</p>
-                  <p className="text-xs text-zinc-400">{t.role}</p>
-                </div>
-              </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {ADD_ONS.map(item => (
+              <article key={item.title} className="rounded-lg border border-[#d8dee9] bg-white p-4 shadow-sm">
+                <item.icon className="h-5 w-5 text-[#2355c8]" />
+                <h3 className="mt-3 font-black text-[#0c1324]">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#647089]">{item.text}</p>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── FAQ ─── */}
-      <section id="faq" className="bg-white py-16">
-        <div className="mx-auto max-w-3xl px-4">
-          <div className="mb-12 text-center">
-            <p className="section-eyebrow">FAQ</p>
-            <h2 className="section-title mt-2">Preguntas frecuentes</h2>
-          </div>
-          <div className="space-y-4">
-            {FAQS.map((faq) => (
-              <div key={faq.q} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-                <p className="font-semibold text-zinc-900">{faq.q}</p>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-500">{faq.a}</p>
-              </div>
+      <section id="faq" className="border-y border-[#d8dee9] bg-white">
+        <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 lg:px-8">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2355c8]">FAQ</p>
+          <h2 className="mt-2 text-3xl font-black tracking-tight text-[#0c1324]">Preguntas habituales</h2>
+          <div className="mt-6 grid gap-4">
+            {FAQS.map(item => (
+              <article key={item.q} className="rounded-lg border border-[#d8dee9] bg-[#f7f9fc] p-5">
+                <h3 className="font-black text-[#0c1324]">{item.q}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#647089]">{item.a}</p>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── CTA FINAL ─── */}
-      <section className="relative overflow-hidden bg-[#09090B] py-20">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-600/20 blur-[100px]" />
-        </div>
-        <div className="relative mx-auto max-w-2xl px-4 text-center">
-          <div className="mb-4 flex justify-center gap-5">
-            {[CheckCircle2, Shield, Headphones].map((Icon, i) => (
-              <div key={i} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 border border-white/10">
-                <Icon className="h-6 w-6 text-primary-400" />
-              </div>
-            ))}
-          </div>
-          <h2 className="text-4xl font-black tracking-tight text-white">Empieza hoy, gratis</h2>
-          <p className="mt-4 text-lg text-zinc-400">
-            Sin tarjeta de crédito. Sin permanencia. Sin comisiones por reserva.
+      <section id="contacto" className="bg-[#0c1324] px-4 py-14 text-white">
+        <div className="mx-auto max-w-4xl text-center">
+          <h2 className="text-3xl font-black tracking-tight">Hablemos de tu centro</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-white/70">
+            Cuentanos tu tipo de centro, numero de profesionales y si quieres priorizar reservas, packs, productos o recurrencia. Te diremos que plan encaja sin sobredimensionarlo.
           </p>
-          <Link href="/auth/signup" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-700 active:scale-[0.97]">
-            Crear mi cuenta gratis <ArrowRight className="h-5 w-5" />
-          </Link>
-          <p className="mt-4 text-xs text-zinc-600">Configuración en menos de 10 minutos</p>
+          <a href="mailto:hola@bellezalocal.es?subject=Quiero%20ver%20Belleza%20Local%20para%20mi%20negocio" className="mt-6 inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-black text-[#0c1324] transition hover:bg-[#e5edff]">
+            Contactar
+            <ArrowRight className="h-4 w-4" />
+          </a>
         </div>
       </section>
+
       <PublicFooter />
     </div>
   )

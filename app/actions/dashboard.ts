@@ -7,6 +7,8 @@ import { z } from 'zod'
 import { sendBookingConfirmation, sendBookingCancellation } from '@/lib/email/templates'
 import { PLAN_FEATURES } from '@/lib/billing/plans'
 import { notifyWaitlistEntry, notifyWaitlistForBookingOpening } from '@/lib/waitlist/notifications'
+import { scheduleFollowUpsForCompletedBooking } from '@/app/actions/follow-ups'
+import { Prisma } from '@prisma/client'
 import type { BookingStatus, CenterCategory, OrderStatus, WaitlistStatus } from '@prisma/client'
 
 const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
@@ -129,9 +131,15 @@ export async function updateBookingStatusAction(
         staffId: booking.staffId,
         startAt: booking.startAt,
       }).catch(() => {})
+    } else if (status === 'COMPLETED' && booking.status !== 'COMPLETED') {
+      scheduleFollowUpsForCompletedBooking(bookingId, orgId).catch(() => {})
     }
 
     revalidatePath('/dashboard/reservas')
+    if (status === 'COMPLETED') {
+      revalidatePath('/dashboard/seguimientos')
+      revalidatePath('/dashboard/recurrencia')
+    }
     if (status === 'NO_SHOW') revalidatePath('/dashboard/clientes')
     return { success: true }
   } catch {
@@ -563,7 +571,7 @@ export async function createBonoAction(
     if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
     if (!features.hasBonos) {
-      return { success: false, error: 'Los bonos estan disponibles a partir del plan Pro.' }
+      return { success: false, error: 'Los bonos estan disponibles a partir del plan Growth.' }
     }
 
     const bono = await prisma.bono.create({
@@ -595,7 +603,7 @@ export async function toggleBonoActiveAction(
     if (bono.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
     if (!bono.active) {
       const features = await getOrganizationFeatures(orgId)
-      if (!features?.hasBonos) return { success: false, error: 'Los bonos estan disponibles a partir del plan Pro.' }
+      if (!features?.hasBonos) return { success: false, error: 'Los bonos estan disponibles a partir del plan Growth.' }
     }
 
     await prisma.bono.update({ where: { id: bonoId }, data: { active: !bono.active } })
@@ -611,12 +619,20 @@ export async function toggleBonoActiveAction(
 // ─────────────────────────────────────────────────────
 
 const productSchema = z.object({
-  name:        z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  description: z.string().optional(),
-  brand:       z.string().optional(),
-  image:       optionalUrl,
-  priceCents:  z.number().int().min(0, 'El precio no puede ser negativo'),
-  stock:       z.number().int().min(0).optional(),
+  name:                      z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  description:               z.string().optional(),
+  brand:                     z.string().optional(),
+  image:                     optionalUrl,
+  priceCents:                z.number().int().min(0, 'El precio no puede ser negativo'),
+  stock:                     z.number().int().min(0).optional(),
+  usageInstructions:         z.string().optional(),
+  recommendedFor:            z.string().optional(),
+  notRecommendedFor:         z.string().optional(),
+  expectedDurationDays:      z.number().int().min(1).max(730).optional(),
+  replenishmentIntervalDays: z.number().int().min(1).max(730).optional(),
+  routineStepType:           z.enum(['CLEANSER', 'TONER', 'SERUM', 'MOISTURIZER', 'SPF', 'MASK', 'HAIR_CARE', 'NAIL_CARE', 'BODY_CARE', 'MAKEUP', 'WELLNESS', 'OTHER']).optional(),
+  compatibilityTags:         z.array(z.string()).optional(),
+  recommendationTags:        z.array(z.string()).optional(),
 })
 
 export async function createProductAction(
@@ -627,6 +643,14 @@ export async function createProductAction(
     image?: string
     priceCents: number
     stock?: number
+    usageInstructions?: string
+    recommendedFor?: string
+    notRecommendedFor?: string
+    expectedDurationDays?: number
+    replenishmentIntervalDays?: number
+    routineStepType?: string
+    compatibilityTags?: string[]
+    recommendationTags?: string[]
   },
   orgId: string
 ): Promise<{ success: boolean; error?: string; productId?: string }> {
@@ -641,7 +665,7 @@ export async function createProductAction(
     if (!features) return { success: false, error: 'Organizacion no encontrada' }
     if (!center) return { success: false, error: 'Centro no encontrado' }
     if (!features.hasProducts) {
-      return { success: false, error: 'La venta de productos esta disponible a partir del plan Pro.' }
+      return { success: false, error: 'La venta de productos esta disponible a partir del plan Growth.' }
     }
 
     const product = await prisma.product.create({
@@ -656,7 +680,39 @@ export async function createProductAction(
       },
     })
 
+    try {
+      const compatibilityTags = parsed.data.compatibilityTags ?? []
+      const recommendationTags = parsed.data.recommendationTags ?? []
+      const routineStepTypeSql = parsed.data.routineStepType
+        ? Prisma.sql`${parsed.data.routineStepType}::"BeautyRoutineStepType"`
+        : Prisma.sql`NULL`
+      const compatibilityTagsSql = compatibilityTags.length > 0
+        ? Prisma.sql`ARRAY[${Prisma.join(compatibilityTags)}]::text[]`
+        : Prisma.sql`ARRAY[]::text[]`
+      const recommendationTagsSql = recommendationTags.length > 0
+        ? Prisma.sql`ARRAY[${Prisma.join(recommendationTags)}]::text[]`
+        : Prisma.sql`ARRAY[]::text[]`
+
+      await prisma.$executeRaw`
+        UPDATE "Product"
+        SET
+          "usageInstructions" = ${parsed.data.usageInstructions || null},
+          "recommendedFor" = ${parsed.data.recommendedFor || null},
+          "notRecommendedFor" = ${parsed.data.notRecommendedFor || null},
+          "expectedDurationDays" = ${parsed.data.expectedDurationDays ?? null},
+          "replenishmentIntervalDays" = ${parsed.data.replenishmentIntervalDays ?? null},
+          "routineStepType" = ${routineStepTypeSql},
+          "compatibilityTags" = ${compatibilityTagsSql},
+          "recommendationTags" = ${recommendationTagsSql}
+        WHERE "id" = ${product.id}
+      `
+    } catch (error) {
+      console.warn('[dashboard] smart product fields unavailable:', error)
+    }
+
     revalidatePath('/dashboard/productos')
+    revalidatePath('/productos')
+    revalidatePath('/mi-plan')
     return { success: true, productId: product.id }
   } catch {
     return { success: false, error: 'Error al crear el producto' }
@@ -673,7 +729,7 @@ export async function toggleProductActiveAction(
     if (product.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
     if (!product.active) {
       const features = await getOrganizationFeatures(orgId)
-      if (!features?.hasProducts) return { success: false, error: 'La venta de productos esta disponible a partir del plan Pro.' }
+      if (!features?.hasProducts) return { success: false, error: 'La venta de productos esta disponible a partir del plan Growth.' }
     }
 
     await prisma.product.update({ where: { id: productId }, data: { active: !product.active } })

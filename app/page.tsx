@@ -15,7 +15,6 @@ import {
   Sparkles,
   Star,
   Store,
-  TrendingUp,
 } from 'lucide-react'
 import { prisma } from '@/lib/db/client'
 import { CATEGORY_LABELS, formatPrice } from '@/lib/utils'
@@ -25,9 +24,9 @@ import { PublicFooter } from '@/components/ui/public-footer'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Belleza Local - Reserva belleza y bienestar cerca de ti',
+  title: 'Belleza Local - Tu belleza, bien elegida',
   description:
-    'Encuentra centros de belleza, estética, peluquería y bienestar cerca de ti. Reserva online con disponibilidad real y confirmación inmediata.',
+    'Crea tu perfil de belleza y descubre que hacerte, que comprar y cuando repetir segun tu objetivo, presupuesto y estilo.',
 }
 
 async function getFeaturedCenters() {
@@ -101,26 +100,26 @@ const CATEGORIES = [
 
 const VALUE_POINTS = [
   {
-    icon: CalendarCheck,
-    title: 'Reserva sin llamada',
-    text: 'Elige servicio, profesional y hora en una experiencia pensada para móvil.',
+    icon: Sparkles,
+    title: 'Beauty Profile',
+    text: 'Tu objetivo, estilo, presupuesto y nivel de mantenimiento en una lectura sencilla.',
   },
   {
     icon: ShieldCheck,
-    title: 'Centros verificados',
-    text: 'Fichas claras, precios visibles, reseñas y datos útiles antes de decidir.',
+    title: 'Recomendación honesta',
+    text: 'Mostramos qué tiene sentido para ti y qué conviene evitar por ahora.',
   },
   {
-    icon: TrendingUp,
-    title: 'Herramientas para crecer',
-    text: 'Agenda, clientes, bonos y ventas para que cada centro pueda operar mejor.',
+    icon: CalendarCheck,
+    title: 'Reserva con contexto',
+    text: 'Cuando eliges un centro o producto, sabes por qué encaja con tu plan.',
   },
 ]
 
 const BUSINESS_METRICS = [
-  { label: 'Agenda online', value: '24/7' },
-  { label: 'Tiempo de reserva', value: '< 60s' },
-  { label: 'Comisión cliente', value: '0%' },
+  { label: 'Crea tu perfil', value: '01' },
+  { label: 'Recibe tu plan', value: '02' },
+  { label: 'Reserva o compra mejor', value: '03' },
 ]
 
 export default async function HomePage() {
@@ -150,20 +149,36 @@ export default async function HomePage() {
           <div className="max-w-2xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur">
               <span className="h-1.5 w-1.5 rounded-full bg-[#9db8ff]" />
-              Marketplace de belleza y bienestar
+              Beauty concierge personal
             </div>
             <h1 className="text-5xl font-black leading-[0.95] tracking-tight text-white sm:text-7xl lg:text-8xl">
-              Belleza Local
+              Tu belleza, bien elegida.
             </h1>
             <p className="mt-4 max-w-xl text-base leading-7 text-white/80 sm:mt-6 sm:text-lg sm:leading-8">
-              Descubre centros cerca de ti, compara servicios y reserva una cita confirmada
-              sin esperas. Para clientes exigentes y negocios que quieren una agenda más llena.
+              Crea tu perfil de belleza y descubre qué hacerte, qué comprar y cuándo repetir
+              según tu objetivo, tu presupuesto y tu estilo. Con centros verificados y reserva fácil.
             </p>
+
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/diagnostico"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-[#2f6df6] px-6 text-sm font-bold text-white transition hover:bg-[#2559d8] focus-visible:ring-[#9db8ff]"
+              >
+                Crear mi Beauty Profile
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/buscar"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-white/15 bg-white/10 px-6 text-sm font-bold text-white transition hover:bg-white/15"
+              >
+                Buscar centros cerca de mí
+              </Link>
+            </div>
 
             <form
               method="GET"
               action="/buscar"
-              className="mt-6 grid max-w-2xl gap-2 rounded-lg border border-white/15 bg-white/10 p-2 shadow-2xl shadow-black/20 backdrop-blur-md sm:mt-9 sm:grid-cols-[1fr_180px_auto]"
+              className="mt-5 grid max-w-2xl gap-2 rounded-lg border border-white/15 bg-white/10 p-2 shadow-2xl shadow-black/20 backdrop-blur-md sm:grid-cols-[1fr_180px_auto]"
             >
               <label className="flex min-h-12 items-center gap-3 rounded-md bg-white px-4">
                 <Search className="h-4 w-4 shrink-0 text-[#8b96aa]" />
@@ -195,11 +210,11 @@ export default async function HomePage() {
             <div className="mt-8 hidden flex-wrap gap-3 text-sm text-white/75 sm:flex">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
                 <BadgeCheck className="h-4 w-4 text-[#9fc4aa]" />
-                Confirmación inmediata
+                Recomendaciones personalizadas
               </span>
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
                 <Star className="h-4 w-4 text-[#f3c36d]" />
-                Reseñas verificadas
+                Sin comprar a ciegas
               </span>
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
                 <Store className="h-4 w-4 text-[#9db8ff]" />
@@ -225,16 +240,16 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2f6df6]">Explorar</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2f6df6]">Después del perfil</p>
               <h2 className="mt-2 max-w-2xl text-3xl font-black tracking-tight text-[#0c1324] sm:text-5xl">
-                Tratamientos pensados para decidir rápido.
+                Elige por objetivo, no por catálogo infinito.
               </h2>
             </div>
             <Link
               href="/buscar"
               className="inline-flex items-center gap-2 text-sm font-bold text-[#0c1324] underline decoration-[#9db8ff] decoration-2 underline-offset-4"
             >
-              Ver todo
+              Explorar centros
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -265,15 +280,15 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-9 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2f6df6]">Marketplace local</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2f6df6]">Productos y rutinas</p>
               <h2 className="mt-2 max-w-2xl text-3xl font-black tracking-tight text-[#0c1324] sm:text-5xl">
-                Compra lo que usas en tu centro favorito.
+                Compra mejor y repón a tiempo.
               </h2>
             </div>
             <div className="max-w-xl lg:justify-self-end">
               <p className="text-sm leading-6 text-[#647089]">
-                Belleza Local no termina cuando reservas. Descubre productos profesionales,
-                bonos de sesiones y rutinas recomendadas por centros reales de tu zona.
+                El objetivo no es llenar el baño de productos. Es encontrar lo que encaja con tu rutina,
+                tu presupuesto y el resultado que quieres mantener.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link href="/productos" className="btn-primary py-2 text-xs">
@@ -290,7 +305,7 @@ export default async function HomePage() {
           <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
               <div className="mb-3 flex items-center justify-between gap-4">
-                <h3 className="text-lg font-black text-[#0c1324]">Productos mas solicitados</h3>
+                <h3 className="text-lg font-black text-[#0c1324]">Productos para decidir mejor</h3>
                 <Link href="/productos" className="text-sm font-bold text-[#2355c8] hover:text-[#2f6df6]">
                   Ver marketplace
                 </Link>
@@ -354,7 +369,7 @@ export default async function HomePage() {
             <div>
               <div className="mb-3 flex items-center gap-2">
                 <Gift className="h-4 w-4 text-[#2f6df6]" />
-                <h3 className="text-lg font-black text-[#0c1324]">Bonos para repetir</h3>
+                <h3 className="text-lg font-black text-[#0c1324]">Packs para mantener resultados</h3>
               </div>
 
               {marketplace.bonos.length > 0 ? (
@@ -389,9 +404,9 @@ export default async function HomePage() {
               ) : (
                 <div className="rounded-lg border border-[#d8dee9] bg-[#0c1324] p-5 text-white">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9db8ff]">Ejemplo de bono</p>
-                  <h3 className="mt-3 text-2xl font-black tracking-tight">Bono facial 5 sesiones</h3>
+                  <h3 className="mt-3 text-2xl font-black tracking-tight">Plan piel luminosa 30 días</h3>
                   <p className="mt-3 text-sm leading-6 text-white/64">
-                    Perfecto para tratamientos recurrentes: depilacion, masaje, manicura o rituales faciales.
+                    Un ejemplo de pack por objetivo: perfil, servicio recomendado y mantenimiento sencillo.
                   </p>
                   <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
                     <span className="text-sm text-white/64">Ahorro frente a sesiones sueltas</span>
@@ -414,7 +429,7 @@ export default async function HomePage() {
               </h2>
             </div>
             <p className="max-w-md text-sm leading-6 text-[#647089]">
-              Fichas claras, servicios visibles y acceso directo a reserva. Sin dar vueltas.
+              Fichas claras, precios visibles y señales de encaje para que no elijas solo por cercanía.
             </p>
           </div>
 
@@ -517,10 +532,10 @@ export default async function HomePage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#9db8ff]">Para negocios</p>
             <h2 className="mt-3 max-w-xl text-3xl font-black tracking-tight sm:text-5xl">
-              Una agenda bonita no basta. Tiene que vender.
+              Una agenda no basta. Tus clientas tienen que volver.
             </h2>
             <p className="mt-5 max-w-xl text-base leading-7 text-white/70">
-              Belleza Local combina ficha pública, reservas, clientes, bonos y productos en un panel pensado para el día a día de un centro real.
+              Belleza Local ayuda a convertir clientas puntuales en clientas recurrentes con packs, productos, beneficios y seguimiento postservicio.
             </p>
             <Link
               href="/para-negocios"

@@ -45,10 +45,10 @@ export function StatusBadge({ status }: { status: string }) {
 
 export function PlanBadge({ plan }: { plan: string }) {
   const map: Record<string, { label: string; variant: BadgeProps['variant'] }> = {
-    BASIC:   { label: 'Basic',   variant: 'default'  },
-    PRO:     { label: 'Pro',     variant: 'primary'  },
-    GROWTH:  { label: 'Growth',  variant: 'info'     },
-    PREMIUM: { label: 'Premium', variant: 'warning'  },
+    BASIC:   { label: 'Presencia', variant: 'default'  },
+    PRO:     { label: 'Growth',    variant: 'primary'  },
+    GROWTH:  { label: 'Elite',     variant: 'info'     },
+    PREMIUM: { label: 'Partner',   variant: 'warning'  },
   }
   const { label, variant } = map[plan] ?? { label: plan, variant: 'default' as const }
   return <Badge variant={variant}>{label}</Badge>

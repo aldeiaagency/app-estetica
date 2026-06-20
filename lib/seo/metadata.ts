@@ -98,13 +98,13 @@ export function localityPageMetadata(params: {
 
   if (service) {
     title = `${service} en ${cityFormatted} — Centros y Precios | ${SITE_NAME}`
-    description = `Encuentra los mejores centros de ${service.toLowerCase()} en ${cityFormatted}.${centerCount ? ` ${centerCount} centros disponibles.` : ''} Reserva online. Disponibilidad real.`
+    description = `Compara centros de ${service.toLowerCase()} en ${cityFormatted}.${centerCount ? ` ${centerCount} centros disponibles.` : ''} Revisa servicios, precios y disponibilidad.`
   } else if (category) {
     title = `${category} en ${cityFormatted} — Reserva Online | ${SITE_NAME}`
-    description = `Descubre los mejores centros de ${category.toLowerCase()} en ${cityFormatted}.${centerCount ? ` ${centerCount} centros.` : ''} Reserva sin llamar.`
+    description = `Compara centros de ${category.toLowerCase()} en ${cityFormatted}.${centerCount ? ` ${centerCount} centros.` : ''} Consulta servicios, resenas y reserva sin llamar.`
   } else {
     title = `Centros de Belleza en ${cityFormatted} | ${SITE_NAME}`
-    description = `Encuentra centros de belleza, estética y bienestar en ${cityFormatted}. Reserva cita online. Disponibilidad real.`
+    description = `Encuentra centros de belleza, estetica y bienestar en ${cityFormatted}. Compara categorias, servicios y disponibilidad real.`
   }
 
   return {
@@ -157,5 +157,24 @@ export function centerJsonLd(center: {
           },
         }
       : {}),
+  }
+}
+
+export function faqPageJsonLd(items: { question: string; answer: string }[]) {
+  const mainEntity = items
+    .filter(item => item.question.trim() && item.answer.trim())
+    .map(item => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: item.answer,
+      },
+    }))
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity,
   }
 }
