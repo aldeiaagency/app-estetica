@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { AlertCircle, ArrowUpRight, Calendar, CheckCircle2, Circle, Copy, DollarSign, Plus, ShoppingCart, Users, Zap } from 'lucide-react'
+import { AlertCircle, ArrowUpRight, Calendar, CheckCircle2, Circle, Copy, DollarSign, Plus, Repeat2, ShoppingCart, Users, Zap } from 'lucide-react'
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
+import { getRebookingOpportunities } from '@/app/actions/follow-ups'
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -26,7 +27,7 @@ export default async function DashboardPage() {
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [todayBookings, monthOrderRevenue, pendingOrders] = center
+  const [todayBookings, monthOrderRevenue, pendingOrders, rebookingOpportunities] = center
     ? await Promise.all([
         prisma.booking.findMany({
           where: { centerId: center.id, startAt: { gte: todayStart, lte: todayEnd } },
@@ -38,8 +39,9 @@ export default async function DashboardPage() {
           _sum: { totalCents: true },
         }),
         prisma.order.count({ where: { centerId: center.id, status: 'PENDING' } }),
+        getRebookingOpportunities(orgId ?? '', 8),
       ])
-    : [[], null, 0]
+    : [[], null, 0, []]
 
   const bookingLink = center ? `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/centro/${center.slug}` : null
   const confirmedToday = todayBookings.filter(booking => booking.status === 'CONFIRMED').length
@@ -163,6 +165,14 @@ export default async function DashboardPage() {
                 icon: Users,
                 color: 'bg-[#eef4eb] text-[#4b7258]',
                 href: '/dashboard/clientes',
+              },
+              {
+                label: 'Oportunidades de vuelta',
+                value: rebookingOpportunities.length,
+                sub: 'Sin proxima cita activa',
+                icon: Repeat2,
+                color: rebookingOpportunities.length > 0 ? 'bg-blue-50 text-blue-700' : 'bg-[#e5eaf2] text-[#647089]',
+                href: '/dashboard/recurrencia',
               },
             ].map(kpi => (
               <Link

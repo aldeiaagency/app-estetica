@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     default: 'Belleza Local — Reserva en centros de belleza cerca de ti',
   },
   description:
-    'Encuentra y reserva en los mejores centros de belleza, estética, peluquería y bienestar cerca de ti. Disponibilidad real. Sin llamar.',
+    'Encuentra y reserva en centros de belleza, estética, peluquería y bienestar cerca de ti. Disponibilidad real. Sin llamar.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'),
   openGraph: {
     siteName: 'Belleza Local',

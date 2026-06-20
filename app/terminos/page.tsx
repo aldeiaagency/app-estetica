@@ -84,7 +84,7 @@ export default function TerminosPage() {
               <li>Los planes se renuevan automáticamente de forma mensual salvo cancelación antes del período de renovación.</li>
               <li>Los precios pueden actualizarse con un preaviso de 30 días.</li>
               <li>Los reembolsos se rigen por la política de Stripe y las leyes de protección al consumidor aplicables.</li>
-              <li>El plan Basic es gratuito y puede tener limitaciones de funcionalidades.</li>
+              <li>El plan Presencia es el plan de entrada y puede tener limitaciones de funcionalidades.</li>
             </ul>
           </section>
 

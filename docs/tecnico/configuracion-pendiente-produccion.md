@@ -26,12 +26,15 @@ Estado del codigo:
 - Ruta creada: `GET /api/cron/booking-holds`
 - Programacion creada en `vercel.json`: una vez al dia (03:00 UTC). El plan Hobby de Vercel no permite crons mas frecuentes que diarios; si se necesita liberar huecos con mas inmediatez, subir a plan Pro o llamar a esta ruta desde un cron externo (ej. cron-job.org) con el header `Authorization: Bearer <CRON_SECRET>`.
 - Funcion: libera reservas pendientes de senal cuando el pago no se completa dentro del plazo
+- Ruta creada: `GET /api/cron/follow-ups`
+- Programacion creada en `vercel.json`: una vez al dia (09:00 UTC)
+- Funcion: envia por email los seguimientos y campanas programados (`FollowUpMessage` de canal `EMAIL` cuya fecha ya vencio), marca `SENT`/`FAILED`, y cancela los de marketing si la clienta revoco el consentimiento despues de programarse. Reutiliza `CRON_SECRET`, `RESEND_API_KEY` y `EMAIL_FROM`.
 
 Configuracion pendiente en Vercel:
 
 | Variable | Obligatoria | Uso |
 |---|---:|---|
-| `CRON_SECRET` | Si | Protege `/api/cron/reminders` y `/api/cron/booking-holds` para que no pueda ejecutarlo cualquiera |
+| `CRON_SECRET` | Si | Protege `/api/cron/reminders`, `/api/cron/booking-holds` y `/api/cron/follow-ups` para que no pueda ejecutarlo cualquiera |
 | `RESEND_API_KEY` | Si | Permite enviar emails transaccionales |
 | `EMAIL_FROM` | Si | Remitente validado en Resend, por ejemplo `Belleza Local <noreply@bellezalocal.es>` |
 | `NEXT_PUBLIC_APP_URL` | Si | URL publica usada en enlaces de emails y confirmaciones |

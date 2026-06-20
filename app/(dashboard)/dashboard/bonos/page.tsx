@@ -1,10 +1,11 @@
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import { createBonoAction, toggleBonoActiveAction } from '@/app/actions/dashboard'
 import { redeemBonoSessionAction } from '@/app/actions/bonos'
-import { Gift, Clock, Tag, Users, CalendarCheck } from 'lucide-react'
+import { Gift, Clock, Tag, Users, CalendarCheck, Sparkles } from 'lucide-react'
 
 export default async function BonosPage() {
   const session = await auth()
@@ -37,11 +38,15 @@ export default async function BonosPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-zinc-900">Bonos</h1>
-          <p className="mt-1 text-sm text-zinc-500">Crea y gestiona bonos de sesiones para tus clientes</p>
+          <h1 className="text-2xl font-black tracking-tight text-zinc-900">Bonos de sesiones</h1>
+          <p className="mt-1 text-sm text-zinc-500">Mantiene la compra y uso de bonos simples. Para vender por resultado, crea packs.</p>
         </div>
+        <Link href="/dashboard/packs" className="btn-outline py-2 text-xs">
+          <Sparkles className="h-4 w-4" />
+          Crear packs por objetivo
+        </Link>
       </div>
 
       {/* Bonos list */}
@@ -51,7 +56,7 @@ export default async function BonosPage() {
             <Gift className="h-7 w-7 text-primary-400" />
           </div>
           <p className="font-semibold text-zinc-700">Sin bonos todavía</p>
-          <p className="mt-1 text-sm text-zinc-400">Crea tu primer bono y empieza a venderlo desde tu perfil.</p>
+          <p className="mt-1 text-sm text-zinc-400">Usa bonos para sesiones simples o crea packs si quieres vender por objetivo.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -162,7 +167,7 @@ export default async function BonosPage() {
 
       {/* Create form */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-5 text-lg font-bold text-zinc-900">Crear nuevo bono</h2>
+        <h2 className="mb-5 text-lg font-bold text-zinc-900">Crear bono legacy</h2>
         <NuevoBonoForm orgId={orgId} servicios={servicios} />
       </div>
     </div>

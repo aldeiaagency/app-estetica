@@ -6,6 +6,21 @@ import { createProductAction, toggleProductActiveAction } from '@/app/actions/da
 import { UploadHiddenInput } from '@/components/dashboard/upload-hidden-input'
 import { ShoppingBag, Package } from 'lucide-react'
 
+const ROUTINE_STEP_OPTIONS = [
+  ['CLEANSER', 'Limpieza'],
+  ['TONER', 'Tonico'],
+  ['SERUM', 'Serum'],
+  ['MOISTURIZER', 'Hidratacion'],
+  ['SPF', 'Proteccion solar'],
+  ['MASK', 'Mascarilla'],
+  ['HAIR_CARE', 'Cabello'],
+  ['NAIL_CARE', 'Unas'],
+  ['BODY_CARE', 'Cuerpo'],
+  ['MAKEUP', 'Maquillaje'],
+  ['WELLNESS', 'Bienestar'],
+  ['OTHER', 'Otro'],
+] as const
+
 export default async function ProductosPage() {
   const session = await auth()
   const orgId = session?.user?.organizationId
@@ -142,6 +157,13 @@ function NuevoProductoForm({ orgId }: { orgId: string }) {
     'use server'
     const precioEuros = parseFloat(formData.get('precioEuros') as string)
     const stockStr    = formData.get('stock') as string
+    const expectedDurationDaysStr = formData.get('expectedDurationDays') as string
+    const replenishmentIntervalDaysStr = formData.get('replenishmentIntervalDays') as string
+    const splitTags = (value: FormDataEntryValue | null) =>
+      String(value ?? '')
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(Boolean)
 
     await createProductAction({
       name:        formData.get('name') as string,
@@ -150,6 +172,14 @@ function NuevoProductoForm({ orgId }: { orgId: string }) {
       image:       (formData.get('image') as string) || undefined,
       priceCents:  Math.round(precioEuros * 100),
       stock:       stockStr ? parseInt(stockStr, 10) : undefined,
+      usageInstructions: (formData.get('usageInstructions') as string) || undefined,
+      recommendedFor: (formData.get('recommendedFor') as string) || undefined,
+      notRecommendedFor: (formData.get('notRecommendedFor') as string) || undefined,
+      expectedDurationDays: expectedDurationDaysStr ? parseInt(expectedDurationDaysStr, 10) : undefined,
+      replenishmentIntervalDays: replenishmentIntervalDaysStr ? parseInt(replenishmentIntervalDaysStr, 10) : undefined,
+      routineStepType: (formData.get('routineStepType') as string) || undefined,
+      compatibilityTags: splitTags(formData.get('compatibilityTags')),
+      recommendationTags: splitTags(formData.get('recommendationTags')),
     }, orgId)
   }
 
@@ -184,6 +214,51 @@ function NuevoProductoForm({ orgId }: { orgId: string }) {
           Stock <span className="text-zinc-400 font-normal">(deja vacío para ilimitado)</span>
         </label>
         <input name="stock" type="number" min={0} placeholder="50" className="input-base" />
+      </div>
+      <div className="sm:col-span-2 mt-2 rounded-lg border border-[#d8dee9] bg-[#f7f9fc] p-4">
+        <p className="text-sm font-black text-[#0c1324]">Guia de rutina</p>
+        <p className="mt-1 text-xs leading-5 text-[#647089]">
+          Esta informacion se mostrara en la ficha del producto y ayuda a sugerir rutinas y reposicion.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label">Paso de rutina</label>
+            <select name="routineStepType" className="input-base">
+              <option value="">Sin clasificar</option>
+              {ROUTINE_STEP_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Etiquetas de recomendacion</label>
+            <input name="recommendationTags" placeholder="piel seca, luminosidad, cabello fino" className="input-base" />
+          </div>
+          <div>
+            <label className="label">Duracion estimada (dias)</label>
+            <input name="expectedDurationDays" type="number" min={1} placeholder="45" className="input-base" />
+          </div>
+          <div>
+            <label className="label">Reposicion sugerida (dias)</label>
+            <input name="replenishmentIntervalDays" type="number" min={1} placeholder="40" className="input-base" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">Para quien es</label>
+            <textarea name="recommendedFor" rows={2} placeholder="Ej: piel seca o apagada que necesita confort diario" className="input-base resize-none" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">Mejor evitar si</label>
+            <textarea name="notRecommendedFor" rows={2} placeholder="Ej: piel muy reactiva a perfumes o retinoides" className="input-base resize-none" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">Como usarlo</label>
+            <textarea name="usageInstructions" rows={3} placeholder="Ej: aplicar por la noche despues de limpiar, 2-3 veces por semana" className="input-base resize-none" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">Compatibilidad</label>
+            <input name="compatibilityTags" placeholder="vitamina c, niacinamida, no exfoliantes" className="input-base" />
+          </div>
+        </div>
       </div>
       <div className="sm:col-span-2">
         <button type="submit" className="btn-primary">Añadir producto</button>

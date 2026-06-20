@@ -1,10 +1,11 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Calendar, ShoppingBag, Ticket, Sparkles, MapPin, Clock } from 'lucide-react'
+import { Calendar, Download, Gift, ListChecks, MapPin, Clock, Repeat2, ShieldCheck, ShoppingBag, Sparkles, Ticket, Trash2 } from 'lucide-react'
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
+import { deletePersonalizationDataAction, revokeMarketingConsentAction } from '@/app/actions/account-privacy'
 
 export const metadata: Metadata = {
   title: 'Mi cuenta',
@@ -37,13 +38,18 @@ function fmtDateTime(d: Date) {
   return new Date(d).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-export default async function CuentaPage() {
+export default async function CuentaPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ privacy?: string }>
+}) {
+  const params = await searchParams
   const session = await auth()
   const email = session?.user?.email?.toLowerCase()
   if (!email) redirect('/auth/signin?callbackUrl=/cuenta')
 
   // Todo se filtra por el email del usuario autenticado: solo ve sus propios datos.
-  const [bookings, orders, bonos] = await Promise.all([
+  const [bookings, orders, bonos, customerConsents] = await Promise.all([
     prisma.booking.findMany({
       where: { customer: { email } },
       include: {
@@ -70,9 +76,27 @@ export default async function CuentaPage() {
       orderBy: { purchasedAt: 'desc' },
       take: 50,
     }),
+    prisma.customer.findMany({
+      where: { email },
+      select: {
+        id: true,
+        marketingConsent: true,
+        marketingConsentDate: true,
+        center: { select: { name: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    }),
   ])
 
   const firstName = session?.user?.name?.split(' ')[0] ?? 'Hola'
+  const marketingConsentCount = customerConsents.filter(consent => consent.marketingConsent).length
+  const privacyMessage = params?.privacy === 'personalizacion-borrada'
+    ? 'Hemos borrado tus datos de personalizacion y retirado consentimientos de marketing asociados a tu email.'
+    : params?.privacy === 'confirmacion-requerida'
+      ? 'Para borrar tus datos de personalizacion, escribe BORRAR en el campo de confirmacion.'
+      : params?.privacy === 'marketing-revocado'
+        ? 'Hemos retirado tus consentimientos de marketing asociados a tu email.'
+      : null
 
   return (
     <div className="min-h-screen bg-[#f1f4f8]">
@@ -90,6 +114,90 @@ export default async function CuentaPage() {
       <div className="mx-auto max-w-4xl px-4 py-8">
         <h1 className="text-2xl font-black tracking-tight text-[#0c1324]">{firstName}, esta es tu cuenta</h1>
         <p className="mt-1 text-sm text-[#647089]">Tus reservas, pedidos y bonos en un solo lugar.</p>
+
+        {privacyMessage && (
+          <div className="mt-5 rounded-lg border border-[#c9d8ff] bg-[#eef4ff] px-4 py-3 text-sm font-semibold text-[#2355c8]">
+            {privacyMessage}
+          </div>
+        )}
+
+        <div className="mt-6 grid gap-3 rounded-lg border border-[#d8dee9] bg-white p-4 shadow-sm sm:grid-cols-[1fr_auto] sm:items-center">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#e5edff] text-[#2355c8]">
+              <Gift className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-black text-[#0c1324]">Beauty Wallet</p>
+              <p className="mt-1 text-sm leading-6 text-[#647089]">
+                Beneficios, plan mensual, bonos y próximas acciones de belleza.
+              </p>
+            </div>
+          </div>
+          <Link href="/wallet" className="btn-primary">
+            Abrir wallet
+          </Link>
+        </div>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <AccountShortcut
+            href="/rutina"
+            icon={ListChecks}
+            title="Mi rutina"
+            text="Productos guardados, pasos activos y productos pausados."
+          />
+          <AccountShortcut
+            href="/reposicion"
+            icon={Repeat2}
+            title="Reposicion"
+            text="Avisos de productos que se acaban y alternativas sugeridas."
+          />
+        </div>
+
+        <section className="mt-8 rounded-lg border border-[#d8dee9] bg-white p-6 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#e5edff] text-[#2355c8]">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-black text-[#0c1324]">Privacidad y datos</h2>
+              <p className="mt-1 text-sm leading-6 text-[#647089]">
+                Puedes descargar una copia de tus datos o borrar tu Beauty Profile, planes, rutina, reposicion y beneficios guardados. Tus reservas, pedidos y bonos se conservan cuando sean necesarios para prestar el servicio o cumplir obligaciones legales.
+              </p>
+              <p className="mt-2 text-xs font-bold text-[#647089]">
+                Consentimientos de marketing activos: {marketingConsentCount}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-[auto_1fr]">
+            <Link href="/api/account/export" className="btn-outline justify-center">
+              <Download className="h-4 w-4" />
+              Descargar datos
+            </Link>
+            <form action={revokeMarketingConsentAction}>
+              <button type="submit" className="btn-outline w-full justify-center">
+                Retirar marketing
+              </button>
+            </form>
+          </div>
+
+          <div className="mt-3">
+            <form action={deletePersonalizationDataAction} className="grid gap-2 rounded-md border border-red-100 bg-red-50 p-3 sm:grid-cols-[1fr_auto]">
+              <label className="min-w-0">
+                <span className="text-xs font-bold text-red-700">Borrar personalizacion</span>
+                <input
+                  name="confirmation"
+                  placeholder="Escribe BORRAR"
+                  className="mt-1 w-full rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-[#0c1324] outline-none focus:border-red-400"
+                />
+              </label>
+              <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700">
+                <Trash2 className="h-4 w-4" />
+                Borrar
+              </button>
+            </form>
+          </div>
+        </section>
 
         {/* ── Reservas ── */}
         <Section icon={Calendar} title="Mis reservas" count={bookings.length}>
@@ -201,6 +309,27 @@ function Section({ icon: Icon, title, count, children }: {
       </div>
       {children}
     </section>
+  )
+}
+
+function AccountShortcut({ href, icon: Icon, title, text }: {
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  text: string
+}) {
+  return (
+    <Link href={href} className="rounded-lg border border-[#d8dee9] bg-white p-4 shadow-sm transition hover:border-[#cfe0ff] hover:bg-[#f7f9fc]">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#e5edff] text-[#2355c8]">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="font-black text-[#0c1324]">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-[#647089]">{text}</p>
+        </div>
+      </div>
+    </Link>
   )
 }
 

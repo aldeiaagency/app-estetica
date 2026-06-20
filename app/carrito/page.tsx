@@ -26,7 +26,7 @@ export default function CarritoPage() {
             <ShoppingCart className="h-8 w-8 text-[#8b96aa]" />
           </div>
           <h1 className="mb-2 text-xl font-black text-[#0c1324]">Tu carrito está vacío</h1>
-          <p className="mb-6 text-sm text-[#647089]">Explora los productos de los mejores centros de belleza.</p>
+          <p className="mb-6 text-sm text-[#647089]">Explora productos de centros de belleza cerca de ti.</p>
           <Link href="/productos" className="btn-primary">Ver productos</Link>
         </div>
       </div>

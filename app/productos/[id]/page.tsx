@@ -1,13 +1,30 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight, MapPin, ShoppingBag, Sparkles, Package, Star } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Clock3, Info, MapPin, Package, Repeat2, ShoppingBag, Sparkles, Star, X } from 'lucide-react'
 import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
 import { AddToCartButton } from '@/components/ecommerce/add-to-cart-button'
+import { getSmartProduct } from '@/app/actions/beauty-routine'
+import { SaveToRoutineButton } from '@/components/beauty/save-to-routine-button'
 
 interface Props {
   params: Promise<{ id: string }>
+}
+
+const STEP_LABELS: Record<string, string> = {
+  CLEANSER: 'Limpieza',
+  TONER: 'Tonico',
+  SERUM: 'Serum',
+  MOISTURIZER: 'Hidratacion',
+  SPF: 'Proteccion solar',
+  MASK: 'Mascarilla',
+  HAIR_CARE: 'Cabello',
+  NAIL_CARE: 'Unas',
+  BODY_CARE: 'Cuerpo',
+  MAKEUP: 'Maquillaje',
+  WELLNESS: 'Bienestar',
+  OTHER: 'Rutina',
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -42,6 +59,7 @@ export default async function ProductoPage({ params }: Props) {
 
   if (!product || !product.center) notFound()
 
+  const smartProduct = await getSmartProduct(product.id)
   const center = product.center
   const avgRating = center.reviews.length > 0
     ? center.reviews.reduce((s, r) => s + r.rating, 0) / center.reviews.length
@@ -132,6 +150,75 @@ export default async function ProductoPage({ params }: Props) {
               <p className="mt-5 text-sm leading-relaxed text-[#46546b]">{product.description}</p>
             )}
 
+            {smartProduct && (
+              <div className="mt-6 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {smartProduct.routineStepType && (
+                    <span className="rounded-full bg-[#e5edff] px-3 py-1 text-xs font-black text-[#2355c8]">
+                      {STEP_LABELS[smartProduct.routineStepType] ?? 'Rutina'}
+                    </span>
+                  )}
+                  {smartProduct.expectedDurationDays && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#f1f4f8] px-3 py-1 text-xs font-bold text-[#647089]">
+                      <Clock3 className="h-3.5 w-3.5" />
+                      Dura aprox. {smartProduct.expectedDurationDays} dias
+                    </span>
+                  )}
+                  {smartProduct.replenishmentIntervalDays && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#e7f7f5] px-3 py-1 text-xs font-bold text-[#10786f]">
+                      <Repeat2 className="h-3.5 w-3.5" />
+                      Reposicion cada {smartProduct.replenishmentIntervalDays} dias
+                    </span>
+                  )}
+                </div>
+
+                {(smartProduct.recommendedFor || smartProduct.notRecommendedFor) && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {smartProduct.recommendedFor && (
+                      <div className="rounded-md bg-[#f3fffc] p-3">
+                        <p className="flex items-center gap-1 text-xs font-black uppercase tracking-wider text-[#10786f]">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Para ti si
+                        </p>
+                        <p className="mt-1 text-sm leading-5 text-[#46546b]">{smartProduct.recommendedFor}</p>
+                      </div>
+                    )}
+                    {smartProduct.notRecommendedFor && (
+                      <div className="rounded-md bg-[#fffaf5] p-3">
+                        <p className="flex items-center gap-1 text-xs font-black uppercase tracking-wider text-[#8b5b32]">
+                          <X className="h-3.5 w-3.5" />
+                          Mejor evitar si
+                        </p>
+                        <p className="mt-1 text-sm leading-5 text-[#6d5948]">{smartProduct.notRecommendedFor}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {smartProduct.usageInstructions && (
+                  <div className="rounded-md border border-[#d8dee9] bg-white p-3">
+                    <p className="flex items-center gap-1 text-xs font-black uppercase tracking-wider text-[#647089]">
+                      <Info className="h-3.5 w-3.5" />
+                      Como usarlo
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-[#46546b]">{smartProduct.usageInstructions}</p>
+                  </div>
+                )}
+
+                {smartProduct.alternativeProductId && smartProduct.alternativeProductName && (
+                  <div className="rounded-md border border-[#cfe0ff] bg-[#f7f9fc] p-3">
+                    <p className="text-xs font-black uppercase tracking-wider text-[#2355c8]">Alternativa</p>
+                    <Link href={`/productos/${smartProduct.alternativeProductId}`} className="mt-1 inline-flex text-sm font-black text-[#0c1324] hover:text-[#2355c8]">
+                      {smartProduct.alternativeProductName}
+                      {smartProduct.alternativeProductPriceCents !== null && (
+                        <span className="ml-2 text-[#647089]">{formatPrice(smartProduct.alternativeProductPriceCents)}</span>
+                      )}
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* CTA */}
             <div className="mt-8">
               <AddToCartButton
@@ -144,6 +231,9 @@ export default async function ProductoPage({ params }: Props) {
                 image={product.image}
                 disabled={outOfStock}
               />
+              <div className="mt-3">
+                <SaveToRoutineButton productId={product.id} />
+              </div>
               <Link
                 href={`/centro/${center.slug}`}
                 className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-[#d8dee9] py-3 text-sm font-semibold text-[#273244] transition-colors hover:bg-[#f1f4f8]"

@@ -96,7 +96,7 @@ function SignUpForm() {
             </div>
 
             <div className="flex items-start gap-3 rounded-md bg-[#f7f9fc] p-4">
-              <input type="checkbox" required className="mt-0.5 h-4 w-4 accent-[#2f6df6]" />
+              <input name="termsAccepted" type="checkbox" required className="mt-0.5 h-4 w-4 accent-[#2f6df6]" />
               <label className="text-xs leading-relaxed text-[#647089]">
                 Acepto los{' '}
                 <Link href="/terminos" className="font-bold text-[#2355c8] underline">terminos</Link>

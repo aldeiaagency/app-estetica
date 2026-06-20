@@ -18,6 +18,10 @@ import { CATEGORY_LABELS, formatDuration, formatPrice } from '@/lib/utils'
 import { centerJsonLd } from '@/lib/seo/metadata'
 import { PublicHeader } from '@/components/ui/public-header'
 import { PublicFooter } from '@/components/ui/public-footer'
+import { getBenefitsForCenterIds } from '@/app/actions/benefits'
+import { getBeautyPacksForCenterIds } from '@/app/actions/beauty-packs'
+import { BeautyPackCard } from '@/components/beauty/beauty-pack-card'
+import { PLAN_FEATURES } from '@/lib/billing/plans'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -64,10 +68,19 @@ export default async function CenterPage({ params }: Props) {
         where: { approved: true },
         orderBy: { createdAt: 'desc' },
         take: 6,
-        include: { customer: { select: { name: true } } },
+        include: {
+          customer: { select: { name: true } },
+          booking: {
+            select: {
+              startAt: true,
+              service: { select: { name: true } },
+            },
+          },
+        },
       },
       bonos: { where: { active: true }, take: 4 },
       products: { where: { active: true }, take: 4 },
+      organization: { select: { plan: true } },
       _count: { select: { reviews: true } },
     },
   })
@@ -79,6 +92,24 @@ export default async function CenterPage({ params }: Props) {
     ? center.reviews.reduce((sum, review) => sum + review.rating, 0) / center.reviews.length
     : null
   const openingHours = center.scheduleRules.map(rule => `${SCHEMA_DAYS[rule.dayOfWeek]} ${rule.openTime}-${rule.closeTime}`)
+  const [benefits, beautyPacks] = await Promise.all([
+    getBenefitsForCenterIds([center.id]),
+    getBeautyPacksForCenterIds([center.id], 4),
+  ])
+  const minPriceCents = center.services.length > 0
+    ? Math.min(...center.services.map(service => service.priceCents))
+    : null
+  const hasFollowUp = PLAN_FEATURES[center.organization.plan].hasCRM
+  let fitSummary = 'Ideal para consultar servicios, disponibilidad y contacto del centro.'
+  if (beautyPacks.length > 0) {
+    fitSummary = 'Ideal si quieres elegir un plan por objetivo con precio cerrado antes de reservar.'
+  } else if (benefits.length > 0) {
+    fitSummary = 'Ideal si valoras beneficios activos y ventajas para repetir con el centro.'
+  } else if (hasFollowUp) {
+    fitSummary = 'Ideal si quieres que el centro pueda acompanarte despues del servicio.'
+  } else if (minPriceCents !== null) {
+    fitSummary = 'Ideal si quieres comparar servicios con precio visible antes de pedir cita.'
+  }
   const jsonLd = centerJsonLd({
     name: center.name,
     description: center.description,
@@ -132,6 +163,26 @@ export default async function CenterPage({ params }: Props) {
                       {avgRating.toFixed(1)} ({center._count.reviews} resenas)
                     </span>
                   )}
+                  {minPriceCents !== null && (
+                    <span className="rounded-full bg-[#eef4ff] px-2.5 py-0.5 text-xs font-bold text-[#2355c8]">
+                      Precio desde {formatPrice(minPriceCents)}
+                    </span>
+                  )}
+                  {beautyPacks.length > 0 && (
+                    <span className="rounded-full bg-[#fff6f2] px-2.5 py-0.5 text-xs font-bold text-[#b45f43]">
+                      Packs por objetivo
+                    </span>
+                  )}
+                  {benefits.length > 0 && (
+                    <span className="rounded-full bg-[#e7f7f5] px-2.5 py-0.5 text-xs font-bold text-[#10786f]">
+                      Beneficio activo
+                    </span>
+                  )}
+                  {hasFollowUp && (
+                    <span className="rounded-full bg-[#f1f4f8] px-2.5 py-0.5 text-xs font-bold text-[#46546b]">
+                      Seguimiento disponible
+                    </span>
+                  )}
                 </div>
                 <h1 className="text-3xl font-black tracking-tight text-[#0c1324] md:text-4xl">{center.name}</h1>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-[#647089]">
@@ -152,6 +203,10 @@ export default async function CenterPage({ params }: Props) {
                 {center.description && (
                   <p className="mt-4 max-w-2xl text-sm leading-7 text-[#647089]">{center.description}</p>
                 )}
+                <div className="mt-5 max-w-2xl rounded-md border border-[#e5eaf2] bg-[#f7f9fc] p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#2355c8]">Ideal para</p>
+                  <p className="mt-1 text-sm leading-6 text-[#46546b]">{fitSummary}</p>
+                </div>
               </div>
               <div className="border-t border-[#e5eaf2] bg-[#f7f9fc] p-5 lg:border-l lg:border-t-0 lg:p-6">
                 <p className="text-xs font-bold uppercase tracking-wider text-[#2f6df6]">Reserva online</p>
@@ -222,8 +277,18 @@ export default async function CenterPage({ params }: Props) {
                 )}
               </Panel>
 
+              {beautyPacks.length > 0 && (
+                <Panel title="Packs por objetivo" icon={<Sparkles className="h-4 w-4 text-[#2355c8]" />}>
+                  <div className="grid gap-4 p-6 xl:grid-cols-2">
+                    {beautyPacks.map(pack => (
+                      <BeautyPackCard key={pack.id} pack={pack} />
+                    ))}
+                  </div>
+                </Panel>
+              )}
+
               {center.bonos.length > 0 && (
-                <Panel title="Bonos disponibles" icon={<Gift className="h-4 w-4 text-[#2355c8]" />}>
+                <Panel title="Bonos de sesiones" icon={<Gift className="h-4 w-4 text-[#2355c8]" />}>
                   <div className="grid gap-4 p-6 sm:grid-cols-2">
                     {center.bonos.map(bono => (
                       <article key={bono.id} className="rounded-md border border-[#f2b5a7] bg-[#fff6f2] p-4">
@@ -234,6 +299,32 @@ export default async function CenterPage({ params }: Props) {
                           <span className="text-base font-black text-[#2355c8]">{formatPrice(bono.priceCents)}</span>
                         </div>
                         <Link href={`/bono/${bono.id}`} className="btn-primary mt-3 w-full py-2 text-xs">Comprar bono</Link>
+                      </article>
+                    ))}
+                  </div>
+                </Panel>
+              )}
+
+              {benefits.length > 0 && (
+                <Panel title="Beneficios para miembros" icon={<Sparkles className="h-4 w-4 text-[#2355c8]" />}>
+                  <div className="grid gap-4 p-6 sm:grid-cols-2">
+                    {benefits.map(benefit => (
+                      <article key={benefit.id} className="rounded-md border border-[#bfe4dc] bg-[#f3fffc] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-black text-[#0c1324]">{benefit.title}</p>
+                            {benefit.description && <p className="mt-1 text-sm leading-6 text-[#647089]">{benefit.description}</p>}
+                          </div>
+                          {benefit.value && (
+                            <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-black text-[#10786f]">
+                              {benefit.value}
+                            </span>
+                          )}
+                        </div>
+                        <Link href="/wallet" className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#2355c8]">
+                          Guardar en wallet
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
                       </article>
                     ))}
                   </div>
@@ -322,6 +413,12 @@ export default async function CenterPage({ params }: Props) {
                             Verificada
                           </span>
                         </div>
+                        {(review.booking?.service?.name || review.booking?.startAt) && (
+                          <p className="mt-2 text-xs font-bold text-[#8b96aa]">
+                            {review.booking.service?.name ? `Servicio: ${review.booking.service.name}` : 'Servicio reservado'}
+                            {review.booking.startAt ? ` - ${review.booking.startAt.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}` : ''}
+                          </p>
+                        )}
                         {review.comment && <p className="mt-2 text-sm leading-7 text-[#647089]">{review.comment}</p>}
                       </article>
                     ))}
