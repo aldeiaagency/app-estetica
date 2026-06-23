@@ -712,7 +712,7 @@ export function BookingWizard({
                 <p className="mb-3 text-xs text-[#647089]">
                   Crea una cuenta gratis para ver y gestionar tus reservas sin introducir tus datos de nuevo.
                 </p>
-                <Link href={`/auth/register?email=${encodeURIComponent(custEmail)}&name=${encodeURIComponent(custName)}`} className="block w-full rounded-md border border-[#cfe0ff] py-2 text-center text-sm font-bold text-[#2355c8] transition-colors hover:bg-[#e5edff]">
+                <Link href={`/auth/signup?email=${encodeURIComponent(custEmail)}&name=${encodeURIComponent(custName)}`} className="block w-full rounded-md border border-[#cfe0ff] py-2 text-center text-sm font-bold text-[#2355c8] transition-colors hover:bg-[#e5edff]">
                   Crear cuenta con este email
                 </Link>
               </div>

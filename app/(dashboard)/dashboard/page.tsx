@@ -71,7 +71,7 @@ export default async function DashboardPage() {
             {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
-        <Link href="/dashboard/reservas/nueva" className="btn-primary">
+        <Link href="/dashboard/reservas" className="btn-primary">
           <Plus className="h-4 w-4" />
           Nueva reserva
         </Link>
@@ -205,7 +205,7 @@ export default async function DashboardPage() {
                 <div className="px-6 py-12 text-center">
                   <Calendar className="mx-auto mb-3 h-10 w-10 text-[#8b96aa]" />
                   <p className="text-sm text-[#647089]">No hay citas programadas para hoy</p>
-                  <Link href="/dashboard/reservas/nueva" className="mt-3 inline-flex text-sm font-bold text-[#2355c8] hover:text-[#2f6df6]">
+                  <Link href="/dashboard/reservas" className="mt-3 inline-flex text-sm font-bold text-[#2355c8] hover:text-[#2f6df6]">
                     Anadir cita manual
                   </Link>
                 </div>
@@ -248,7 +248,7 @@ export default async function DashboardPage() {
                 <h3 className="mb-4 font-black text-[#0c1324]">Acciones rapidas</h3>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { label: 'Nueva reserva', href: '/dashboard/reservas/nueva', icon: Calendar, color: 'bg-[#e5edff] text-[#2355c8]' },
+                    { label: 'Nueva reserva', href: '/dashboard/reservas', icon: Calendar, color: 'bg-[#e5edff] text-[#2355c8]' },
                     { label: 'Servicios', href: '/dashboard/servicios', icon: Zap, color: 'bg-[#eef4eb] text-[#4b7258]' },
                     { label: 'Clientes', href: '/dashboard/clientes', icon: Users, color: 'bg-[#e5eaf2] text-[#647089]' },
                     { label: 'Pedidos', href: '/dashboard/pedidos', icon: ShoppingCart, color: 'bg-amber-50 text-amber-700' },

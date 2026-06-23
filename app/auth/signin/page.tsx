@@ -60,11 +60,8 @@ export default function SignInPage() {
               <input type="email" name="email" required autoComplete="email" className="input-base py-3" placeholder="tu@email.com" />
             </div>
             <div>
-              <div className="mb-1.5 flex items-center justify-between">
+              <div className="mb-1.5">
                 <label className="text-sm font-semibold text-[#0c1324]">Contrasena</label>
-                <Link href="/auth/forgot-password" className="text-xs font-bold text-[#2355c8] hover:text-[#2f6df6]">
-                  Olvidaste tu contrasena?
-                </Link>
               </div>
               <div className="relative">
                 <input

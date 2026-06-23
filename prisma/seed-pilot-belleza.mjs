@@ -152,7 +152,8 @@ async function ensureServices(centerId, defs) {
   const out = new Map()
   for (const def of defs) {
     const existing = await prisma.service.findFirst({ where: { centerId, name: def.name } })
-    const data = { centerId, ...def, active: true }
+    const { key: _key, ...rest } = def
+    const data = { centerId, ...rest, active: true }
     const row = existing
       ? await prisma.service.update({ where: { id: existing.id }, data })
       : await prisma.service.create({ data })
@@ -165,7 +166,8 @@ async function ensureStaff(centerId, defs) {
   const out = new Map()
   for (const def of defs) {
     const existing = await prisma.staff.findFirst({ where: { centerId, name: def.name } })
-    const data = { centerId, ...def, active: true }
+    const { key: _key, ...rest } = def
+    const data = { centerId, ...rest, active: true }
     const row = existing
       ? await prisma.staff.update({ where: { id: existing.id }, data })
       : await prisma.staff.create({ data })
@@ -394,7 +396,8 @@ async function ensureBookingsAndReviews(center, services, staff, customers, defs
 async function ensureFollowUpTemplates(centerId, defs) {
   for (const def of defs) {
     const existing = await prisma.followUpTemplate.findFirst({ where: { centerId, name: def.name } })
-    const data = { centerId, ...def, active: true }
+    const { key: _key, ...rest } = def
+    const data = { centerId, ...rest, active: true }
     if (existing) await prisma.followUpTemplate.update({ where: { id: existing.id }, data })
     else await prisma.followUpTemplate.create({ data })
   }
