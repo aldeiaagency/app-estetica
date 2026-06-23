@@ -1,0 +1,80 @@
+{
+  "name": "BellezaLocal - Lead B2B",
+  "_comment": "Esqueleto para captura de leads B2B desde /para-negocios. Importar en n8n y completar credenciales (CRM, email). Ver outputs/03.",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-b2b",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Lead B2B",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "combinator": "and",
+          "conditions": [
+            { "leftValue": "={{ $json.body.email }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } },
+            { "leftValue": "={{ $json.body.businessName }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }
+          ]
+        }
+      },
+      "name": "Validar payload",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "_comment": "Sustituir por nodo Airtable/Google Sheets/Supabase para persistir el lead",
+        "values": { "string": [
+          { "name": "businessName", "value": "={{ $json.body.businessName }}" },
+          { "name": "email", "value": "={{ $json.body.email }}" },
+          { "name": "phone", "value": "={{ $json.body.phone }}" },
+          { "name": "city", "value": "={{ $json.body.city }}" },
+          { "name": "plan", "value": "={{ $json.body.plan }}" }
+        ] }
+      },
+      "name": "Guardar lead (CRM)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "_comment": "Configurar credencial de email (SMTP/Resend). Aviso interno a comercial.",
+        "fromEmail": "noreply@bellezalocal.es",
+        "toEmail": "hola@bellezalocal.es",
+        "subject": "Nuevo lead B2B: {{ $json.body.businessName }}",
+        "text": "Negocio: {{ $json.body.businessName }}\nEmail: {{ $json.body.email }}\nTel: {{ $json.body.phone }}\nCiudad: {{ $json.body.city }}\nPlan: {{ $json.body.plan }}"
+      },
+      "name": "Email interno comercial",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 240]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true } }}"
+      },
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Lead B2B": { "main": [[{ "node": "Validar payload", "type": "main", "index": 0 }]] },
+    "Validar payload": { "main": [[{ "node": "Guardar lead (CRM)", "type": "main", "index": 0 }], []] },
+    "Guardar lead (CRM)": { "main": [[{ "node": "Email interno comercial", "type": "main", "index": 0 }]] },
+    "Email interno comercial": { "main": [[{ "node": "Responder OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": {}
+}
