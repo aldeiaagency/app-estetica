@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/db/client'
+import { notifyBusinessLead } from '@/lib/integrations/n8n'
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 
@@ -53,6 +54,19 @@ export async function submitBusinessLead(
   const data = parsed.data
 
   try {
+    const leadId = nanoid(24)
+    const normalized = {
+      businessName: data.businessName,
+      contactName: emptyToNull(data.contactName),
+      email: data.email.toLowerCase(),
+      phone: emptyToNull(data.phone),
+      city: emptyToNull(data.city),
+      plan: emptyToNull(data.plan),
+      message: emptyToNull(data.message),
+      source: 'para-negocios',
+      consentGivenAt: new Date().toISOString(),
+    }
+
     await prisma.$executeRaw`
       INSERT INTO "Lead" (
         "id",
@@ -69,20 +83,25 @@ export async function submitBusinessLead(
         "updatedAt"
       )
       VALUES (
-        ${nanoid(24)},
-        ${data.businessName},
-        ${emptyToNull(data.contactName)},
-        ${data.email.toLowerCase()},
-        ${emptyToNull(data.phone)},
-        ${emptyToNull(data.city)},
-        ${emptyToNull(data.plan)},
-        ${emptyToNull(data.message)},
-        ${'para-negocios'},
+        ${leadId},
+        ${normalized.businessName},
+        ${normalized.contactName},
+        ${normalized.email},
+        ${normalized.phone},
+        ${normalized.city},
+        ${normalized.plan},
+        ${normalized.message},
+        ${normalized.source},
         NOW(),
         NOW(),
         NOW()
       )
     `
+
+    await notifyBusinessLead({
+      id: leadId,
+      ...normalized,
+    })
 
     return {
       success: true,

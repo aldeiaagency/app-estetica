@@ -13,6 +13,7 @@ Este documento recoge configuraciones externas que no deben quedar hardcodeadas 
 | Stripe | Checkout, webhook, suscripciones, bonos, pedidos y senales de reserva conectados | Claves, productos/precios, webhook y portal |
 | Resend | Emails transaccionales preparados | API key y dominio remitente verificado |
 | Vercel Cron | Ruta y `vercel.json` configurados | `CRON_SECRET` y despliegue activo |
+| n8n | Workflows creados para leads, alertas y onboarding | URLs webhook en Vercel, canales de aviso y secreto de crons |
 
 Importante: no se deben guardar secretos en el repositorio. Todo lo externo va en variables de entorno de Vercel y, para desarrollo local, en `.env.local`.
 
@@ -126,6 +127,39 @@ Configuracion pendiente en Stripe:
 - Eventos minimos: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
 - Probar una reserva con senal real en modo test y verificar que Stripe redirige a `/reserva/confirmada/<codigo>?paid=1`.
 - Configurar Billing Portal en Stripe Dashboard.
+
+## n8n
+
+Estado actual:
+
+- Instancia: `https://aldeia-n8n.giuxk6.easypanel.host`.
+- Workflow activo: `Belleza Local | Lead B2B - Captura y aviso`.
+- Workflow activo: `Belleza Local | Alertas operativas`.
+- Workflow activo: `Belleza Local | Onboarding negocio`.
+- Workflow creado pero inactivo: `Belleza Local | Monitor crons`.
+
+Webhooks creados:
+
+- Lead B2B: `https://aldeia-n8n.giuxk6.easypanel.host/webhook/belleza-local-lead-b2b`
+- Alertas operativas: `https://aldeia-n8n.giuxk6.easypanel.host/webhook/belleza-local-ops-alert`
+- Onboarding negocio: `https://aldeia-n8n.giuxk6.easypanel.host/webhook/belleza-local-business-onboarding`
+
+Configuracion en Vercel:
+
+| Variable | Obligatoria | Uso |
+|---|---:|---|
+| `N8N_WEBHOOK_LEAD_B2B_URL` | No | Avisa a n8n cuando entra un lead B2B. El lead se guarda igualmente en Supabase aunque n8n falle |
+| `N8N_WEBHOOK_OPS_ALERT_URL` | No | Preparada para alertas criticas futuras |
+| `N8N_WEBHOOK_BUSINESS_ONBOARDING_URL` | No | Preparada para onboarding futuro de negocios aprobados |
+
+Estas variables estan configuradas en Production. Preview puede configurarse por rama cuando se necesite validar un flujo antes de promocionarlo.
+
+Configuracion pendiente dentro de n8n:
+
+- Definir canal de aviso comercial: email, Slack, Telegram, CRM o Google Sheet.
+- Activar los nodos de aviso que ahora estan desactivados por seguridad.
+- Configurar `BELLEZA_LOCAL_APP_URL` y `BELLEZA_LOCAL_CRON_SECRET` si se quiere activar `Belleza Local | Monitor crons`.
+- Rotar la API key usada para crear estos workflows si se ha compartido fuera de un gestor de secretos.
 
 ## Supabase
 
