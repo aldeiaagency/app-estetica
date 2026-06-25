@@ -31,6 +31,8 @@ Los webhooks principales estan activos y probados con payloads de auditoria. El 
 - Lead B2B: `202 Accepted`.
 - Alertas operativas: `202 Accepted`.
 - Onboarding negocio: `202 Accepted`.
+- Formulario real en produccion: creo lead ficticio en Supabase, disparo n8n y se limpio el lead de prueba.
+- n8n registro ejecucion `success` del workflow `Belleza Local | Lead B2B - Captura y aviso`.
 
 Las pruebas usaron datos ficticios de auditoria y no guardaron credenciales en el repositorio.
 
