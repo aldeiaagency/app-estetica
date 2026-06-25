@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
   CheckCircle2, Clock, Building2, Users, CalendarDays,
-  TrendingUp, ShoppingCart, Gift
+  TrendingUp, ShoppingCart, Gift, MessageSquareText
 } from 'lucide-react'
 
 function formatPrice(cents: number) {
@@ -18,7 +18,7 @@ export default async function AdminPage() {
   const [
     totalCenters, publishedCenters, pendingCenters,
     totalOrgs, totalUsers, totalBookings,
-    totalOrderRevenue, totalOrders, totalBonoInstances,
+    totalOrderRevenue, totalOrders, totalBonoInstances, totalLeads,
   ] = await Promise.all([
     prisma.center.count(),
     prisma.center.count({ where: { published: true } }),
@@ -32,6 +32,7 @@ export default async function AdminPage() {
     }),
     prisma.order.count(),
     prisma.bonoInstance.count(),
+    prisma.$queryRaw<{ count: bigint }[]>`SELECT COUNT(*)::bigint AS count FROM "Lead"`,
   ])
 
   const recentCenters = await prisma.center.findMany({
@@ -41,6 +42,7 @@ export default async function AdminPage() {
   })
 
   const revenue = totalOrderRevenue._sum.totalCents ?? 0
+  const leadsCount = Number(totalLeads[0]?.count ?? 0)
 
   return (
     <div className="space-y-8">
@@ -60,6 +62,7 @@ export default async function AdminPage() {
             { label: 'Organizaciones',   value: totalOrgs,          icon: Users,       sub: 'Cuentas de negocio',                                              color: 'text-emerald-600 bg-emerald-50',  href: '/admin/organizaciones' },
             { label: 'Usuarios totales', value: totalUsers,         icon: Users,       sub: 'Clientes y negocios',                                             color: 'text-zinc-600 bg-zinc-100',       href: '#' },
             { label: 'Reservas totales', value: totalBookings,      icon: CalendarDays,sub: 'Todas las plataformas',                                           color: 'text-amber-600 bg-amber-50',      href: '#' },
+            { label: 'Leads B2B',         value: leadsCount,         icon: MessageSquareText, sub: 'Solicitudes comerciales',                                   color: 'text-blue-600 bg-blue-50',        href: '/admin/leads' },
             { label: 'Publicados',       value: publishedCenters,   icon: CheckCircle2,sub: 'Centros activos',                                                 color: 'text-emerald-600 bg-emerald-50',  href: '/admin/centros?estado=published' },
             { label: 'Pendientes',       value: pendingCenters,     icon: Clock,       sub: 'Esperando aprobación',                                            color: pendingCenters > 0 ? 'text-amber-600 bg-amber-50' : 'text-zinc-400 bg-zinc-50', href: '/admin/centros?estado=pending' },
           ].map(kpi => (

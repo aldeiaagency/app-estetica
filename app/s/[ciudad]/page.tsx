@@ -10,8 +10,9 @@ import { CATEGORY_LABELS, formatPrice } from '@/lib/utils'
 import Image from 'next/image'
 import { PublicHeader } from '@/components/ui/public-header'
 import { MapPin, Star, ArrowRight, Sparkles } from 'lucide-react'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
+const APP_URL = getPublicAppUrl()
 
 interface Props { params: Promise<{ ciudad: string }> }
 

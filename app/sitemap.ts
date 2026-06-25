@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db/client'
 import { cityToSlug, categoryToSlug } from '@/lib/seo/metadata'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
+const BASE_URL = getPublicAppUrl()
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()

@@ -945,6 +945,27 @@ model FeaturedListing {
   @@index([city, category, active])
 }
 
+model Lead {
+  id           String     @id @default(cuid())
+  businessName String
+  contactName  String?
+  email        String
+  phone        String?
+  city         String?
+  plan         String?
+  message      String?
+  source       String     @default("para-negocios")
+  status       LeadStatus @default(NEW)
+
+  consentGivenAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([source])
+}
+
 // ─────────────────────────────────────────────────────
 // AUDITORÍA
 // ─────────────────────────────────────────────────────
@@ -1050,6 +1071,15 @@ enum AddOnType {
   PRIORITY_SUPPORT
   DATA_MIGRATION
   ASSISTED_ONBOARDING
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  WON
+  LOST
+  ARCHIVED
 }
 
 enum BeautyPlanStatus {

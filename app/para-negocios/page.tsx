@@ -20,6 +20,7 @@ import { PLAN_MARKETING, PLAN_ORDER, PLAN_PRICES_CENTS } from '@/lib/billing/pla
 import { formatPrice } from '@/lib/utils'
 import { PublicHeader } from '@/components/ui/public-header'
 import { PublicFooter } from '@/components/ui/public-footer'
+import { LeadForm } from '@/components/business/lead-form'
 
 export const metadata: Metadata = {
   title: 'Belleza Local para negocios',
@@ -296,10 +297,7 @@ export default function ParaNegociosPage() {
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-white/70">
             Cuentanos tu tipo de centro, numero de profesionales y si quieres priorizar reservas, packs, productos o recurrencia. Te diremos que plan encaja sin sobredimensionarlo.
           </p>
-          <a href="mailto:hola@bellezalocal.es?subject=Quiero%20ver%20Belleza%20Local%20para%20mi%20negocio" className="mt-6 inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-black text-[#0c1324] transition hover:bg-[#e5edff]">
-            Contactar
-            <ArrowRight className="h-4 w-4" />
-          </a>
+          <LeadForm />
         </div>
       </section>
 

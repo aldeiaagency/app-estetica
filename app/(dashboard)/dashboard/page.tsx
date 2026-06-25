@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
 import { getRebookingOpportunities } from '@/app/actions/follow-ups'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -43,7 +44,7 @@ export default async function DashboardPage() {
       ])
     : [[], null, 0, []]
 
-  const bookingLink = center ? `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/centro/${center.slug}` : null
+  const bookingLink = center ? `${getPublicAppUrl()}/centro/${center.slug}` : null
   const confirmedToday = todayBookings.filter(booking => booking.status === 'CONFIRMED').length
   const pendingToday = todayBookings.filter(booking => booking.status === 'PENDING').length
   const revenueThisMonth = monthOrderRevenue?._sum?.totalCents ?? 0

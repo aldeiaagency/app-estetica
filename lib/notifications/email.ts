@@ -1,8 +1,9 @@
 import { Resend } from 'resend'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 const FROM = process.env.EMAIL_FROM ?? 'BellezaLocal <noreply@bellezalocal.es>'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
+const APP_URL = getPublicAppUrl()
 
 interface BookingConfirmationData {
   to: string

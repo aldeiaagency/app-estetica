@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/client'
 import { sendFollowUpMessage } from '@/lib/email/templates'
+import { isEmailConfigured } from '@/lib/email/client'
 
 // Procesa los seguimientos/campañas programados por email cuya fecha ya venció.
 // Reutiliza CRON_SECRET / RESEND_API_KEY / EMAIL_FROM (mismas vars que el resto de crons).
@@ -15,6 +16,18 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  if (!isEmailConfigured()) {
+    return NextResponse.json({
+      ok: true,
+      emailConfigured: false,
+      total: 0,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      skippedReason: 'RESEND_API_KEY no configurado',
+    })
   }
 
   const due = await prisma.followUpMessage.findMany({

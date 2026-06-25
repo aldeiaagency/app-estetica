@@ -3,6 +3,7 @@ import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { prisma } from '@/lib/db/client'
 import { sendBookingReminder } from '@/lib/email/templates'
 import { formatDate } from '@/lib/utils'
+import { isEmailConfigured } from '@/lib/email/client'
 
 const TIMEZONE = 'Europe/Madrid'
 
@@ -30,6 +31,17 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  if (!isEmailConfigured()) {
+    return NextResponse.json({
+      ok: true,
+      emailConfigured: false,
+      total: 0,
+      sent: 0,
+      failed: 0,
+      skippedReason: 'RESEND_API_KEY no configurado',
+    })
   }
 
   const { start, end } = getTomorrowWindow()

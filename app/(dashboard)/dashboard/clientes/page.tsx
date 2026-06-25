@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Users } from 'lucide-react'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
 export default async function ClientesPage() {
   const session = await auth()
@@ -26,7 +27,7 @@ export default async function ClientesPage() {
     take: 100,
   })
 
-  const bookingLink = `${process.env.NEXT_PUBLIC_APP_URL}/centro/${center.slug}`
+  const bookingLink = `${getPublicAppUrl()}/centro/${center.slug}`
 
   return (
     <div className="space-y-6">

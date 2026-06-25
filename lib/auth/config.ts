@@ -5,6 +5,7 @@ import Google from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db/client'
 import { z } from 'zod'
+import { isEmailConfigured } from '@/lib/email/client'
 
 const signInSchema = z.object({
   email: z.string().email(),
@@ -36,6 +37,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const isValid = await bcrypt.compare(parsed.data.password, user.password)
         if (!isValid) return null
+        if (isEmailConfigured() && !user.emailVerified) return null
 
         return {
           id: user.id,

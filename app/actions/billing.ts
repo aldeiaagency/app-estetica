@@ -6,8 +6,9 @@ import { stripe } from '@/lib/billing/stripe'
 import { PLAN_TO_PRICE_ID } from '@/lib/billing/price-map'
 import type { Plan } from '@prisma/client'
 import { redirect } from 'next/navigation'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+const APP_URL = getPublicAppUrl()
 
 export async function createCheckoutSessionAction(plan: Plan): Promise<never> {
   const session = await auth()

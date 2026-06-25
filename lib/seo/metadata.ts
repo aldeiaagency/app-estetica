@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
+const APP_URL = getPublicAppUrl()
 const SITE_NAME = 'Belleza Local'
 
 // ─── Slug helpers ────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ import { getBenefitsForCenterIds } from '@/app/actions/benefits'
 import { getBeautyPacksForCenterIds } from '@/app/actions/beauty-packs'
 import { BeautyPackCard } from '@/components/beauty/beauty-pack-card'
 import { PLAN_FEATURES } from '@/lib/billing/plans'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const serviceNames = center.services.map(service => service.name).join(', ')
   const categoryLabel = CATEGORY_LABELS[center.category] ?? center.category
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
+  const appUrl = getPublicAppUrl()
 
   return {
     title: `${center.name} - ${center.addressCity} | Belleza Local`,

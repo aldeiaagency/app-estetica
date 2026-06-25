@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
   },
   description:
     'Encuentra y reserva en centros de belleza, estética, peluquería y bienestar cerca de ti. Disponibilidad real. Sin llamar.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'),
+  metadataBase: new URL(getPublicAppUrl()),
   openGraph: {
     siteName: 'Belleza Local',
     locale: 'es_ES',

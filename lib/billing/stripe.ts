@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
 let _stripe: Stripe | null = null
 
@@ -28,4 +29,4 @@ export function isStripeConfigured(): boolean {
   return !!process.env.STRIPE_SECRET_KEY
 }
 
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
+export const APP_URL = getPublicAppUrl()

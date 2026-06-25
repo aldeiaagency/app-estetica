@@ -1,6 +1,7 @@
 import { resend, EMAIL_FROM } from './client'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bellezalocal.es'
+const APP_URL = getPublicAppUrl()
 
 function baseLayout(content: string, previewText: string): string {
   return `<!DOCTYPE html>
