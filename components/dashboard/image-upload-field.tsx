@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
 import { ImagePlus, Loader2, X } from 'lucide-react'
+import { useRef, useState, useTransition } from 'react'
 import type { UploadKind } from '@/lib/storage/r2'
 
 interface ImageUploadFieldProps {
@@ -33,35 +33,20 @@ export function ImageUploadField({
 
     startTransition(async () => {
       try {
-        const signedRes = await fetch('/api/upload/sign', {
+        if (file.size > 5 * 1024 * 1024) throw new Error('La imagen debe pesar menos de 5 MB.')
+        const formData = new FormData()
+        formData.set('file', file)
+        formData.set('kind', kind)
+
+        const response = await fetch('/api/upload/image', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            contentType: file.type,
-            size: file.size,
-            kind,
-          }),
+          body: formData,
         })
-
-        const signed = await signedRes.json()
-        if (!signedRes.ok) {
-          throw new Error(signed.error ?? 'No se pudo preparar la subida')
-        }
-
-        const uploadRes = await fetch(signed.uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        })
-
-        if (!uploadRes.ok) {
-          throw new Error('No se pudo subir la imagen al storage')
-        }
-
-        onChange(signed.publicUrl)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al subir la imagen')
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error ?? 'No se pudo subir la imagen')
+        onChange(result.publicUrl)
+      } catch (uploadError) {
+        setError(uploadError instanceof Error ? uploadError.message : 'Error al subir la imagen')
       } finally {
         if (inputRef.current) inputRef.current.value = ''
       }
@@ -77,8 +62,9 @@ export function ImageUploadField({
             type="button"
             onClick={() => onChange('')}
             className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-400 transition-colors hover:text-zinc-700"
+            aria-label={`Quitar ${label.toLowerCase()}`}
           >
-            <X className="h-3.5 w-3.5" /> Quitar
+            <X className="h-3.5 w-3.5" aria-hidden="true" /> Quitar
           </button>
         )}
       </div>
@@ -90,15 +76,17 @@ export function ImageUploadField({
           accept="image/jpeg,image/png,image/webp,image/avif"
           onChange={event => handleFile(event.target.files?.[0])}
           className="hidden"
+          aria-label={label}
         />
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={isPending}
+          aria-busy={isPending}
           className="inline-flex w-fit items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#0c1324] transition-colors hover:border-[#b9c4d5] hover:bg-[#f7f9fc] disabled:cursor-wait disabled:opacity-60"
         >
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-          {isPending ? 'Subiendo...' : value ? 'Cambiar imagen' : 'Subir imagen'}
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ImagePlus className="h-4 w-4" aria-hidden="true" />}
+          {isPending ? 'Validando y subiendo…' : value ? 'Cambiar imagen' : 'Subir imagen'}
         </button>
 
         {showUrlInput && (
@@ -106,13 +94,14 @@ export function ImageUploadField({
             type="url"
             value={value}
             onChange={event => onChange(event.target.value)}
-            placeholder="https://..."
+            placeholder="https://…"
             className="input-base"
+            aria-label={`${label}: URL externa`}
           />
         )}
 
         {helper && <p className="text-xs text-zinc-400">{helper}</p>}
-        {error && <p className="text-xs font-semibold text-rose-600">{error}</p>}
+        {error && <p className="text-xs font-semibold text-rose-600" role="alert">{error}</p>}
 
         {value && (
           <div className="overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">

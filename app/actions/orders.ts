@@ -1,135 +1,152 @@
 'use server'
 
-import { prisma } from '@/lib/db/client'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { isStripeConfigured } from '@/lib/billing/stripe'
 import { createOrderCheckoutSession } from '@/lib/billing/checkout'
+import { releaseOrderStockReservation } from '@/lib/billing/payment-integrity'
+import { isStripeConfigured } from '@/lib/billing/stripe'
+import { prisma } from '@/lib/db/client'
+import { enforceRateLimit, getRequestFingerprint } from '@/lib/security/rate-limit'
 
-// El cliente solo envía qué producto y cuánta cantidad.
-// El nombre y el precio SIEMPRE se toman de la base de datos (nunca del cliente)
-// para evitar manipulación de precios en el checkout.
+const STRIPE_RESERVATION_MINUTES = 30
+const IN_STORE_RESERVATION_HOURS = 24
+
 const orderItemSchema = z.object({
-  productId:  z.string().cuid(),
-  quantity:   z.number().int().min(1).max(99),
+  productId: z.string().cuid(),
+  quantity: z.number().int().min(1).max(99),
 })
 
 const createOrderSchema = z.object({
-  centerId:      z.string().cuid(),
-  customerName:  z.string().min(2).max(100),
-  customerEmail: z.string().email(),
-  customerPhone: z.string().optional(),
-  items:         z.array(orderItemSchema).min(1).max(50),
-  consentGiven:  z.boolean().refine(v => v === true, 'Debes aceptar la política de privacidad'),
+  centerId: z.string().cuid(),
+  customerName: z.string().trim().min(2).max(100),
+  customerEmail: z.string().trim().email().transform(value => value.toLowerCase()),
+  customerPhone: z.string().trim().max(30).optional(),
+  items: z.array(orderItemSchema).min(1).max(50),
+  consentGiven: z.boolean().refine(value => value === true, 'Debes aceptar la política de privacidad'),
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>
+
+type ReservedLine = {
+  productId: string
+  name: string
+  priceCents: number
+  quantity: number
+  tracksStock: boolean
+}
 
 export async function createOrderAction(input: unknown): Promise<
   { success: true; orderId: string; checkoutUrl?: string } | { success: false; error: string }
 > {
   const parsed = createOrderSchema.safeParse(input)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
-  }
-
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
   const { centerId, customerName, customerEmail, customerPhone, items } = parsed.data
+
+  try {
+    await enforceRateLimit('order', await getRequestFingerprint(`${centerId}:${customerEmail}`))
+  } catch (error) {
+    if (error instanceof Error && error.message === 'RATE_LIMITED') {
+      return { success: false, error: 'Demasiados intentos. Espera unos minutos antes de volver a comprar.' }
+    }
+  }
 
   const center = await prisma.center.findFirst({
     where: { id: centerId, published: true },
-    select: { id: true },
+    select: { id: true, name: true },
   })
-  if (!center) {
-    return { success: false, error: 'Centro no encontrado' }
-  }
+  if (!center) return { success: false, error: 'Centro no encontrado' }
 
-  // Verify all products belong to center, are active, and have enough stock.
-  // Deduplicate productIds in case the cart sends the same product twice.
   const quantityByProduct = new Map<string, number>()
   for (const item of items) {
     quantityByProduct.set(item.productId, (quantityByProduct.get(item.productId) ?? 0) + item.quantity)
   }
   const productIds = [...quantityByProduct.keys()]
-
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds }, centerId, active: true },
-    select: { id: true, priceCents: true, stock: true, name: true },
-  })
-
-  if (products.length !== productIds.length) {
-    return { success: false, error: 'Uno o más productos no están disponibles' }
-  }
-
-  for (const product of products) {
-    const qty = quantityByProduct.get(product.id)!
-    if (product.stock !== null && product.stock !== undefined && product.stock < qty) {
-      return { success: false, error: `Stock insuficiente para "${product.name}"` }
-    }
-  }
-
-  // El total y el precio por línea se calculan EXCLUSIVAMENTE con los precios de la BD.
-  const lineItems = products.map(p => ({
-    productId:  p.id,
-    name:       p.name,
-    priceCents: p.priceCents,
-    quantity:   quantityByProduct.get(p.id)!,
-  }))
-  const totalCents = lineItems.reduce((s, i) => s + i.priceCents * i.quantity, 0)
+  const onlinePayment = isStripeConfigured()
+  const expiresAt = new Date(Date.now() + (
+    onlinePayment ? STRIPE_RESERVATION_MINUTES * 60_000 : IN_STORE_RESERVATION_HOURS * 3_600_000
+  ))
 
   try {
-    const order = await prisma.$transaction(async (tx) => {
-      const newOrder = await tx.order.create({
+    const result = await prisma.$transaction(async tx => {
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds }, centerId, active: true },
+        select: { id: true, priceCents: true, stock: true, name: true },
+      })
+      if (products.length !== productIds.length) throw new Error('PRODUCT_UNAVAILABLE')
+
+      const lines: ReservedLine[] = products.map(product => ({
+        productId: product.id,
+        name: product.name,
+        priceCents: product.priceCents,
+        quantity: quantityByProduct.get(product.id)!,
+        tracksStock: product.stock !== null,
+      }))
+
+      for (const line of lines) {
+        if (!line.tracksStock) continue
+        const reserved = await tx.product.updateMany({
+          where: { id: line.productId, centerId, active: true, stock: { gte: line.quantity } },
+          data: { stock: { decrement: line.quantity } },
+        })
+        if (reserved.count !== 1) throw new Error(`OUT_OF_STOCK:${line.name}`)
+      }
+
+      const totalCents = lines.reduce((sum, line) => sum + line.priceCents * line.quantity, 0)
+      const order = await tx.order.create({
         data: {
           centerId,
           customerName,
           customerEmail,
-          customerPhone: customerPhone ?? null,
+          customerPhone: customerPhone || null,
           totalCents,
           status: 'PENDING',
+          notes: onlinePayment ? 'Stock reservado para pago online' : 'Stock reservado para pago en el centro',
           items: {
-            create: lineItems.map(i => ({
-              productId:  i.productId,
-              name:       i.name,
-              priceCents: i.priceCents,
-              quantity:   i.quantity,
+            create: lines.map(line => ({
+              productId: line.productId,
+              name: line.name,
+              priceCents: line.priceCents,
+              quantity: line.quantity,
             })),
           },
         },
       })
 
-      // Decrement stock for products that track it
-      for (const product of products) {
-        if (product.stock !== null && product.stock !== undefined) {
-          await tx.product.update({
-            where: { id: product.id },
-            data: { stock: { decrement: quantityByProduct.get(product.id)! } },
-          })
-        }
-      }
+      await tx.$executeRaw`
+        INSERT INTO "OrderStockReservation" ("orderId", "expiresAt")
+        VALUES (${order.id}, ${expiresAt})
+      `
+      return { order, lines }
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
-      return newOrder
-    })
+    if (!onlinePayment) return { success: true, orderId: result.order.id }
 
-    // Si Stripe está configurado, generamos sesión de pago online.
-    // Si no, el pedido queda PENDING y se cobra en el centro (click & collect).
-    if (isStripeConfigured()) {
-      try {
-        const checkoutUrl = await createOrderCheckoutSession({
-          orderId: order.id,
-          items: lineItems.map(i => ({ name: i.name, priceCents: i.priceCents, quantity: i.quantity })),
-          customerEmail,
-          centerName: '',
-        })
-        return { success: true, orderId: order.id, checkoutUrl }
-      } catch (err) {
-        // El pedido ya está creado; si falla Stripe, degradamos a pago en centro.
-        console.error('[order] Stripe checkout session failed, falling back to in-store payment:', err)
-        return { success: true, orderId: order.id }
-      }
+    try {
+      const checkoutUrl = await createOrderCheckoutSession({
+        orderId: result.order.id,
+        items: result.lines.map(line => ({
+          name: line.name,
+          priceCents: line.priceCents,
+          quantity: line.quantity,
+        })),
+        customerEmail,
+        centerName: center.name,
+        expiresAt,
+      })
+      return { success: true, orderId: result.order.id, checkoutUrl }
+    } catch (error) {
+      console.error('[order] Stripe checkout session failed', error)
+      await releaseOrderStockReservation(result.order.id, 'checkout_creation_failed')
+      return { success: false, error: 'No se pudo iniciar el pago. El stock ha sido restablecido.' }
     }
-
-    return { success: true, orderId: order.id }
-  } catch (err) {
-    console.error('[order] Error creating order:', err)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'PRODUCT_UNAVAILABLE') {
+      return { success: false, error: 'Uno o más productos no están disponibles' }
+    }
+    if (error instanceof Error && error.message.startsWith('OUT_OF_STOCK:')) {
+      return { success: false, error: `Stock insuficiente para "${error.message.slice(13)}"` }
+    }
+    console.error('[order] creation failed', error)
     return { success: false, error: 'Error al procesar el pedido. Inténtalo de nuevo.' }
   }
 }
