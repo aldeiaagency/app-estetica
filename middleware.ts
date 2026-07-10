@@ -50,7 +50,10 @@ export default auth(request => {
     return NextResponse.redirect(home)
   }
 
-  const isLoggedIn = Boolean(request.auth)
+  // Auth.js may expose a session-shaped object while no valid user identity is
+  // present. Protected routes require an actual user id, not merely a truthy
+  // auth object, otherwise anonymous traffic can be misclassified by role.
+  const isLoggedIn = Boolean(request.auth?.user?.id)
   const role = request.auth?.user?.role
 
   if (nextUrl.pathname.startsWith('/api/') && !nextUrl.pathname.startsWith('/api/webhooks/')) {
@@ -68,8 +71,14 @@ export default auth(request => {
   }
 
   if (nextUrl.pathname.startsWith('/dashboard')) {
-    if (!isLoggedIn) return NextResponse.redirect(new URL(`/auth/signin?callbackUrl=${encodeURIComponent(nextUrl.pathname)}`, nextUrl))
-    if (!['BUSINESS', 'BUSINESS_ADMIN'].includes(role ?? '')) return NextResponse.redirect(new URL('/', nextUrl))
+    if (!isLoggedIn) {
+      return NextResponse.redirect(
+        new URL(`/auth/signin?callbackUrl=${encodeURIComponent(nextUrl.pathname)}`, nextUrl),
+      )
+    }
+    if (!['BUSINESS', 'BUSINESS_ADMIN'].includes(role ?? '')) {
+      return NextResponse.redirect(new URL('/', nextUrl))
+    }
   }
 
   if (nextUrl.pathname.startsWith('/admin')) {
