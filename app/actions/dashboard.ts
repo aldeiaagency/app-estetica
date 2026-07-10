@@ -1,138 +1,134 @@
 'use server'
 
-import { prisma } from '@/lib/db/client'
-import { slugify, formatDate, formatTime } from '@/lib/utils'
-import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
-import { sendBookingConfirmation, sendBookingCancellation } from '@/lib/email/templates'
-import { PLAN_FEATURES } from '@/lib/billing/plans'
-import { notifyWaitlistEntry, notifyWaitlistForBookingOpening } from '@/lib/waitlist/notifications'
-import { scheduleFollowUpsForCompletedBooking } from '@/app/actions/follow-ups'
 import { Prisma } from '@prisma/client'
 import type { BookingStatus, CenterCategory, OrderStatus, WaitlistStatus } from '@prisma/client'
+import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+import { scheduleFollowUpsForCompletedBooking } from '@/app/actions/follow-ups'
+import { requireOrganization } from '@/lib/auth/authorization'
+import { PLAN_FEATURES } from '@/lib/billing/plans'
+import { prisma } from '@/lib/db/client'
+import { sendBookingCancellation, sendBookingConfirmation } from '@/lib/email/templates'
+import { formatDate, formatTime, slugify } from '@/lib/utils'
+import { notifyWaitlistEntry, notifyWaitlistForBookingOpening } from '@/lib/waitlist/notifications'
 
 const VALID_ORDER_STATUSES: OrderStatus[] = ['PENDING', 'PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+const VALID_BOOKING_STATUSES: BookingStatus[] = ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW']
 const VALID_WAITLIST_STATUSES: WaitlistStatus[] = ['WAITING', 'NOTIFIED', 'BOOKED', 'EXPIRED']
 
-async function getOrganizationFeatures(orgId: string) {
-  const org = await prisma.organization.findUnique({
-    where: { id: orgId },
-    select: { plan: true },
-  })
+async function getBusinessContext() {
+  const context = await requireOrganization()
+  return {
+    ...context,
+    features: PLAN_FEATURES[context.plan],
+  }
+}
 
-  return org ? PLAN_FEATURES[org.plan] : null
+async function getOwnedCenter(organizationId: string) {
+  return prisma.center.findFirst({ where: { organizationId } })
 }
 
 function hasReachedLimit(current: number, limit: number) {
   return limit !== -1 && current >= limit
 }
 
-const optionalUrl = z.string().url('URL invalida').optional().or(z.literal(''))
+const optionalUrl = z.string().trim().url('URL inválida').optional().or(z.literal(''))
 
 function cleanOptionalUrl(value?: string | null) {
   const trimmed = value?.trim()
-  return trimmed ? trimmed : null
+  return trimmed || null
 }
 
 function cleanUrlList(values?: string[]) {
-  return (values ?? [])
-    .map(value => value.trim())
-    .filter(Boolean)
-    .slice(0, 8)
+  return (values ?? []).map(value => value.trim()).filter(Boolean).slice(0, 8)
+}
+
+function actionError(error: unknown, fallback: string) {
+  console.error('[dashboard-action]', error)
+  return { success: false as const, error: fallback }
 }
 
 export async function updateOrderStatusAction(
   orderId: string,
   status: OrderStatus,
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!VALID_ORDER_STATUSES.includes(status)) {
-    return { success: false, error: 'Estado inválido' }
-  }
+  if (!VALID_ORDER_STATUSES.includes(status)) return { success: false, error: 'Estado inválido' }
   try {
+    const { organizationId } = await getBusinessContext()
     const order = await prisma.order.findFirst({
-      where: { id: orderId },
-      include: { center: { select: { organizationId: true } } },
+      where: { id: orderId, center: { organizationId } },
     })
     if (!order) return { success: false, error: 'Pedido no encontrado' }
-    if (order.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-
-    await prisma.order.update({ where: { id: orderId }, data: { status } })
+    await prisma.order.update({ where: { id: order.id }, data: { status } })
     revalidatePath('/dashboard/pedidos')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar el estado' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar el estado')
   }
 }
 
 export async function updateBookingStatusAction(
   bookingId: string,
   status: BookingStatus,
-  orgId: string,
-  reason?: string
+  _legacyOrganizationId?: string,
+  reason?: string,
 ): Promise<{ success: boolean; error?: string }> {
+  if (!VALID_BOOKING_STATUSES.includes(status)) return { success: false, error: 'Estado inválido' }
   try {
+    const { organizationId } = await getBusinessContext()
     const booking = await prisma.booking.findFirst({
-      where: { id: bookingId },
+      where: { id: bookingId, center: { organizationId } },
       include: {
-        center:   { select: { organizationId: true, name: true, slug: true } },
+        center: { select: { name: true, slug: true } },
         customer: { select: { name: true, email: true } },
-        service:  { select: { name: true } },
-        staff:    { select: { name: true } },
+        service: { select: { name: true } },
+        staff: { select: { name: true } },
       },
     })
-
     if (!booking) return { success: false, error: 'Reserva no encontrada' }
-    if (booking.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async tx => {
       await tx.booking.update({
-        where: { id: bookingId },
+        where: { id: booking.id },
         data: {
           status,
-          ...(status === 'CANCELLED'
-            ? {
-                cancelledAt: new Date(),
-                cancelledBy: 'BUSINESS',
-                ...(reason ? { cancellationReason: reason } : {}),
-              }
-            : {}),
+          ...(status === 'CANCELLED' ? {
+            cancelledAt: new Date(),
+            cancelledBy: 'BUSINESS',
+            cancellationReason: reason?.trim().slice(0, 500) || null,
+          } : {}),
           ...(status === 'NO_SHOW' ? { noShowAt: new Date() } : {}),
         },
       })
-
       if (status === 'NO_SHOW' && booking.status !== 'NO_SHOW') {
-        await tx.customer.update({
-          where: { id: booking.customerId },
-          data: { noShowCount: { increment: 1 } },
-        })
+        await tx.customer.update({ where: { id: booking.customerId }, data: { noShowCount: { increment: 1 } } })
       }
     })
 
-    // Send email — fire and forget (do not block the action)
     const emailParams = {
-      to:          booking.customer.email,
+      to: booking.customer.email,
       customerName: booking.customer.name,
       serviceName: booking.service.name,
-      centerName:  booking.center.name,
-      centerSlug:  booking.center.slug,
-      date:        formatDate(booking.startAt, { day: 'numeric', month: 'long', year: 'numeric' }),
-      time:        formatTime(booking.startAt),
-      staffName:   booking.staff?.name ?? null,
+      centerName: booking.center.name,
+      centerSlug: booking.center.slug,
+      date: formatDate(booking.startAt, { day: 'numeric', month: 'long', year: 'numeric' }),
+      time: formatTime(booking.startAt),
+      staffName: booking.staff?.name ?? null,
     }
 
     if (status === 'CONFIRMED') {
-      sendBookingConfirmation(emailParams).catch(() => {})
+      sendBookingConfirmation(emailParams).catch(() => undefined)
     } else if (status === 'CANCELLED') {
-      sendBookingCancellation({ ...emailParams, reason }).catch(() => {})
+      sendBookingCancellation({ ...emailParams, reason }).catch(() => undefined)
       notifyWaitlistForBookingOpening({
         centerId: booking.centerId,
         serviceId: booking.serviceId,
         staffId: booking.staffId,
         startAt: booking.startAt,
-      }).catch(() => {})
+      }).catch(() => undefined)
     } else if (status === 'COMPLETED' && booking.status !== 'COMPLETED') {
-      scheduleFollowUpsForCompletedBooking(bookingId, orgId).catch(() => {})
+      scheduleFollowUpsForCompletedBooking(booking.id, organizationId).catch(() => undefined)
     }
 
     revalidatePath('/dashboard/reservas')
@@ -142,117 +138,94 @@ export async function updateBookingStatusAction(
     }
     if (status === 'NO_SHOW') revalidatePath('/dashboard/clientes')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar el estado' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar el estado')
   }
 }
 
 export async function notifyWaitlistEntryAction(
   entryId: string,
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const result = await notifyWaitlistEntry(entryId, { orgId })
+    const { organizationId } = await getBusinessContext()
+    const result = await notifyWaitlistEntry(entryId, { orgId: organizationId })
     revalidatePath('/dashboard/reservas')
     return result
-  } catch {
-    return { success: false, error: 'Error al avisar al cliente' }
+  } catch (error) {
+    return actionError(error, 'Error al avisar al cliente')
   }
 }
 
 export async function updateWaitlistStatusAction(
   entryId: string,
   status: WaitlistStatus,
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!VALID_WAITLIST_STATUSES.includes(status)) {
-    return { success: false, error: 'Estado invalido' }
-  }
-
+  if (!VALID_WAITLIST_STATUSES.includes(status)) return { success: false, error: 'Estado inválido' }
   try {
-    const entry = await prisma.waitlistEntry.findUnique({
-      where: { id: entryId },
-      include: { center: { select: { organizationId: true } } },
+    const { organizationId } = await getBusinessContext()
+    const entry = await prisma.waitlistEntry.findFirst({
+      where: { id: entryId, center: { organizationId } },
     })
-
     if (!entry) return { success: false, error: 'Solicitud no encontrada' }
-    if (entry.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-
     await prisma.waitlistEntry.update({
-      where: { id: entryId },
+      where: { id: entry.id },
       data: {
         status,
         ...(status === 'NOTIFIED' ? { notifiedAt: new Date() } : {}),
         ...(status === 'WAITING' ? { notifiedAt: null } : {}),
       },
     })
-
     revalidatePath('/dashboard/reservas')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar la lista de espera' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar la lista de espera')
   }
 }
 
 const serviceSchema = z.object({
-  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  description: z.string().optional(),
-  durationMinutes: z.number().int().positive('La duración debe ser mayor que 0'),
-  priceCents: z.number().int().min(0, 'El precio no puede ser negativo'),
+  name: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres').max(120),
+  description: z.string().trim().max(2000).optional(),
+  durationMinutes: z.number().int().min(5).max(720),
+  priceCents: z.number().int().min(0).max(10_000_000),
   depositRequired: z.boolean().optional(),
-  depositCents: z.number().int().min(0, 'El deposito no puede ser negativo').optional(),
-  bufferMinutesBefore: z.number().int().min(0).optional(),
-  bufferMinutesAfter: z.number().int().min(0).optional(),
+  depositCents: z.number().int().min(0).optional(),
+  bufferMinutesBefore: z.number().int().min(0).max(240).optional(),
+  bufferMinutesAfter: z.number().int().min(0).max(240).optional(),
 })
 
+function validateDeposit(data: z.infer<typeof serviceSchema>) {
+  if (data.depositRequired && (!data.depositCents || data.depositCents <= 0)) return 'Introduce una señal mayor que 0'
+  if (data.depositRequired && data.depositCents && data.depositCents > data.priceCents) return 'La señal no puede superar el precio del servicio'
+  return null
+}
+
 export async function createServiceAction(
-  data: {
-    name: string
-    description?: string
-    durationMinutes: number
-    priceCents: number
-    depositRequired?: boolean
-    depositCents?: number
-    bufferMinutesBefore?: number
-    bufferMinutesAfter?: number
-  },
-  orgId: string
+  data: z.input<typeof serviceSchema>,
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string; serviceId?: string }> {
   const parsed = serviceSchema.safeParse(data)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
-  }
-  if (parsed.data.depositRequired && (!parsed.data.depositCents || parsed.data.depositCents <= 0)) {
-    return { success: false, error: 'Introduce una señal mayor que 0' }
-  }
-  if (parsed.data.depositRequired && parsed.data.depositCents && parsed.data.depositCents > parsed.data.priceCents) {
-    return { success: false, error: 'La señal no puede superar el precio del servicio' }
-  }
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  const depositError = validateDeposit(parsed.data)
+  if (depositError) return { success: false, error: depositError }
 
   try {
-    const [features, center] = await Promise.all([
-      getOrganizationFeatures(orgId),
-      prisma.center.findFirst({
-        where: { organizationId: orgId },
-        include: { _count: { select: { services: true } } },
-      }),
-    ])
-    if (!features) return { success: false, error: 'Organizacion no encontrada' }
+    const { organizationId, features } = await getBusinessContext()
+    const center = await prisma.center.findFirst({
+      where: { organizationId },
+      include: { _count: { select: { services: true } } },
+    })
     if (!center) return { success: false, error: 'Centro no encontrado' }
     if (hasReachedLimit(center._count.services, features.maxServicesPerCenter)) {
-      return { success: false, error: 'Has alcanzado el limite de servicios de tu plan. Actualiza tu plan para anadir mas.' }
+      return { success: false, error: 'Has alcanzado el límite de servicios de tu plan.' }
     }
-
-    const lastService = await prisma.service.findFirst({
-      where: { centerId: center.id },
-      orderBy: { order: 'desc' },
-    })
-
+    const lastService = await prisma.service.findFirst({ where: { centerId: center.id }, orderBy: { order: 'desc' } })
     const service = await prisma.service.create({
       data: {
         centerId: center.id,
         name: parsed.data.name,
-        description: parsed.data.description ?? null,
+        description: parsed.data.description || null,
         durationMinutes: parsed.data.durationMinutes,
         priceCents: parsed.data.priceCents,
         depositRequired: parsed.data.depositRequired ?? false,
@@ -262,58 +235,34 @@ export async function createServiceAction(
         order: (lastService?.order ?? 0) + 1,
       },
     })
-
     revalidatePath('/dashboard/servicios')
     return { success: true, serviceId: service.id }
-  } catch {
-    return { success: false, error: 'Error al crear el servicio' }
+  } catch (error) {
+    return actionError(error, 'Error al crear el servicio')
   }
 }
 
-const updateServiceSchema = serviceSchema.extend({
-  active: z.boolean().optional(),
-})
+const updateServiceSchema = serviceSchema.extend({ active: z.boolean().optional() })
 
 export async function updateServiceAction(
   serviceId: string,
-  data: {
-    name: string
-    description?: string
-    durationMinutes: number
-    priceCents: number
-    depositRequired?: boolean
-    depositCents?: number
-    bufferMinutesBefore?: number
-    bufferMinutesAfter?: number
-    active?: boolean
-  },
-  orgId: string
+  data: z.input<typeof updateServiceSchema>,
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = updateServiceSchema.safeParse(data)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
-  }
-  if (parsed.data.depositRequired && (!parsed.data.depositCents || parsed.data.depositCents <= 0)) {
-    return { success: false, error: 'Introduce una señal mayor que 0' }
-  }
-  if (parsed.data.depositRequired && parsed.data.depositCents && parsed.data.depositCents > parsed.data.priceCents) {
-    return { success: false, error: 'La señal no puede superar el precio del servicio' }
-  }
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  const depositError = validateDeposit(parsed.data)
+  if (depositError) return { success: false, error: depositError }
 
   try {
-    const service = await prisma.service.findFirst({
-      where: { id: serviceId },
-      include: { center: true },
-    })
-
+    const { organizationId } = await getBusinessContext()
+    const service = await prisma.service.findFirst({ where: { id: serviceId, center: { organizationId } } })
     if (!service) return { success: false, error: 'Servicio no encontrado' }
-    if (service.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-
     await prisma.service.update({
-      where: { id: serviceId },
+      where: { id: service.id },
       data: {
         name: parsed.data.name,
-        description: parsed.data.description ?? null,
+        description: parsed.data.description || null,
         durationMinutes: parsed.data.durationMinutes,
         priceCents: parsed.data.priceCents,
         depositRequired: parsed.data.depositRequired ?? false,
@@ -323,146 +272,105 @@ export async function updateServiceAction(
         ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),
       },
     })
-
     revalidatePath('/dashboard/servicios')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar el servicio' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar el servicio')
   }
 }
 
 export async function toggleServiceActiveAction(
   serviceId: string,
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const service = await prisma.service.findFirst({
-      where: { id: serviceId },
-      include: { center: true },
-    })
-
+    const { organizationId } = await getBusinessContext()
+    const service = await prisma.service.findFirst({ where: { id: serviceId, center: { organizationId } } })
     if (!service) return { success: false, error: 'Servicio no encontrado' }
-    if (service.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-
-    await prisma.service.update({
-      where: { id: serviceId },
-      data: { active: !service.active },
-    })
-
+    await prisma.service.update({ where: { id: service.id }, data: { active: !service.active } })
     revalidatePath('/dashboard/servicios')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar el servicio' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar el servicio')
   }
 }
 
 export async function createStaffAction(
   data: { name: string; role?: string; bio?: string; image?: string },
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string; staffId?: string }> {
-  if (!data.name || data.name.trim().length < 2) {
-    return { success: false, error: 'El nombre debe tener al menos 2 caracteres' }
-  }
+  if (!data.name || data.name.trim().length < 2) return { success: false, error: 'El nombre debe tener al menos 2 caracteres' }
   const parsedImage = optionalUrl.safeParse(data.image ?? '')
-  if (!parsedImage.success) {
-    return { success: false, error: parsedImage.error.errors[0]?.message ?? 'URL invalida' }
-  }
+  if (!parsedImage.success) return { success: false, error: parsedImage.error.errors[0]?.message ?? 'URL inválida' }
 
   try {
-    const [features, center] = await Promise.all([
-      getOrganizationFeatures(orgId),
-      prisma.center.findFirst({
-        where: { organizationId: orgId },
-        include: { _count: { select: { staff: true } } },
-      }),
-    ])
-    if (!features) return { success: false, error: 'Organizacion no encontrada' }
+    const { organizationId, features } = await getBusinessContext()
+    const center = await prisma.center.findFirst({
+      where: { organizationId },
+      include: { _count: { select: { staff: true } } },
+    })
     if (!center) return { success: false, error: 'Centro no encontrado' }
     if (hasReachedLimit(center._count.staff, features.maxStaffPerCenter)) {
-      return { success: false, error: 'Has alcanzado el limite de profesionales de tu plan. Actualiza tu plan para anadir mas.' }
+      return { success: false, error: 'Has alcanzado el límite de profesionales de tu plan.' }
     }
-
-    const lastStaff = await prisma.staff.findFirst({
-      where: { centerId: center.id },
-      orderBy: { order: 'desc' },
-    })
-
+    const lastStaff = await prisma.staff.findFirst({ where: { centerId: center.id }, orderBy: { order: 'desc' } })
     const staff = await prisma.staff.create({
       data: {
         centerId: center.id,
-        name: data.name.trim(),
-        role: data.role?.trim() ?? null,
-        bio: data.bio?.trim() ?? null,
+        name: data.name.trim().slice(0, 120),
+        role: data.role?.trim().slice(0, 120) || null,
+        bio: data.bio?.trim().slice(0, 2000) || null,
         image: cleanOptionalUrl(parsedImage.data),
         order: (lastStaff?.order ?? 0) + 1,
       },
     })
-
     revalidatePath('/dashboard/staff')
     return { success: true, staffId: staff.id }
-  } catch {
-    return { success: false, error: 'Error al crear el profesional' }
+  } catch (error) {
+    return actionError(error, 'Error al crear el profesional')
   }
 }
 
 export async function updateStaffAction(
   staffId: string,
   data: { name?: string; role?: string; bio?: string; image?: string },
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const parsedImage = data.image === undefined ? null : optionalUrl.safeParse(data.image)
-  if (parsedImage && !parsedImage.success) {
-    return { success: false, error: parsedImage.error.errors[0]?.message ?? 'URL invalida' }
-  }
-
+  if (parsedImage && !parsedImage.success) return { success: false, error: parsedImage.error.errors[0]?.message ?? 'URL inválida' }
   try {
-    const staff = await prisma.staff.findFirst({
-      where: { id: staffId },
-      include: { center: true },
-    })
-
+    const { organizationId } = await getBusinessContext()
+    const staff = await prisma.staff.findFirst({ where: { id: staffId, center: { organizationId } } })
     if (!staff) return { success: false, error: 'Profesional no encontrado' }
-    if (staff.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-
     await prisma.staff.update({
-      where: { id: staffId },
+      where: { id: staff.id },
       data: {
-        ...(data.name ? { name: data.name.trim() } : {}),
-        ...(data.role !== undefined ? { role: data.role?.trim() ?? null } : {}),
-        ...(data.bio !== undefined ? { bio: data.bio?.trim() ?? null } : {}),
+        ...(data.name ? { name: data.name.trim().slice(0, 120) } : {}),
+        ...(data.role !== undefined ? { role: data.role.trim().slice(0, 120) || null } : {}),
+        ...(data.bio !== undefined ? { bio: data.bio.trim().slice(0, 2000) || null } : {}),
         ...(data.image !== undefined ? { image: cleanOptionalUrl(parsedImage?.data) } : {}),
       },
     })
-
     revalidatePath('/dashboard/staff')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar el profesional' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar el profesional')
   }
 }
 
 export async function toggleStaffActiveAction(
   staffId: string,
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const staff = await prisma.staff.findFirst({
-      where: { id: staffId },
-      include: { center: true },
-    })
-
+    const { organizationId } = await getBusinessContext()
+    const staff = await prisma.staff.findFirst({ where: { id: staffId, center: { organizationId } } })
     if (!staff) return { success: false, error: 'Profesional no encontrado' }
-    if (staff.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-
-    await prisma.staff.update({
-      where: { id: staffId },
-      data: { active: !staff.active },
-    })
-
+    await prisma.staff.update({ where: { id: staff.id }, data: { active: !staff.active } })
     revalidatePath('/dashboard/staff')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar el profesional' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar el profesional')
   }
 }
 
@@ -471,212 +379,147 @@ const scheduleRuleSchema = z.object({
   openTime: z.string().regex(/^\d{2}:\d{2}$/, 'Formato de hora inválido'),
   closeTime: z.string().regex(/^\d{2}:\d{2}$/, 'Formato de hora inválido'),
   active: z.boolean(),
-})
+}).refine(data => data.closeTime > data.openTime, { message: 'La hora de cierre debe ser posterior a la apertura' })
 
 export async function upsertScheduleRuleAction(
-  data: { dayOfWeek: number; openTime: string; closeTime: string; active: boolean },
-  orgId: string
+  data: z.input<typeof scheduleRuleSchema>,
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = scheduleRuleSchema.safeParse(data)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
-  }
-
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+    const { organizationId } = await getBusinessContext()
+    const center = await getOwnedCenter(organizationId)
     if (!center) return { success: false, error: 'Centro no encontrado' }
-
     const existing = await prisma.scheduleRule.findFirst({
       where: { centerId: center.id, dayOfWeek: parsed.data.dayOfWeek, staffId: null },
     })
-
     if (existing) {
-      await prisma.scheduleRule.update({
-        where: { id: existing.id },
-        data: {
-          openTime: parsed.data.openTime,
-          closeTime: parsed.data.closeTime,
-          active: parsed.data.active,
-        },
-      })
+      await prisma.scheduleRule.update({ where: { id: existing.id }, data: parsed.data })
     } else {
-      await prisma.scheduleRule.create({
-        data: {
-          centerId: center.id,
-          staffId: null,
-          dayOfWeek: parsed.data.dayOfWeek,
-          openTime: parsed.data.openTime,
-          closeTime: parsed.data.closeTime,
-          active: parsed.data.active,
-        },
-      })
+      await prisma.scheduleRule.create({ data: { ...parsed.data, centerId: center.id, staffId: null } })
     }
-
     revalidatePath('/dashboard/horarios')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al guardar el horario' }
+  } catch (error) {
+    return actionError(error, 'Error al guardar el horario')
   }
 }
 
 const centerSchema = z.object({
-  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  description: z.string().optional(),
-  descriptionLong: z.string().optional(),
+  name: z.string().trim().min(2).max(160),
+  description: z.string().trim().max(1000).optional(),
+  descriptionLong: z.string().trim().max(8000).optional(),
   category: z.string().min(1, 'Selecciona una categoría'),
-  phone: z.string().optional(),
-  whatsapp: z.string().optional(),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
-  website: z.string().optional(),
+  phone: z.string().trim().max(30).optional(),
+  whatsapp: z.string().trim().max(30).optional(),
+  email: z.string().trim().email('Email inválido').optional().or(z.literal('')),
+  website: z.string().trim().max(500).optional(),
   coverImage: optionalUrl,
-  galleryImages: z.array(z.string().url('URL de galeria invalida')).max(8).optional(),
-  addressStreet: z.string().optional(),
-  addressCity: z.string().min(1, 'La ciudad es obligatoria'),
-  addressProvince: z.string().min(1, 'La provincia es obligatoria'),
-  addressPostalCode: z.string().optional(),
+  galleryImages: z.array(z.string().url('URL de galería inválida')).max(8).optional(),
+  addressStreet: z.string().trim().max(250).optional(),
+  addressCity: z.string().trim().min(1, 'La ciudad es obligatoria').max(120),
+  addressProvince: z.string().trim().min(1, 'La provincia es obligatoria').max(120),
+  addressPostalCode: z.string().trim().max(15).optional(),
 })
 
-// ─────────────────────────────────────────────────────
-// BONOS
-// ─────────────────────────────────────────────────────
-
 const bonoSchema = z.object({
-  name:          z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  description:   z.string().optional(),
-  sessions:      z.number().int().positive('Debe tener al menos 1 sesión'),
-  validityDays:  z.number().int().positive('Debe tener al menos 1 día de validez'),
-  priceCents:    z.number().int().min(0, 'El precio no puede ser negativo'),
-  serviceId:     z.string().optional(),
+  name: z.string().trim().min(2).max(160),
+  description: z.string().trim().max(2000).optional(),
+  sessions: z.number().int().min(1).max(1000),
+  validityDays: z.number().int().min(1).max(3650),
+  priceCents: z.number().int().min(0).max(10_000_000),
+  serviceId: z.string().cuid().optional(),
 })
 
 export async function createBonoAction(
-  data: {
-    name: string
-    description?: string
-    sessions: number
-    validityDays: number
-    priceCents: number
-    serviceId?: string
-  },
-  orgId: string
+  data: z.input<typeof bonoSchema>,
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string; bonoId?: string }> {
   const parsed = bonoSchema.safeParse(data)
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
-
   try {
-    const [features, center] = await Promise.all([
-      getOrganizationFeatures(orgId),
-      prisma.center.findFirst({ where: { organizationId: orgId } }),
-    ])
-    if (!features) return { success: false, error: 'Organizacion no encontrada' }
+    const { organizationId, features } = await getBusinessContext()
+    const center = await getOwnedCenter(organizationId)
     if (!center) return { success: false, error: 'Centro no encontrado' }
-    if (!features.hasBonos) {
-      return { success: false, error: 'Los bonos estan disponibles a partir del plan Growth.' }
+    if (!features.hasBonos) return { success: false, error: 'Los bonos están disponibles a partir del plan Growth.' }
+    if (parsed.data.serviceId) {
+      const service = await prisma.service.findFirst({ where: { id: parsed.data.serviceId, centerId: center.id } })
+      if (!service) return { success: false, error: 'Servicio no encontrado' }
     }
-
     const bono = await prisma.bono.create({
       data: {
-        centerId:     center.id,
-        name:         parsed.data.name,
-        description:  parsed.data.description || null,
-        sessions:     parsed.data.sessions,
+        centerId: center.id,
+        name: parsed.data.name,
+        description: parsed.data.description || null,
+        sessions: parsed.data.sessions,
         validityDays: parsed.data.validityDays,
-        priceCents:   parsed.data.priceCents,
-        serviceId:    parsed.data.serviceId || null,
+        priceCents: parsed.data.priceCents,
+        serviceId: parsed.data.serviceId || null,
       },
     })
-
     revalidatePath('/dashboard/bonos')
     return { success: true, bonoId: bono.id }
-  } catch {
-    return { success: false, error: 'Error al crear el bono' }
+  } catch (error) {
+    return actionError(error, 'Error al crear el bono')
   }
 }
 
 export async function toggleBonoActiveAction(
   bonoId: string,
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const bono = await prisma.bono.findFirst({ where: { id: bonoId }, include: { center: true } })
+    const { organizationId, features } = await getBusinessContext()
+    const bono = await prisma.bono.findFirst({ where: { id: bonoId, center: { organizationId } } })
     if (!bono) return { success: false, error: 'Bono no encontrado' }
-    if (bono.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-    if (!bono.active) {
-      const features = await getOrganizationFeatures(orgId)
-      if (!features?.hasBonos) return { success: false, error: 'Los bonos estan disponibles a partir del plan Growth.' }
-    }
-
-    await prisma.bono.update({ where: { id: bonoId }, data: { active: !bono.active } })
+    if (!bono.active && !features.hasBonos) return { success: false, error: 'Los bonos están disponibles a partir del plan Growth.' }
+    await prisma.bono.update({ where: { id: bono.id }, data: { active: !bono.active } })
     revalidatePath('/dashboard/bonos')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar el bono' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar el bono')
   }
 }
 
-// ─────────────────────────────────────────────────────
-// PRODUCTOS
-// ─────────────────────────────────────────────────────
-
 const productSchema = z.object({
-  name:                      z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  description:               z.string().optional(),
-  brand:                     z.string().optional(),
-  image:                     optionalUrl,
-  priceCents:                z.number().int().min(0, 'El precio no puede ser negativo'),
-  stock:                     z.number().int().min(0).optional(),
-  usageInstructions:         z.string().optional(),
-  recommendedFor:            z.string().optional(),
-  notRecommendedFor:         z.string().optional(),
-  expectedDurationDays:      z.number().int().min(1).max(730).optional(),
+  name: z.string().trim().min(2).max(160),
+  description: z.string().trim().max(3000).optional(),
+  brand: z.string().trim().max(160).optional(),
+  image: optionalUrl,
+  priceCents: z.number().int().min(0).max(10_000_000),
+  stock: z.number().int().min(0).max(10_000_000).optional(),
+  usageInstructions: z.string().trim().max(3000).optional(),
+  recommendedFor: z.string().trim().max(3000).optional(),
+  notRecommendedFor: z.string().trim().max(3000).optional(),
+  expectedDurationDays: z.number().int().min(1).max(730).optional(),
   replenishmentIntervalDays: z.number().int().min(1).max(730).optional(),
-  routineStepType:           z.enum(['CLEANSER', 'TONER', 'SERUM', 'MOISTURIZER', 'SPF', 'MASK', 'HAIR_CARE', 'NAIL_CARE', 'BODY_CARE', 'MAKEUP', 'WELLNESS', 'OTHER']).optional(),
-  compatibilityTags:         z.array(z.string()).optional(),
-  recommendationTags:        z.array(z.string()).optional(),
+  routineStepType: z.enum(['CLEANSER', 'TONER', 'SERUM', 'MOISTURIZER', 'SPF', 'MASK', 'HAIR_CARE', 'NAIL_CARE', 'BODY_CARE', 'MAKEUP', 'WELLNESS', 'OTHER']).optional(),
+  compatibilityTags: z.array(z.string().trim().max(80)).max(50).optional(),
+  recommendationTags: z.array(z.string().trim().max(80)).max(50).optional(),
 })
 
 export async function createProductAction(
-  data: {
-    name: string
-    description?: string
-    brand?: string
-    image?: string
-    priceCents: number
-    stock?: number
-    usageInstructions?: string
-    recommendedFor?: string
-    notRecommendedFor?: string
-    expectedDurationDays?: number
-    replenishmentIntervalDays?: number
-    routineStepType?: string
-    compatibilityTags?: string[]
-    recommendationTags?: string[]
-  },
-  orgId: string
+  data: z.input<typeof productSchema>,
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string; productId?: string }> {
   const parsed = productSchema.safeParse(data)
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
-
   try {
-    const [features, center] = await Promise.all([
-      getOrganizationFeatures(orgId),
-      prisma.center.findFirst({ where: { organizationId: orgId } }),
-    ])
-    if (!features) return { success: false, error: 'Organizacion no encontrada' }
+    const { organizationId, features } = await getBusinessContext()
+    const center = await getOwnedCenter(organizationId)
     if (!center) return { success: false, error: 'Centro no encontrado' }
-    if (!features.hasProducts) {
-      return { success: false, error: 'La venta de productos esta disponible a partir del plan Growth.' }
-    }
+    if (!features.hasProducts) return { success: false, error: 'La venta de productos está disponible a partir del plan Growth.' }
 
     const product = await prisma.product.create({
       data: {
-        centerId:    center.id,
-        name:        parsed.data.name,
+        centerId: center.id,
+        name: parsed.data.name,
         description: parsed.data.description || null,
-        brand:       parsed.data.brand || null,
-        image:       cleanOptionalUrl(parsed.data.image),
-        priceCents:  parsed.data.priceCents,
-        stock:       parsed.data.stock ?? null,
+        brand: parsed.data.brand || null,
+        image: cleanOptionalUrl(parsed.data.image),
+        priceCents: parsed.data.priceCents,
+        stock: parsed.data.stock ?? null,
       },
     })
 
@@ -686,10 +529,10 @@ export async function createProductAction(
       const routineStepTypeSql = parsed.data.routineStepType
         ? Prisma.sql`${parsed.data.routineStepType}::"BeautyRoutineStepType"`
         : Prisma.sql`NULL`
-      const compatibilityTagsSql = compatibilityTags.length > 0
+      const compatibilityTagsSql = compatibilityTags.length
         ? Prisma.sql`ARRAY[${Prisma.join(compatibilityTags)}]::text[]`
         : Prisma.sql`ARRAY[]::text[]`
-      const recommendationTagsSql = recommendationTags.length > 0
+      const recommendationTagsSql = recommendationTags.length
         ? Prisma.sql`ARRAY[${Prisma.join(recommendationTags)}]::text[]`
         : Prisma.sql`ARRAY[]::text[]`
 
@@ -707,66 +550,44 @@ export async function createProductAction(
         WHERE "id" = ${product.id}
       `
     } catch (error) {
-      console.warn('[dashboard] smart product fields unavailable:', error)
+      console.warn('[dashboard] smart product fields unavailable', error)
     }
 
     revalidatePath('/dashboard/productos')
     revalidatePath('/productos')
     revalidatePath('/mi-plan')
     return { success: true, productId: product.id }
-  } catch {
-    return { success: false, error: 'Error al crear el producto' }
+  } catch (error) {
+    return actionError(error, 'Error al crear el producto')
   }
 }
 
 export async function toggleProductActiveAction(
   productId: string,
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const product = await prisma.product.findFirst({ where: { id: productId }, include: { center: true } })
+    const { organizationId, features } = await getBusinessContext()
+    const product = await prisma.product.findFirst({ where: { id: productId, center: { organizationId } } })
     if (!product) return { success: false, error: 'Producto no encontrado' }
-    if (product.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-    if (!product.active) {
-      const features = await getOrganizationFeatures(orgId)
-      if (!features?.hasProducts) return { success: false, error: 'La venta de productos esta disponible a partir del plan Growth.' }
-    }
-
-    await prisma.product.update({ where: { id: productId }, data: { active: !product.active } })
+    if (!product.active && !features.hasProducts) return { success: false, error: 'La venta de productos está disponible a partir del plan Growth.' }
+    await prisma.product.update({ where: { id: product.id }, data: { active: !product.active } })
     revalidatePath('/dashboard/productos')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al actualizar el producto' }
+  } catch (error) {
+    return actionError(error, 'Error al actualizar el producto')
   }
 }
 
 export async function upsertCenterAction(
-  data: {
-    name: string
-    description?: string
-    descriptionLong?: string
-    category: string
-    phone?: string
-    whatsapp?: string
-    email?: string
-    website?: string
-    coverImage?: string
-    galleryImages?: string[]
-    addressStreet?: string
-    addressCity: string
-    addressProvince: string
-    addressPostalCode?: string
-  },
-  orgId: string
+  data: z.input<typeof centerSchema>,
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = centerSchema.safeParse(data)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
-  }
-
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
   try {
-    const existing = await prisma.center.findFirst({ where: { organizationId: orgId } })
-
+    const { organizationId } = await getBusinessContext()
+    const existing = await getOwnedCenter(organizationId)
     const centerData = {
       name: parsed.data.name,
       description: parsed.data.description || null,
@@ -774,7 +595,7 @@ export async function upsertCenterAction(
       category: parsed.data.category as CenterCategory,
       phone: parsed.data.phone || null,
       whatsapp: parsed.data.whatsapp || null,
-      email: parsed.data.email || null,
+      email: parsed.data.email?.toLowerCase() || null,
       website: parsed.data.website || null,
       coverImage: cleanOptionalUrl(parsed.data.coverImage),
       galleryImages: cleanUrlList(parsed.data.galleryImages),
@@ -783,26 +604,20 @@ export async function upsertCenterAction(
       addressProvince: parsed.data.addressProvince,
       addressPostalCode: parsed.data.addressPostalCode || '',
     }
-
     if (existing) {
-      await prisma.center.update({
-        where: { id: existing.id },
-        data: centerData,
-      })
+      await prisma.center.update({ where: { id: existing.id }, data: centerData })
     } else {
-      const slug = slugify(parsed.data.name) + '-' + orgId.slice(-6)
       await prisma.center.create({
         data: {
           ...centerData,
-          organizationId: orgId,
-          slug,
+          organizationId,
+          slug: `${slugify(parsed.data.name)}-${organizationId.slice(-6)}`,
         },
       })
     }
-
     revalidatePath('/dashboard/configuracion')
     return { success: true }
-  } catch {
-    return { success: false, error: 'Error al guardar el centro' }
+  } catch (error) {
+    return actionError(error, 'Error al guardar el centro')
   }
 }

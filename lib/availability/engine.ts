@@ -1,11 +1,10 @@
 import { prisma } from '@/lib/db/client'
-import { addMinutes, format, parseISO, startOfDay, endOfDay } from 'date-fns'
-import { toZonedTime, fromZonedTime } from 'date-fns-tz'
+import { addMinutes, endOfDay, format, parseISO, startOfDay } from 'date-fns'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import {
+  buildCandidateSlots,
   computeTotalDuration,
   localDayOfWeekMondayZero,
-  buildCandidateSlots,
-  generateConfirmationCode,
   type Block,
 } from './slots'
 
@@ -13,9 +12,9 @@ const TIMEZONE = 'Europe/Madrid'
 const SLOT_GRANULARITY_MINUTES = 15
 
 export interface TimeSlot {
-  time: string      // "09:00" en hora local
-  startAt: Date     // UTC
-  endAt: Date       // UTC
+  time: string
+  startAt: Date
+  endAt: Date
   staffId: string
   available: boolean
 }
@@ -24,55 +23,55 @@ export interface AvailabilityQuery {
   centerId: string
   serviceId: string
   staffId?: string
-  date: string      // "YYYY-MM-DD"
+  date: string
+  excludeBookingId?: string
 }
 
 export async function getAvailableSlots(query: AvailabilityQuery): Promise<TimeSlot[]> {
   const { centerId, serviceId, date } = query
-
-  // 1. Cargar servicio
   const service = await prisma.service.findFirst({
-    where: { id: serviceId, centerId, active: true },
+    where: {
+      id: serviceId,
+      centerId,
+      active: true,
+      center: { published: true },
+    },
   })
   if (!service) return []
 
-  const totalDuration = computeTotalDuration(service)
-
-  // 2. Resolver staff elegible
-  let staffIds: string[]
-  if (query.staffId) {
-    staffIds = [query.staffId]
-  } else {
-    const staffLinks = await prisma.serviceStaff.findMany({
-      where: { serviceId },
-      select: { staffId: true },
-    })
-    staffIds = staffLinks.map((s) => s.staffId)
-  }
-
+  const staffLinks = await prisma.serviceStaff.findMany({
+    where: {
+      serviceId,
+      ...(query.staffId ? { staffId: query.staffId } : {}),
+      staff: { centerId, active: true },
+    },
+    select: { staffId: true },
+  })
+  const staffIds = staffLinks.map(link => link.staffId)
   if (staffIds.length === 0) return []
 
-  // 3. Calcular slots para cada staff
-  const localDate = parseISO(date) // date en zona local
-  const dayOfWeek = localDayOfWeekMondayZero(localDate) // 0=lunes
-
+  const localDate = parseISO(date)
+  if (Number.isNaN(localDate.getTime())) return []
+  const dayOfWeek = localDayOfWeekMondayZero(localDate)
+  const totalDuration = computeTotalDuration(service)
   const allSlots: TimeSlot[] = []
 
   for (const staffId of staffIds) {
-    const slots = await getSlotsForStaff({
+    allSlots.push(...await getSlotsForStaff({
       centerId,
       staffId,
       dayOfWeek,
       localDate,
       totalDuration,
       service,
-    })
-    allSlots.push(...slots)
+      excludeBookingId: query.excludeBookingId,
+    }))
   }
 
-  // Deduplicar por time (si varios staff tienen el mismo slot, mostrar una vez)
+  // Keep one staff assignment per displayed time. The selected slot still contains
+  // the concrete staffId so creation never stores an unassigned booking.
   const seen = new Set<string>()
-  return allSlots.filter((slot) => {
+  return allSlots.filter(slot => {
     if (seen.has(slot.time)) return false
     seen.add(slot.time)
     return true
@@ -86,6 +85,7 @@ async function getSlotsForStaff({
   localDate,
   totalDuration,
   service,
+  excludeBookingId,
 }: {
   centerId: string
   staffId: string
@@ -93,92 +93,107 @@ async function getSlotsForStaff({
   localDate: Date
   totalDuration: number
   service: { bufferMinutesBefore: number; durationMinutes: number }
+  excludeBookingId?: string
 }): Promise<TimeSlot[]> {
+  const localDayStart = startOfDay(localDate)
+  const localDayEnd = endOfDay(localDate)
 
-  // a. Obtener horario del día
   const exception = await prisma.scheduleException.findFirst({
     where: {
-      staffId,
-      date: { gte: startOfDay(localDate), lte: endOfDay(localDate) },
+      date: { gte: localDayStart, lte: localDayEnd },
+      OR: [
+        { staffId },
+        { centerId, staffId: null },
+      ],
     },
+    orderBy: { staffId: 'desc' },
   })
 
   let openTime: string
   let closeTime: string
 
   if (exception) {
-    if (exception.isClosed) return []
-    openTime = exception.openTime!
-    closeTime = exception.closeTime!
+    if (exception.isClosed || !exception.openTime || !exception.closeTime) return []
+    openTime = exception.openTime
+    closeTime = exception.closeTime
   } else {
     const rule = await prisma.scheduleRule.findFirst({
-      where: { OR: [{ staffId }, { centerId }], dayOfWeek, active: true },
-      orderBy: { staffId: 'desc' }, // priorizar regla de staff sobre centro
+      where: {
+        dayOfWeek,
+        active: true,
+        OR: [
+          { staffId },
+          { centerId, staffId: null },
+        ],
+      },
+      orderBy: { staffId: 'desc' },
     })
     if (!rule) return []
     openTime = rule.openTime
     closeTime = rule.closeTime
   }
 
-  // b. Convertir a UTC
   const [openH, openM] = openTime.split(':').map(Number)
   const [closeH, closeM] = closeTime.split(':').map(Number)
+  if (![openH, openM, closeH, closeM].every(Number.isFinite)) return []
 
   const workStartLocal = new Date(localDate)
   workStartLocal.setHours(openH, openM, 0, 0)
   const workEndLocal = new Date(localDate)
   workEndLocal.setHours(closeH, closeM, 0, 0)
-
   const workStartUTC = fromZonedTime(workStartLocal, TIMEZONE)
   const workEndUTC = fromZonedTime(workEndLocal, TIMEZONE)
 
-  // c. Obtener bloques ocupados
-  const dayStart = fromZonedTime(startOfDay(localDate), TIMEZONE)
-  const dayEnd = fromZonedTime(endOfDay(localDate), TIMEZONE)
+  const dayStartUTC = fromZonedTime(localDayStart, TIMEZONE)
+  const dayEndUTC = fromZonedTime(localDayEnd, TIMEZONE)
+  const now = new Date()
 
   const existingBookings = await prisma.booking.findMany({
     where: {
       staffId,
+      ...(excludeBookingId ? { id: { not: excludeBookingId } } : {}),
       OR: [
         { status: 'CONFIRMED' },
         {
           status: 'PENDING',
           OR: [
             { depositExpiresAt: null },
-            { depositExpiresAt: { gt: new Date() } },
+            { depositExpiresAt: { gt: now } },
           ],
         },
       ],
-      startAt: { lt: dayEnd },
-      endAt: { gt: dayStart },
+      startAt: { lt: dayEndUTC },
+      endAt: { gt: dayStartUTC },
     },
     select: { startAt: true, endAt: true },
   })
 
   const manualBlocks = await prisma.manualBlock.findMany({
     where: {
-      staffId,
-      startAt: { lt: dayEnd },
-      endAt: { gt: dayStart },
+      OR: [
+        { staffId },
+        { centerId, staffId: null },
+      ],
+      startAt: { lt: dayEndUTC },
+      endAt: { gt: dayStartUTC },
     },
     select: { startAt: true, endAt: true },
   })
 
   const occupiedBlocks: Block[] = [
-    ...existingBookings.map((b) => ({
-      start: addMinutes(b.startAt, -service.bufferMinutesBefore),
-      end: b.endAt,
+    ...existingBookings.map(booking => ({
+      start: addMinutes(booking.startAt, -service.bufferMinutesBefore),
+      end: booking.endAt,
     })),
-    ...manualBlocks.map((b) => ({ start: b.startAt, end: b.endAt })),
+    ...manualBlocks.map(block => ({ start: block.startAt, end: block.endAt })),
   ]
 
-  // d. Generar slots candidatos (lógica pura, testeada en tests/availability-slots.test.ts)
   const candidates = buildCandidateSlots({
     workStartUTC,
     workEndUTC,
     totalDuration,
     granularityMinutes: SLOT_GRANULARITY_MINUTES,
-    now: new Date(),
+    now,
     occupiedBlocks,
   })
 
@@ -189,77 +204,4 @@ async function getSlotsForStaff({
     staffId,
     available: true,
   }))
-}
-
-export async function createBookingWithLock({
-  centerId,
-  serviceId,
-  staffId,
-  startAt,
-  endAt,
-  customerData,
-}: {
-  centerId: string
-  serviceId: string
-  staffId: string
-  startAt: Date
-  endAt: Date
-  customerData: { name: string; email: string; phone?: string }
-}) {
-  return prisma.$transaction(async (tx) => {
-    // Re-verificar disponibilidad dentro de la transacción
-    const conflicts = await tx.booking.count({
-      where: {
-        staffId,
-        OR: [
-          { status: 'CONFIRMED' },
-          {
-            status: 'PENDING',
-            OR: [
-              { depositExpiresAt: null },
-              { depositExpiresAt: { gt: new Date() } },
-            ],
-          },
-        ],
-        AND: [{ startAt: { lt: endAt } }, { endAt: { gt: startAt } }],
-      },
-    })
-
-    if (conflicts > 0) {
-      throw new Error('SLOT_TAKEN')
-    }
-
-    // Crear o actualizar cliente
-    const customer = await tx.customer.upsert({
-      where: { email_centerId: { email: customerData.email, centerId } },
-      create: {
-        centerId,
-        name: customerData.name,
-        email: customerData.email,
-        phone: customerData.phone,
-        consentGivenAt: new Date(),
-      },
-      update: { name: customerData.name, phone: customerData.phone },
-    })
-
-    // Generar código de confirmación
-    const confirmationCode = generateConfirmationCode()
-
-    // Crear reserva
-    const booking = await tx.booking.create({
-      data: {
-        confirmationCode,
-        centerId,
-        serviceId,
-        staffId,
-        customerId: customer.id,
-        startAt,
-        endAt,
-        status: 'CONFIRMED',
-        source: 'WEB',
-      },
-    })
-
-    return { booking, customer }
-  })
 }

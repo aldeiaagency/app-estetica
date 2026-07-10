@@ -1,103 +1,95 @@
-import { auth } from '@/lib/auth/config'
-import { prisma } from '@/lib/db/client'
-import { redirect } from 'next/navigation'
-import { formatPrice } from '@/lib/utils'
 import { createProductAction, toggleProductActiveAction } from '@/app/actions/dashboard'
 import { UploadHiddenInput } from '@/components/dashboard/upload-hidden-input'
-import { ShoppingBag, Package } from 'lucide-react'
+import { auth } from '@/lib/auth/config'
+import { prisma } from '@/lib/db/client'
+import { formatPrice } from '@/lib/utils'
+import { Package, ShoppingBag } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
 const ROUTINE_STEP_OPTIONS = [
   ['CLEANSER', 'Limpieza'],
-  ['TONER', 'Tonico'],
-  ['SERUM', 'Serum'],
-  ['MOISTURIZER', 'Hidratacion'],
-  ['SPF', 'Proteccion solar'],
+  ['TONER', 'Tónico'],
+  ['SERUM', 'Sérum'],
+  ['MOISTURIZER', 'Hidratación'],
+  ['SPF', 'Protección solar'],
   ['MASK', 'Mascarilla'],
   ['HAIR_CARE', 'Cabello'],
-  ['NAIL_CARE', 'Unas'],
+  ['NAIL_CARE', 'Uñas'],
   ['BODY_CARE', 'Cuerpo'],
   ['MAKEUP', 'Maquillaje'],
   ['WELLNESS', 'Bienestar'],
   ['OTHER', 'Otro'],
 ] as const
 
+type RoutineStepType = (typeof ROUTINE_STEP_OPTIONS)[number][0]
+
+function parseRoutineStepType(value: FormDataEntryValue | null): RoutineStepType | undefined {
+  const candidate = String(value ?? '')
+  return ROUTINE_STEP_OPTIONS.some(([allowed]) => allowed === candidate)
+    ? candidate as RoutineStepType
+    : undefined
+}
+
 export default async function ProductosPage() {
   const session = await auth()
-  const orgId = session?.user?.organizationId
-  if (!orgId) redirect('/auth/signin')
+  const organizationId = session?.user?.organizationId
+  if (!organizationId) redirect('/auth/signin')
 
-  const center = await prisma.center.findFirst({ where: { organizationId: orgId } })
+  const center = await prisma.center.findFirst({ where: { organizationId } })
   if (!center) redirect('/dashboard/configuracion')
 
-  const productos = await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: { centerId: center.id },
     orderBy: { createdAt: 'desc' },
   })
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-zinc-900">Productos</h1>
-          <p className="mt-1 text-sm text-zinc-500">Vende productos directamente desde tu perfil en el marketplace</p>
-        </div>
-      </div>
+      <header>
+        <h1 className="text-2xl font-black tracking-tight text-zinc-900">Productos</h1>
+        <p className="mt-1 text-sm text-zinc-500">Gestiona los productos que se muestran en tu perfil.</p>
+      </header>
 
-      {/* Products list */}
-      {productos.length === 0 ? (
+      {products.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-zinc-200 bg-white py-16 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50">
-            <ShoppingBag className="h-7 w-7 text-primary-400" />
+            <ShoppingBag className="h-7 w-7 text-primary-400" aria-hidden="true" />
           </div>
           <p className="font-semibold text-zinc-700">Sin productos todavía</p>
-          <p className="mt-1 text-sm text-zinc-400">Añade productos para venderlos desde tu página pública.</p>
+          <p className="mt-1 text-sm text-zinc-400">Añade el primer producto cuando actives este módulo.</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
+              <caption className="sr-only">Productos del centro</caption>
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50">
-                  {['Producto', 'Marca', 'Precio', 'Stock', 'Estado', ''].map((h) => (
-                    <th key={h} className={`px-6 py-3 text-xs font-bold uppercase tracking-wider text-zinc-400 ${h === '' ? 'text-right' : 'text-left'}`}>{h}</th>
+                  {['Producto', 'Marca', 'Precio', 'Stock', 'Estado', 'Acciones'].map(header => (
+                    <th key={header} scope="col" className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-zinc-500">
+                      {header}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {productos.map((p) => (
-                  <tr key={p.id} className="hover:bg-zinc-50/50 transition-colors">
+                {products.map(product => (
+                  <tr key={product.id} className="transition-colors hover:bg-zinc-50/50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-primary-50">
-                          {p.image ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                              <Package className="h-5 w-5 text-primary-500" />
-                            </div>
-                          )}
-                        </div>
+                        <ProductImage name={product.name} image={product.image} />
                         <div>
-                          <p className="font-semibold text-zinc-900">{p.name}</p>
-                          {p.description && <p className="text-xs text-zinc-400 line-clamp-1">{p.description}</p>}
+                          <p className="font-semibold text-zinc-900">{product.name}</p>
+                          {product.description && <p className="line-clamp-1 text-xs text-zinc-500">{product.description}</p>}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-zinc-500">{p.brand ?? '—'}</td>
-                    <td className="px-6 py-4 font-semibold text-zinc-900">{formatPrice(p.priceCents)}</td>
-                    <td className="px-6 py-4 text-zinc-500">{p.stock !== null ? p.stock : '∞'}</td>
+                    <td className="px-6 py-4 text-zinc-600">{product.brand ?? '—'}</td>
+                    <td className="px-6 py-4 font-semibold text-zinc-900">{formatPrice(product.priceCents)}</td>
+                    <td className="px-6 py-4 text-zinc-600">{product.stock ?? '∞'}</td>
+                    <td className="px-6 py-4"><Status active={product.active} /></td>
                     <td className="px-6 py-4">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${p.active ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                        {p.active ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <form action={async () => { 'use server'; await toggleProductActiveAction(p.id, orgId) }}>
-                        <button type="submit" className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${p.active ? 'border border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
-                          {p.active ? 'Desactivar' : 'Activar'}
-                        </button>
-                      </form>
+                      <ToggleProductForm productId={product.id} active={product.active} />
                     </td>
                   </tr>
                 ))}
@@ -105,161 +97,178 @@ export default async function ProductosPage() {
             </table>
           </div>
 
-          {/* Mobile cards */}
-          <div className="md:hidden divide-y divide-zinc-100">
-            {productos.map((p) => (
-              <div key={p.id} className="p-4">
+          <div className="divide-y divide-zinc-100 md:hidden">
+            {products.map(product => (
+              <article key={product.id} className="p-4">
                 <div className="mb-3 h-32 overflow-hidden rounded-xl bg-primary-50">
-                  {p.image ? (
+                  {product.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                    <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
-                      <Package className="h-8 w-8 text-primary-400" />
+                      <Package className="h-8 w-8 text-primary-400" aria-hidden="true" />
                     </div>
                   )}
                 </div>
-                <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="mb-2 flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-zinc-900">{p.name}</p>
-                    {p.brand && <p className="text-xs text-zinc-400">{p.brand}</p>}
+                    <h2 className="font-semibold text-zinc-900">{product.name}</h2>
+                    {product.brand && <p className="text-xs text-zinc-500">{product.brand}</p>}
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${p.active ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                    {p.active ? 'Activo' : 'Inactivo'}
-                  </span>
+                  <Status active={product.active} />
                 </div>
-                <div className="flex items-center gap-4 text-sm text-zinc-500 mb-3">
-                  <span className="font-semibold text-zinc-900">{formatPrice(p.priceCents)}</span>
-                  {p.stock !== null && <span>Stock: {p.stock}</span>}
+                <div className="mb-3 flex items-center gap-4 text-sm text-zinc-600">
+                  <span className="font-semibold text-zinc-900">{formatPrice(product.priceCents)}</span>
+                  {product.stock !== null && <span>Stock: {product.stock}</span>}
                 </div>
-                <form action={async () => { 'use server'; await toggleProductActiveAction(p.id, orgId) }}>
-                  <button type="submit" className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${p.active ? 'border border-zinc-200 text-zinc-600 hover:bg-zinc-50' : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
-                    {p.active ? 'Desactivar' : 'Activar'}
-                  </button>
-                </form>
-              </div>
+                <ToggleProductForm productId={product.id} active={product.active} />
+              </article>
             ))}
           </div>
         </div>
       )}
 
-      {/* Create form */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-5 text-lg font-bold text-zinc-900">Añadir producto</h2>
-        <NuevoProductoForm orgId={orgId} />
-      </div>
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm" aria-labelledby="new-product-title">
+        <h2 id="new-product-title" className="mb-5 text-lg font-bold text-zinc-900">Añadir producto</h2>
+        <NewProductForm />
+      </section>
     </div>
   )
 }
 
-function NuevoProductoForm({ orgId }: { orgId: string }) {
-  async function handleCreate(formData: FormData) {
-    'use server'
-    const precioEuros = parseFloat(formData.get('precioEuros') as string)
-    const stockStr    = formData.get('stock') as string
-    const expectedDurationDaysStr = formData.get('expectedDurationDays') as string
-    const replenishmentIntervalDaysStr = formData.get('replenishmentIntervalDays') as string
-    const splitTags = (value: FormDataEntryValue | null) =>
-      String(value ?? '')
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(Boolean)
+function ProductImage({ name, image }: { name: string; image: string | null }) {
+  return (
+    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-primary-50">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <Package className="h-5 w-5 text-primary-500" aria-hidden="true" />
+        </div>
+      )}
+    </div>
+  )
+}
 
-    await createProductAction({
-      name:        formData.get('name') as string,
-      description: (formData.get('description') as string) || undefined,
-      brand:       (formData.get('brand') as string) || undefined,
-      image:       (formData.get('image') as string) || undefined,
-      priceCents:  Math.round(precioEuros * 100),
-      stock:       stockStr ? parseInt(stockStr, 10) : undefined,
-      usageInstructions: (formData.get('usageInstructions') as string) || undefined,
-      recommendedFor: (formData.get('recommendedFor') as string) || undefined,
-      notRecommendedFor: (formData.get('notRecommendedFor') as string) || undefined,
-      expectedDurationDays: expectedDurationDaysStr ? parseInt(expectedDurationDaysStr, 10) : undefined,
-      replenishmentIntervalDays: replenishmentIntervalDaysStr ? parseInt(replenishmentIntervalDaysStr, 10) : undefined,
-      routineStepType: (formData.get('routineStepType') as string) || undefined,
-      compatibilityTags: splitTags(formData.get('compatibilityTags')),
-      recommendationTags: splitTags(formData.get('recommendationTags')),
-    }, orgId)
+function Status({ active }: { active: boolean }) {
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${active ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600'}`}>
+      {active ? 'Activo' : 'Inactivo'}
+    </span>
+  )
+}
+
+function ToggleProductForm({ productId, active }: { productId: string; active: boolean }) {
+  async function toggle() {
+    'use server'
+    await toggleProductActiveAction(productId)
   }
 
   return (
-    <form action={handleCreate} className="grid gap-4 sm:grid-cols-2">
+    <form action={toggle}>
+      <button type="submit" className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${active ? 'border border-zinc-200 text-zinc-700 hover:bg-zinc-50' : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>
+        {active ? 'Desactivar' : 'Activar'}
+      </button>
+    </form>
+  )
+}
+
+function NewProductForm() {
+  async function create(formData: FormData) {
+    'use server'
+    const price = Number.parseFloat(String(formData.get('precioEuros') ?? ''))
+    const stock = String(formData.get('stock') ?? '')
+    const expectedDuration = String(formData.get('expectedDurationDays') ?? '')
+    const replenishmentInterval = String(formData.get('replenishmentIntervalDays') ?? '')
+    const splitTags = (value: FormDataEntryValue | null) => String(value ?? '')
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean)
+
+    await createProductAction({
+      name: String(formData.get('name') ?? ''),
+      description: String(formData.get('description') ?? '') || undefined,
+      brand: String(formData.get('brand') ?? '') || undefined,
+      image: String(formData.get('image') ?? '') || undefined,
+      priceCents: Math.round(price * 100),
+      stock: stock ? Number.parseInt(stock, 10) : undefined,
+      usageInstructions: String(formData.get('usageInstructions') ?? '') || undefined,
+      recommendedFor: String(formData.get('recommendedFor') ?? '') || undefined,
+      notRecommendedFor: String(formData.get('notRecommendedFor') ?? '') || undefined,
+      expectedDurationDays: expectedDuration ? Number.parseInt(expectedDuration, 10) : undefined,
+      replenishmentIntervalDays: replenishmentInterval ? Number.parseInt(replenishmentInterval, 10) : undefined,
+      routineStepType: parseRoutineStepType(formData.get('routineStepType')),
+      compatibilityTags: splitTags(formData.get('compatibilityTags')),
+      recommendationTags: splitTags(formData.get('recommendationTags')),
+    })
+  }
+
+  return (
+    <form action={create} className="grid gap-4 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <label className="label">Nombre del producto <span className="text-beauty-500">*</span></label>
-        <input name="name" required minLength={2} placeholder="Ej: Champú reparador 250ml" className="input-base" />
+        <label className="label" htmlFor="product-name">Nombre del producto</label>
+        <input id="product-name" name="name" required minLength={2} placeholder="Ej.: Champú reparador 250 ml" className="input-base" />
       </div>
       <div className="sm:col-span-2">
-        <label className="label">Descripción</label>
-        <textarea name="description" rows={2} placeholder="Descripción breve (opcional)" className="input-base resize-none" />
+        <label className="label" htmlFor="product-description">Descripción</label>
+        <textarea id="product-description" name="description" rows={2} className="input-base resize-none" />
       </div>
       <div>
-        <label className="label">Marca</label>
-        <input name="brand" placeholder="Ej: Kerastase" className="input-base" />
+        <label className="label" htmlFor="product-brand">Marca</label>
+        <input id="product-brand" name="brand" className="input-base" />
+      </div>
+      <UploadHiddenInput name="image" label="Imagen" kind="product" helper="Se mostrará en la ficha del producto." />
+      <div>
+        <label className="label" htmlFor="product-price">Precio (€)</label>
+        <input id="product-price" name="precioEuros" type="number" required min={0} step={0.01} className="input-base" />
       </div>
       <div>
-        <UploadHiddenInput
-          name="image"
-          label="Imagen"
-          kind="product"
-          helper="Se mostrara en el marketplace y en la ficha del producto."
-        />
+        <label className="label" htmlFor="product-stock">Stock</label>
+        <input id="product-stock" name="stock" type="number" min={0} placeholder="Vacío para ilimitado" className="input-base" />
       </div>
-      <div>
-        <label className="label">Precio (€) <span className="text-beauty-500">*</span></label>
-        <input name="precioEuros" type="number" required min={0} step={0.01} placeholder="29.90" className="input-base" />
-      </div>
-      <div>
-        <label className="label">
-          Stock <span className="text-zinc-400 font-normal">(deja vacío para ilimitado)</span>
-        </label>
-        <input name="stock" type="number" min={0} placeholder="50" className="input-base" />
-      </div>
-      <div className="sm:col-span-2 mt-2 rounded-lg border border-[#d8dee9] bg-[#f7f9fc] p-4">
-        <p className="text-sm font-black text-[#0c1324]">Guia de rutina</p>
-        <p className="mt-1 text-xs leading-5 text-[#647089]">
-          Esta informacion se mostrara en la ficha del producto y ayuda a sugerir rutinas y reposicion.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+
+      <fieldset className="sm:col-span-2 rounded-lg border border-[#d8dee9] bg-[#f7f9fc] p-4">
+        <legend className="px-1 text-sm font-black text-[#0c1324]">Guía de rutina</legend>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="label">Paso de rutina</label>
-            <select name="routineStepType" className="input-base">
+            <label className="label" htmlFor="routine-step">Paso de rutina</label>
+            <select id="routine-step" name="routineStepType" className="input-base">
               <option value="">Sin clasificar</option>
-              {ROUTINE_STEP_OPTIONS.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
+              {ROUTINE_STEP_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>
           <div>
-            <label className="label">Etiquetas de recomendacion</label>
-            <input name="recommendationTags" placeholder="piel seca, luminosidad, cabello fino" className="input-base" />
+            <label className="label" htmlFor="recommendation-tags">Etiquetas de recomendación</label>
+            <input id="recommendation-tags" name="recommendationTags" placeholder="piel seca, luminosidad" className="input-base" />
           </div>
           <div>
-            <label className="label">Duracion estimada (dias)</label>
-            <input name="expectedDurationDays" type="number" min={1} placeholder="45" className="input-base" />
+            <label className="label" htmlFor="expected-duration">Duración estimada (días)</label>
+            <input id="expected-duration" name="expectedDurationDays" type="number" min={1} className="input-base" />
           </div>
           <div>
-            <label className="label">Reposicion sugerida (dias)</label>
-            <input name="replenishmentIntervalDays" type="number" min={1} placeholder="40" className="input-base" />
+            <label className="label" htmlFor="replenishment">Reposición sugerida (días)</label>
+            <input id="replenishment" name="replenishmentIntervalDays" type="number" min={1} className="input-base" />
           </div>
           <div className="sm:col-span-2">
-            <label className="label">Para quien es</label>
-            <textarea name="recommendedFor" rows={2} placeholder="Ej: piel seca o apagada que necesita confort diario" className="input-base resize-none" />
+            <label className="label" htmlFor="recommended-for">Para quién es</label>
+            <textarea id="recommended-for" name="recommendedFor" rows={2} className="input-base resize-none" />
           </div>
           <div className="sm:col-span-2">
-            <label className="label">Mejor evitar si</label>
-            <textarea name="notRecommendedFor" rows={2} placeholder="Ej: piel muy reactiva a perfumes o retinoides" className="input-base resize-none" />
+            <label className="label" htmlFor="not-recommended-for">Mejor evitar si</label>
+            <textarea id="not-recommended-for" name="notRecommendedFor" rows={2} className="input-base resize-none" />
           </div>
           <div className="sm:col-span-2">
-            <label className="label">Como usarlo</label>
-            <textarea name="usageInstructions" rows={3} placeholder="Ej: aplicar por la noche despues de limpiar, 2-3 veces por semana" className="input-base resize-none" />
+            <label className="label" htmlFor="usage-instructions">Cómo usarlo</label>
+            <textarea id="usage-instructions" name="usageInstructions" rows={3} className="input-base resize-none" />
           </div>
           <div className="sm:col-span-2">
-            <label className="label">Compatibilidad</label>
-            <input name="compatibilityTags" placeholder="vitamina c, niacinamida, no exfoliantes" className="input-base" />
+            <label className="label" htmlFor="compatibility-tags">Compatibilidad</label>
+            <input id="compatibility-tags" name="compatibilityTags" placeholder="vitamina C, niacinamida" className="input-base" />
           </div>
         </div>
-      </div>
+      </fieldset>
+
       <div className="sm:col-span-2">
         <button type="submit" className="btn-primary">Añadir producto</button>
       </div>

@@ -1,99 +1,91 @@
-import { getStripe, APP_URL } from './stripe'
 import { prisma } from '@/lib/db/client'
+import { consumeOrderStockReservation } from '@/lib/billing/payment-integrity'
 import { sendBookingConfirmation } from '@/lib/notifications/email'
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PRODUCTOS — Stripe Checkout Session (modo pago único) + fulfillment
-// ─────────────────────────────────────────────────────────────────────────────
+import { APP_URL, getStripe } from './stripe'
 
 interface OrderLineItem {
-  name:       string
+  name: string
   priceCents: number
-  quantity:   number
+  quantity: number
 }
 
-/**
- * Crea una sesión de Stripe Checkout para un pedido ya existente (estado PENDING).
- * Los importes se construyen con datos de la BD (nunca del cliente).
- * Devuelve la URL hospedada de Stripe a la que redirigir.
- */
 export async function createOrderCheckoutSession(params: {
-  orderId:       string
-  items:         OrderLineItem[]
+  orderId: string
+  items: OrderLineItem[]
   customerEmail: string
-  centerName:    string
+  centerName: string
+  expiresAt: Date
 }): Promise<string> {
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
     customer_email: params.customerEmail,
-    line_items: params.items.map(i => ({
-      quantity: i.quantity,
+    expires_at: Math.floor(params.expiresAt.getTime() / 1000),
+    line_items: params.items.map(item => ({
+      quantity: item.quantity,
       price_data: {
         currency: 'eur',
-        unit_amount: i.priceCents,
-        product_data: { name: i.name },
+        unit_amount: item.priceCents,
+        product_data: { name: item.name },
       },
     })),
     metadata: { type: 'order', orderId: params.orderId },
     payment_intent_data: { metadata: { type: 'order', orderId: params.orderId } },
     success_url: `${APP_URL}/pedido/confirmado/${params.orderId}?paid=1`,
-    cancel_url:  `${APP_URL}/carrito`,
+    cancel_url: `${APP_URL}/carrito?checkout=cancelado`,
   })
-
   if (!session.url) throw new Error('Stripe no devolvió URL de checkout')
   return session.url
 }
 
-/** Marca un pedido como pagado. Idempotente. Llamado desde el webhook. */
 export async function fulfillOrderPayment(orderId: string, paymentIntentId: string | null): Promise<void> {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true } })
-  if (!order) return
-  if (order.status === 'PAID' || order.status === 'READY' || order.status === 'COMPLETED') return // ya procesado
+  await prisma.$transaction(async tx => {
+    const order = await tx.order.findUnique({ where: { id: orderId }, select: { status: true } })
+    if (!order) return
+    if (['PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED'].includes(order.status)) return
+    if (order.status === 'CANCELLED') throw new Error('ORDER_ALREADY_CANCELLED')
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: {
-      status: 'PAID',
-      paidAt: new Date(),
-      stripePaymentIntentId: paymentIntentId ?? undefined,
-    },
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'PAID',
+        paidAt: new Date(),
+        stripePaymentIntentId: paymentIntentId ?? undefined,
+      },
+    })
   })
+  await consumeOrderStockReservation(orderId)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BONOS — Stripe Checkout Session + fulfillment (crea la BonoInstance al pagar)
-// ─────────────────────────────────────────────────────────────────────────────
-
 export interface BonoCheckoutMetadata {
-  type:          'bono'
-  bonoId:        string
-  centerId:      string
-  customerName:  string
+  type: 'bono'
+  bonoId: string
+  centerId: string
+  customerName: string
   customerEmail: string
   customerPhone: string
 }
 
 export async function createBonoCheckoutSession(params: {
-  bonoId:        string
-  bonoName:      string
-  priceCents:    number
-  centerId:      string
-  customerName:  string
+  bonoId: string
+  bonoName: string
+  priceCents: number
+  centerId: string
+  customerName: string
   customerEmail: string
   customerPhone?: string
 }): Promise<string> {
   const metadata: BonoCheckoutMetadata = {
-    type:          'bono',
-    bonoId:        params.bonoId,
-    centerId:      params.centerId,
-    customerName:  params.customerName,
-    customerEmail: params.customerEmail,
-    customerPhone: params.customerPhone ?? '',
+    type: 'bono',
+    bonoId: params.bonoId,
+    centerId: params.centerId,
+    customerName: params.customerName,
+    customerEmail: params.customerEmail.trim().toLowerCase(),
+    customerPhone: params.customerPhone?.trim() ?? '',
   }
 
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
-    customer_email: params.customerEmail,
+    customer_email: metadata.customerEmail,
     line_items: [{
       quantity: 1,
       price_data: {
@@ -105,67 +97,55 @@ export async function createBonoCheckoutSession(params: {
     metadata: { ...metadata },
     payment_intent_data: { metadata: { ...metadata } },
     success_url: `${APP_URL}/bono/gracias?ok=1`,
-    cancel_url:  `${APP_URL}/bono/${params.bonoId}`,
+    cancel_url: `${APP_URL}/bono/${params.bonoId}`,
   })
-
   if (!session.url) throw new Error('Stripe no devolvió URL de checkout')
   return session.url
 }
 
-/**
- * Crea la BonoInstance tras un pago confirmado de Stripe.
- * Idempotente por stripePaymentId. Llamado desde el webhook.
- */
 export async function fulfillBonoPayment(meta: BonoCheckoutMetadata, paymentId: string): Promise<void> {
-  // Idempotencia: si ya existe una instancia con este pago, no duplicar.
   const existing = await prisma.bonoInstance.findFirst({ where: { stripePaymentId: paymentId } })
   if (existing) return
 
   const bono = await prisma.bono.findFirst({
-    where: { id: meta.bonoId, active: true },
+    where: { id: meta.bonoId, centerId: meta.centerId, active: true },
     select: { id: true, sessions: true, validityDays: true, centerId: true },
   })
-  if (!bono) return
+  if (!bono) throw new Error('BONO_NOT_AVAILABLE')
 
-  const email = meta.customerEmail.toLowerCase()
-
-  await prisma.$transaction(async (tx) => {
-    let customer = await tx.customer.findUnique({
+  const email = meta.customerEmail.trim().toLowerCase()
+  await prisma.$transaction(async tx => {
+    const customer = await tx.customer.upsert({
       where: { email_centerId: { email, centerId: bono.centerId } },
+      create: {
+        centerId: bono.centerId,
+        name: meta.customerName.trim() || email,
+        email,
+        phone: meta.customerPhone?.trim() || null,
+        consentGivenAt: new Date(),
+      },
+      update: {
+        name: meta.customerName.trim() || email,
+        phone: meta.customerPhone?.trim() || null,
+      },
     })
-    if (!customer) {
-      customer = await tx.customer.create({
-        data: {
-          centerId:       bono.centerId,
-          name:           meta.customerName.trim() || email,
-          email,
-          phone:          meta.customerPhone?.trim() || null,
-          consentGivenAt: new Date(),
-        },
-      })
-    }
 
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + bono.validityDays)
-
     await tx.bonoInstance.create({
       data: {
-        bonoId:            bono.id,
-        customerId:        customer.id,
-        centerId:          bono.centerId,
+        bonoId: bono.id,
+        customerId: customer.id,
+        centerId: bono.centerId,
         sessionsRemaining: bono.sessions,
-        purchasedAt:       new Date(),
-        activatedAt:       new Date(),
+        purchasedAt: new Date(),
+        activatedAt: new Date(),
         expiresAt,
-        stripePaymentId:   paymentId,
+        stripePaymentId: paymentId,
       },
     })
   })
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RESERVAS — deposito anti no-show
-// ─────────────────────────────────────────────────────────────────────────────
 
 export async function createBookingDepositCheckoutSession(params: {
   bookingId: string
@@ -180,57 +160,47 @@ export async function createBookingDepositCheckoutSession(params: {
 }): Promise<string> {
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
-    customer_email: params.customerEmail,
+    customer_email: params.customerEmail.trim().toLowerCase(),
     expires_at: Math.floor(params.depositExpiresAt.getTime() / 1000),
     line_items: [{
       quantity: 1,
       price_data: {
         currency: 'eur',
         unit_amount: params.depositCents,
-        product_data: { name: `Deposito reserva: ${params.serviceName}` },
+        product_data: { name: `Depósito reserva: ${params.serviceName}` },
       },
     }],
-    metadata: {
-      type: 'booking_deposit',
-      bookingId: params.bookingId,
-    },
-    payment_intent_data: {
-      metadata: {
-        type: 'booking_deposit',
-        bookingId: params.bookingId,
-      },
-    },
+    metadata: { type: 'booking_deposit', bookingId: params.bookingId },
+    payment_intent_data: { metadata: { type: 'booking_deposit', bookingId: params.bookingId } },
     success_url: `${APP_URL}/reserva/confirmada/${params.confirmationCode}?paid=1`,
     cancel_url: `${APP_URL}/centro/${params.centerSlug}/reservar?servicio=${params.serviceId}&pago=cancelado`,
   })
-
-  if (!session.url) throw new Error('Stripe no devolvio URL de checkout')
+  if (!session.url) throw new Error('Stripe no devolvió URL de checkout')
   return session.url
 }
 
 export async function fulfillBookingDeposit(bookingId: string, paymentIntentId: string | null): Promise<void> {
-  const existing = await prisma.booking.findUnique({
-    where: { id: bookingId },
-    select: { status: true, depositPaid: true },
-  })
-  if (!existing || existing.depositPaid) return
-  if (existing.status !== 'PENDING' && existing.status !== 'CONFIRMED') return
+  const booking = await prisma.$transaction(async tx => {
+    const existing = await tx.booking.findUnique({
+      where: { id: bookingId },
+      select: { status: true, depositPaid: true, depositExpiresAt: true },
+    })
+    if (!existing || existing.depositPaid) return null
+    if (existing.status !== 'PENDING' && existing.status !== 'CONFIRMED') return null
+    if (existing.depositExpiresAt && existing.depositExpiresAt < new Date()) throw new Error('BOOKING_DEPOSIT_EXPIRED')
 
-  const booking = await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      status: 'CONFIRMED',
-      depositPaid: true,
-      depositExpiresAt: null,
-      stripePaymentIntentId: paymentIntentId ?? undefined,
-    },
-    include: {
-      service: true,
-      staff: true,
-      center: true,
-      customer: true,
-    },
+    return tx.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'CONFIRMED',
+        depositPaid: true,
+        depositExpiresAt: null,
+        stripePaymentIntentId: paymentIntentId ?? undefined,
+      },
+      include: { service: true, staff: true, center: true, customer: true },
+    })
   })
+  if (!booking) return
 
   sendBookingConfirmation({
     to: booking.customer.email,
@@ -241,5 +211,5 @@ export async function fulfillBookingDeposit(bookingId: string, paymentIntentId: 
     startAt: booking.startAt,
     confirmationCode: booking.confirmationCode,
     centerSlug: booking.center.slug,
-  }).catch(err => console.error('[email] Failed to send deposit booking confirmation:', err))
+  }).catch(error => console.error('[email] deposit booking confirmation failed', error))
 }

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { getPublicAppUrl } from '@/lib/config/app-url'
 import './globals.css'
 import { Providers } from './providers'
-import { getPublicAppUrl } from '@/lib/config/app-url'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,15 +29,18 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Providers>{children}</Providers>
+        <a href="#contenido-principal" className="skip-link">
+          Saltar al contenido principal
+        </a>
+        <Providers>
+          <div id="contenido-principal" tabIndex={-1}>
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   )
