@@ -60,11 +60,9 @@ export function assertValidImageUpload(input: { contentType: string; size: numbe
   if (!ALLOWED_IMAGE_TYPES.has(input.contentType)) {
     return { success: false as const, error: 'Formato no permitido. Usa JPG, PNG, WebP o AVIF.' }
   }
-
   if (!Number.isFinite(input.size) || input.size <= 0 || input.size > MAX_UPLOAD_BYTES) {
     return { success: false as const, error: 'La imagen debe pesar menos de 5 MB.' }
   }
-
   return { success: true as const }
 }
 
@@ -78,18 +76,16 @@ export function createUploadKey(params: {
   const yyyy = now.getUTCFullYear()
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
   const extension = getExtension(params.filename, params.contentType)
-  const id = crypto.randomUUID()
-
-  return `${params.organizationId}/${KIND_PREFIX[params.kind]}/${yyyy}/${mm}/${id}.${extension}`
+  return `${params.organizationId}/${KIND_PREFIX[params.kind]}/${yyyy}/${mm}/${crypto.randomUUID()}.${extension}`
 }
 
 export function createPresignedPutUrl(params: {
   key: string
+  contentType: string
   expiresSeconds?: number
 }) {
-  if (!isStorageConfigured()) {
-    throw new Error('Storage is not configured')
-  }
+  if (!isStorageConfigured()) throw new Error('Storage is not configured')
+  if (!ALLOWED_IMAGE_TYPES.has(params.contentType)) throw new Error('Unsupported content type')
 
   const endpoint = process.env.STORAGE_ENDPOINT!.replace(/\/$/, '')
   const accessKey = process.env.STORAGE_ACCESS_KEY!
@@ -99,24 +95,24 @@ export function createPresignedPutUrl(params: {
   const now = new Date()
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '')
   const dateStamp = amzDate.slice(0, 8)
-  const expires = String(params.expiresSeconds ?? 300)
+  const expires = String(Math.min(params.expiresSeconds ?? 300, 300))
   const credentialScope = `${dateStamp}/${REGION}/${SERVICE}/aws4_request`
   const credential = `${accessKey}/${credentialScope}`
   const canonicalUri = `/${bucket}/${encodePath(params.key)}`
   const host = url.host
+  const signedHeaders = 'content-type;host'
   const query: Record<string, string> = {
     'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
     'X-Amz-Credential': credential,
     'X-Amz-Date': amzDate,
     'X-Amz-Expires': expires,
-    'X-Amz-SignedHeaders': 'host',
+    'X-Amz-SignedHeaders': signedHeaders,
   }
   const canonicalQuery = Object.keys(query)
     .sort()
     .map(key => `${encodeQuery(key)}=${encodeQuery(query[key])}`)
     .join('&')
-  const canonicalHeaders = `host:${host}\n`
-  const signedHeaders = 'host'
+  const canonicalHeaders = `content-type:${params.contentType}\nhost:${host}\n`
   const canonicalRequest = [
     'PUT',
     canonicalUri,
@@ -135,6 +131,5 @@ export function createPresignedPutUrl(params: {
   const uploadUrl = `${endpoint}${canonicalUri}?${canonicalQuery}&X-Amz-Signature=${signature}`
   const publicUrl = `${process.env.NEXT_PUBLIC_CDN_URL!.replace(/\/$/, '')}/${encodePath(params.key)}`
 
-  return { uploadUrl, publicUrl }
+  return { uploadUrl, publicUrl, requiredHeaders: { 'Content-Type': params.contentType } }
 }
-
