@@ -79,13 +79,34 @@ jobs:
         run: npm run lint
 
       - name: Type check
-        run: npm run type-check
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run type-check 2>&1 | tee typecheck.log
 
       - name: Unit and integration tests
-        run: npm test -- --run
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test -- --run 2>&1 | tee tests.log
 
       - name: Production build
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+
+      - name: Upload quality diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-diagnostics
+          path: |
+            typecheck.log
+            tests.log
+            build.log
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Install Playwright runner
         run: npm install --no-save --no-package-lock @playwright/test@1.52.0
