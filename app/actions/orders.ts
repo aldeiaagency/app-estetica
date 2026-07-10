@@ -1,9 +1,15 @@
 'use server'
 
-import { prisma } from '@/lib/db/client'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { isStripeConfigured } from '@/lib/billing/stripe'
 import { createOrderCheckoutSession } from '@/lib/billing/checkout'
+import { releaseOrderStockReservation } from '@/lib/billing/payment-integrity'
+import { isStripeConfigured } from '@/lib/billing/stripe'
+import { prisma } from '@/lib/db/client'
+import { enforceRateLimit, getRequestFingerprint } from '@/lib/security/rate-limit'
+
+const STRIPE_RESERVATION_MINUTES = 30
+const IN_STORE_RESERVATION_HOURS = 24
 
 const orderItemSchema = z.object({
   productId: z.string().cuid(),
@@ -16,7 +22,7 @@ const createOrderSchema = z.object({
   customerEmail: z.string().trim().email().transform(value => value.toLowerCase()),
   customerPhone: z.string().trim().max(30).optional(),
   items: z.array(orderItemSchema).min(1).max(50),
-  consentGiven: z.boolean().refine(v => v === true, 'Debes aceptar la política de privacidad'),
+  consentGiven: z.boolean().refine(value => value === true, 'Debes aceptar la política de privacidad'),
 })
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>
@@ -29,33 +35,21 @@ type ReservedLine = {
   tracksStock: boolean
 }
 
-async function releaseReservedStock(orderId: string, lines: ReservedLine[]) {
-  await prisma.$transaction(async tx => {
-    const changed = await tx.order.updateMany({
-      where: { id: orderId, status: 'PENDING' },
-      data: { status: 'CANCELLED' },
-    })
-    if (changed.count !== 1) return
-
-    for (const line of lines) {
-      if (!line.tracksStock) continue
-      await tx.product.update({
-        where: { id: line.productId },
-        data: { stock: { increment: line.quantity } },
-      })
-    }
-  })
-}
-
 export async function createOrderAction(input: unknown): Promise<
   { success: true; orderId: string; checkoutUrl?: string } | { success: false; error: string }
 > {
   const parsed = createOrderSchema.safeParse(input)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
+  const { centerId, customerName, customerEmail, customerPhone, items } = parsed.data
+
+  try {
+    await enforceRateLimit('order', await getRequestFingerprint(`${centerId}:${customerEmail}`))
+  } catch (error) {
+    if (error instanceof Error && error.message === 'RATE_LIMITED') {
+      return { success: false, error: 'Demasiados intentos. Espera unos minutos antes de volver a comprar.' }
+    }
   }
 
-  const { centerId, customerName, customerEmail, customerPhone, items } = parsed.data
   const center = await prisma.center.findFirst({
     where: { id: centerId, published: true },
     select: { id: true, name: true },
@@ -67,6 +61,10 @@ export async function createOrderAction(input: unknown): Promise<
     quantityByProduct.set(item.productId, (quantityByProduct.get(item.productId) ?? 0) + item.quantity)
   }
   const productIds = [...quantityByProduct.keys()]
+  const onlinePayment = isStripeConfigured()
+  const expiresAt = new Date(Date.now() + (
+    onlinePayment ? STRIPE_RESERVATION_MINUTES * 60_000 : IN_STORE_RESERVATION_HOURS * 3_600_000
+  ))
 
   try {
     const result = await prisma.$transaction(async tx => {
@@ -84,8 +82,6 @@ export async function createOrderAction(input: unknown): Promise<
         tracksStock: product.stock !== null,
       }))
 
-      // Conditional updates make the stock check and decrement one atomic DB
-      // operation. Two concurrent carts cannot both consume the last unit.
       for (const line of lines) {
         if (!line.tracksStock) continue
         const reserved = await tx.product.updateMany({
@@ -104,6 +100,7 @@ export async function createOrderAction(input: unknown): Promise<
           customerPhone: customerPhone || null,
           totalCents,
           status: 'PENDING',
+          notes: onlinePayment ? 'Stock reservado para pago online' : 'Stock reservado para pago en el centro',
           items: {
             create: lines.map(line => ({
               productId: line.productId,
@@ -115,10 +112,14 @@ export async function createOrderAction(input: unknown): Promise<
         },
       })
 
+      await tx.$executeRaw`
+        INSERT INTO "OrderStockReservation" ("orderId", "expiresAt")
+        VALUES (${order.id}, ${expiresAt})
+      `
       return { order, lines }
-    })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
-    if (!isStripeConfigured()) return { success: true, orderId: result.order.id }
+    if (!onlinePayment) return { success: true, orderId: result.order.id }
 
     try {
       const checkoutUrl = await createOrderCheckoutSession({
@@ -130,12 +131,13 @@ export async function createOrderAction(input: unknown): Promise<
         })),
         customerEmail,
         centerName: center.name,
+        expiresAt,
       })
       return { success: true, orderId: result.order.id, checkoutUrl }
     } catch (error) {
-      console.error('[order] Stripe checkout session failed:', error)
-      await releaseReservedStock(result.order.id, result.lines)
-      return { success: false, error: 'No se pudo iniciar el pago. No se ha descontado stock.' }
+      console.error('[order] Stripe checkout session failed', error)
+      await releaseOrderStockReservation(result.order.id, 'checkout_creation_failed')
+      return { success: false, error: 'No se pudo iniciar el pago. El stock ha sido restablecido.' }
     }
   } catch (error) {
     if (error instanceof Error && error.message === 'PRODUCT_UNAVAILABLE') {
@@ -144,7 +146,7 @@ export async function createOrderAction(input: unknown): Promise<
     if (error instanceof Error && error.message.startsWith('OUT_OF_STOCK:')) {
       return { success: false, error: `Stock insuficiente para "${error.message.slice(13)}"` }
     }
-    console.error('[order] Error creating order:', error)
+    console.error('[order] creation failed', error)
     return { success: false, error: 'Error al procesar el pedido. Inténtalo de nuevo.' }
   }
 }
