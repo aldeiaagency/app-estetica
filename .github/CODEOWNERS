@@ -1,0 +1,11 @@
+* @aldeiaagency
+
+# Security-sensitive domains
+/app/actions/ @aldeiaagency
+/app/api/webhooks/ @aldeiaagency
+/app/api/cron/ @aldeiaagency
+/lib/auth/ @aldeiaagency
+/lib/billing/ @aldeiaagency
+/lib/availability/ @aldeiaagency
+/prisma/migrations/ @aldeiaagency
+/.github/workflows/ @aldeiaagency
