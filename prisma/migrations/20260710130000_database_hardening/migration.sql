@@ -40,8 +40,8 @@ CREATE INDEX IF NOT EXISTS "ServiceStaff_staffId_serviceId_idx"
   ON "ServiceStaff" ("staffId", "serviceId");
 CREATE INDEX IF NOT EXISTS "VerificationToken_expires_idx"
   ON "VerificationToken" ("expires");
-CREATE INDEX IF NOT EXISTS "AuditLog_createdAt_idx"
-  ON "AuditLog" ("createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "AdminAuditLog_createdAt_idx"
+  ON "AdminAuditLog" ("createdAt" DESC);
 CREATE INDEX IF NOT EXISTS "Customer_center_createdAt_idx"
   ON "Customer" ("centerId", "createdAt" DESC);
 CREATE INDEX IF NOT EXISTS "WaitlistEntry_requestedDate_status_idx"
