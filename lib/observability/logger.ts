@@ -1,7 +1,6 @@
 import 'server-only'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
-
 type LogContext = Record<string, unknown>
 
 const SENSITIVE_KEYS = new Set([
@@ -11,14 +10,19 @@ const SENSITIVE_KEYS = new Set([
 
 function redact(value: unknown, key?: string): unknown {
   if (key && SENSITIVE_KEYS.has(key)) return '[REDACTED]'
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : value.stack,
+    }
+  }
   if (Array.isArray(value)) return value.map(item => redact(item))
   if (value && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [childKey, redact(childValue, childKey)]),
+      Object.entries(value as Record<string, unknown>)
+        .map(([childKey, childValue]) => [childKey, redact(childValue, childKey)]),
     )
-  }
-  if (value instanceof Error) {
-    return { name: value.name, message: value.message, stack: process.env.NODE_ENV === 'production' ? undefined : value.stack }
   }
   return value
 }
@@ -30,7 +34,7 @@ function write(level: LogLevel, event: string, context: LogContext = {}) {
     event,
     service: 'app-estetica',
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'unknown',
-    ...redact(context) as LogContext,
+    ...(redact(context) as LogContext),
   })
 
   if (level === 'error') console.error(payload)
