@@ -2,6 +2,7 @@ import 'server-only'
 
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
+import type { UserRole } from '@prisma/client'
 
 export class AuthorizationError extends Error {
   constructor(message = 'Sin permisos') {
@@ -13,38 +14,53 @@ export class AuthorizationError extends Error {
 export async function requireAuthenticatedUser() {
   const session = await auth()
   if (!session?.user?.id) throw new AuthorizationError('Debes iniciar sesión')
-  return session.user
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, email: true, role: true, organizationId: true },
+  })
+  if (!user) throw new AuthorizationError('Sesión no válida')
+  return user
 }
 
 export async function requireOrganization() {
   const user = await requireAuthenticatedUser()
   if (!user.organizationId) throw new AuthorizationError('Usuario sin organización')
+  if (!['BUSINESS', 'BUSINESS_ADMIN'].includes(user.role)) throw new AuthorizationError()
 
-  const membership = await prisma.user.findFirst({
-    where: { id: user.id, organizationId: user.organizationId },
-    select: { id: true, role: true, organizationId: true },
+  const organization = await prisma.organization.findUnique({
+    where: { id: user.organizationId },
+    select: { id: true, plan: true },
   })
-  if (!membership?.organizationId) throw new AuthorizationError()
+  if (!organization) throw new AuthorizationError()
 
   return {
-    userId: membership.id,
-    role: membership.role,
-    organizationId: membership.organizationId,
+    userId: user.id,
+    email: user.email,
+    role: user.role as UserRole,
+    organizationId: organization.id,
+    plan: organization.plan,
   }
 }
 
 export async function requireAdminOrganization() {
   const context = await requireOrganization()
-  if (!['BUSINESS_ADMIN', 'SUPER_ADMIN'].includes(context.role)) {
-    throw new AuthorizationError()
-  }
+  if (context.role !== 'BUSINESS_ADMIN') throw new AuthorizationError()
   return context
 }
 
+export async function requirePlatformAdmin() {
+  const user = await requireAuthenticatedUser()
+  if (user.role !== 'PLATFORM_ADMIN') throw new AuthorizationError()
+  return user
+}
+
 export async function assertOrganization(expectedOrganizationId: string) {
-  const context = await requireAdminOrganization()
-  if (context.organizationId !== expectedOrganizationId && context.role !== 'SUPER_ADMIN') {
-    throw new AuthorizationError()
-  }
+  const context = await requireOrganization()
+  if (context.organizationId !== expectedOrganizationId) throw new AuthorizationError()
   return context
+}
+
+export async function getCurrentBusinessContext() {
+  return requireOrganization()
 }
