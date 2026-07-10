@@ -92,6 +92,7 @@ docs/                        Producto, seguridad y operación
 - Liveness: `/api/health/live`
 - Readiness: `/api/health/ready`
 - Variables: `.env.example`
+- Matriz de los 14 bloques: [`docs/IMPLEMENTATION_MATRIX.md`](docs/IMPLEMENTATION_MATRIX.md)
 - Despliegue: [`docs/DEPLOYMENT_CHECKLIST.md`](docs/DEPLOYMENT_CHECKLIST.md)
 - Incidentes y rollback: [`docs/OPERATIONS_RUNBOOK.md`](docs/OPERATIONS_RUNBOOK.md)
 - Arquitectura de seguridad: [`docs/SECURITY_ARCHITECTURE.md`](docs/SECURITY_ARCHITECTURE.md)
