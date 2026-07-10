@@ -25,8 +25,7 @@ ALTER TABLE "OrderItem"
 ALTER TABLE "ScheduleRule"
   ADD CONSTRAINT "ScheduleRule_valid_day_chk" CHECK ("dayOfWeek" BETWEEN 0 AND 6) NOT VALID,
   ADD CONSTRAINT "ScheduleRule_owner_chk" CHECK (
-    ("centerId" IS NOT NULL AND "staffId" IS NULL)
-    OR ("centerId" IS NULL AND "staffId" IS NOT NULL)
+    "centerId" IS NOT NULL OR "staffId" IS NOT NULL
   ) NOT VALID;
 
 CREATE INDEX IF NOT EXISTS "Booking_staff_status_interval_idx"
