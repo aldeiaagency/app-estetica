@@ -6,7 +6,9 @@ PR: `#4`
 
 ## Estado ejecutivo
 
-Los bloqueadores técnicos P0 detectados en la auditoría han sido implementados en esta rama. La aplicación queda preparada para un **despliegue de preview y piloto cerrado** una vez que CI esté verde y se configuren las credenciales externas.
+Los bloqueadores técnicos P0 detectados en la auditoría han sido implementados en esta rama. La versión de código fue verificada correctamente mediante CI y CodeQL el 10 de julio de 2026: dependencias, migraciones desde cero, lint, TypeScript, pruebas unitarias y de integración, build de producción, E2E en Chromium y análisis estático finalizaron correctamente.
+
+La aplicación queda preparada para un **despliegue de preview y piloto cerrado** cuando se configuren las credenciales externas y se ejecuten los smoke tests de integración real.
 
 No debe activarse cobro live ni captación pública hasta completar la lista externa de este documento.
 
