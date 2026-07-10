@@ -10,6 +10,8 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "security:audit": "npm audit --omit=dev --audit-level=critical",
     "email": "email dev --dir emails --port 3001",
     "seed:pilot": "node --env-file=.env.local prisma/seed-pilot-belleza.mjs"
   },
