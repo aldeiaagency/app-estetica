@@ -80,7 +80,6 @@ describeDatabase('booking concurrency integration', () => {
       await prisma.center.deleteMany({ where: { id: centerId } })
     }
     if (organizationId) await prisma.organization.deleteMany({ where: { id: organizationId } })
-    await prisma.$disconnect()
   })
 
   it('allows exactly one active booking for the same professional and interval', async () => {
