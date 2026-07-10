@@ -58,7 +58,19 @@ jobs:
         run: npx prisma generate
 
       - name: Apply migrations to clean PostgreSQL
-        run: npx prisma migrate deploy
+        shell: bash
+        run: |
+          set -o pipefail
+          npx prisma migrate deploy 2>&1 | tee migration.log
+
+      - name: Upload migration diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-diagnostics
+          path: migration.log
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Verify migration state
         run: npx prisma migrate status
