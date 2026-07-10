@@ -1,206 +1,166 @@
 # Production readiness — App Estética
 
 Fecha de revisión: 2026-07-10  
-Rama de hardening: `fix/security-transaction-hardening-v2`
+Rama: `fix/security-transaction-hardening-v2`  
+PR: `#4`
 
 ## Estado ejecutivo
 
-La aplicación ha recibido un primer hardening de seguridad, pagos, inventario, uploads y calidad de entrega. No debe considerarse lista para producción comercial hasta completar los bloqueadores P0 descritos abajo y superar el pipeline CI con una base de datos PostgreSQL limpia.
+Los bloqueadores técnicos P0 detectados en la auditoría han sido implementados en esta rama. La aplicación queda preparada para un **despliegue de preview y piloto cerrado** una vez que CI esté verde y se configuren las credenciales externas.
 
-## Cambios completados en esta rama
+No debe activarse cobro live ni captación pública hasta completar la lista externa de este documento.
 
-### 1. Autenticación y autorización base
+## Mejoras completadas
 
-- Normalización del email de acceso (`trim` + minúsculas).
-- Google OAuth solo se registra cuando existen ambas credenciales.
-- Claims de rol y organización se refrescan desde PostgreSQL en cada evaluación del JWT.
-- Nuevo helper `lib/auth/authorization.ts` para que las acciones de servidor deriven la organización desde la sesión y no confíen en IDs enviados por el cliente.
+### 1. Aislamiento multiempresa
 
-### 2. Concurrencia de reservas
+- Las mutaciones B2B obtienen la organización desde `auth()` mediante `lib/auth/authorization.ts`.
+- Los antiguos argumentos `orgId` se mantienen temporalmente solo para compatibilidad de llamadas; se ignoran como frontera de autorización.
+- Los recursos se consultan con filtro de propiedad en la propia query.
+- Roles reales alineados con Prisma: `CUSTOMER`, `BUSINESS`, `BUSINESS_ADMIN`, `PLATFORM_ADMIN`.
+- Tests estáticos impiden reintroducir confianza en un ID de organización enviado por cliente.
 
-- Nueva migración PostgreSQL con `btree_gist` y restricción de exclusión.
-- La base de datos impide dos reservas activas solapadas para el mismo profesional.
-- La restricción cubre estados `PENDING` y `CONFIRMED` y utiliza rango semiabierto `[inicio, fin)`.
+### 2. Reservas canónicas y concurrencia
+
+- `lib/availability/booking-slot.ts` es la autoridad única para crear o reprogramar.
+- El cliente ya no controla `endAt` ni `newEndAt`.
+- El servidor valida centro publicado, servicio activo, vínculo `ServiceStaff`, profesional activo, horarios, excepciones, bloqueos y ventana de reserva.
+- PostgreSQL aplica una restricción de exclusión para evitar solapamientos `PENDING`/`CONFIRMED` por profesional.
+- Alta y reprogramación utilizan transacciones serializables.
+- Código de confirmación generado con `crypto.randomInt`.
+- Test de integración concurrente: dos escrituras simultáneas, una única reserva válida.
 
 ### 3. Inventario y pedidos
 
-- La comprobación y decremento de stock se realiza con una actualización condicional atómica.
-- Dos carritos concurrentes no pueden consumir la última unidad.
-- Si Stripe está configurado y falla la creación de Checkout, el pedido se cancela y el stock se repone.
-- Se elimina la degradación silenciosa a “pago en centro” tras un fallo técnico de Stripe.
-- Email de cliente normalizado antes de persistir.
+- Reserva de stock mediante actualización condicional atómica.
+- Tabla operativa `OrderStockReservation` con vencimiento.
+- Stripe Checkout expira a los 30 minutos; pago en centro reserva durante 24 horas.
+- Webhook `checkout.session.expired` y cron de respaldo reponen stock.
+- Liberación y consumo son idempotentes; un pedido pagado no puede liberar unidades.
+- Un error al crear Checkout restaura stock y devuelve error explícito.
 
 ### 4. Stripe
 
-- El webhook devuelve `503` si falta `STRIPE_WEBHOOK_SECRET`.
-- Los precios de suscripción desconocidos fallan de forma cerrada; ya no se asigna PRO por defecto.
-- Se gestionan creación, actualización, eliminación, pausa y reanudación de suscripciones.
-- Estados sin derecho (`past_due`, `unpaid`, `canceled`, etc.) degradan el plan a BASIC.
-- Los pagos únicos solo se cumplen cuando `payment_status === paid`.
-- Se añade soporte para `checkout.session.async_payment_succeeded` y `async_payment_failed`.
+- Registro persistente de eventos en `StripeWebhookEvent`.
+- Eventos duplicados no repiten fulfillment.
+- Reintento controlado de eventos fallidos o bloqueados.
+- Precio de suscripción desconocido falla cerrado.
+- Cobertura de pago completado, pago asíncrono, expiración, fallo, suscripciones e invoices.
+- Estado sin entitlement degrada a BASIC.
+- `STRIPE_WEBHOOK_SECRET` ausente produce `503`.
 
-### 5. Uploads R2
+### 5. Autenticación y sesiones
 
-- El `Content-Type` validado queda incluido en la firma SigV4.
-- La URL firmada caduca como máximo en 300 segundos.
-- La respuesta devuelve los headers obligatorios para la subida.
+- Emails normalizados globalmente.
+- Contraseña mínima de 10 caracteres con mayúscula, minúscula y número.
+- Registro transaccional: no deja organizaciones huérfanas.
+- Tokens de verificación/reset hasheados, con expiración y uso único.
+- Reset incrementa `sessionVersion` y revoca sesiones anteriores.
+- Campo `active` permite desactivar cuentas.
+- Google OAuth solo se habilita con credenciales completas.
+- Rate limiting sobre registro, recuperación, reset y verificación.
 
-### 6. CI
+### 6. Rate limiting y abuso
 
-Nuevo workflow `.github/workflows/ci.yml` con:
+- Backend distribuido compatible con Upstash Redis.
+- Fallback local exclusivamente defensivo.
+- Políticas separadas para auth, reservas, consultas, pedidos, leads, waitlist y uploads.
+- Formularios públicos con normalización y honeypot.
+- Middleware conserva un límite general de emergencia para APIs.
 
-1. PostgreSQL 16 efímero.
-2. `npm ci`.
-3. `prisma generate`.
-4. `prisma migrate deploy`.
-5. lint.
-6. type-check.
-7. tests.
-8. build de producción.
+### 7. Uploads
 
-## Bloqueadores P0 pendientes
+- La ruta directa `/api/upload/sign` devuelve `410` y no permite bypass.
+- `/api/upload/image` recibe y valida el binario en servidor.
+- Detección por magic bytes para JPG, PNG, WebP y AVIF.
+- Límites de tamaño y dimensiones.
+- Eliminación de EXIF/XMP/ICCP y metadatos textuales comunes.
+- El servidor —no el navegador— escribe el objeto validado en R2.
 
-### P0-1 — Encapsular autorización en todas las Server Actions
+### 8. Feature flags y alcance piloto
 
-**Problema**  
-Varias acciones de `app/actions/dashboard.ts` reciben `orgId` como argumento y lo utilizan como frontera de autorización. Aunque algunas llamadas actuales lo capturan desde una Server Action inline, el contrato de la función sigue siendo inseguro y reutilizable de forma incorrecta.
+Por defecto permanecen cerrados:
 
-**Implementación requerida**
+- productos;
+- bonos;
+- Beauty Concierge;
+- recomendaciones IA;
+- campañas;
+- wallet.
 
-- Importar `requireAdminOrganization` o `assertOrganization` desde `lib/auth/authorization.ts`.
-- Eliminar `orgId` de las firmas públicas de mutación.
-- Resolver `organizationId` exclusivamente desde la sesión.
-- Aplicar el patrón a pedidos, reservas, servicios, profesionales, horarios, bonos, productos, clientes y lista de espera.
-- Mantener `SUPER_ADMIN` como única excepción explícita y auditada.
+Se mantienen activos marketplace básico y follow-ups. El middleware bloquea rutas deshabilitadas tanto en UI como API.
 
-**Criterios de aceptación**
+### 9. Base de datos
 
-- Ninguna mutación B2B acepta `orgId` desde cliente o formulario.
-- Test negativo: un usuario de organización A no puede leer ni mutar recursos de B.
-- Test positivo: BUSINESS_ADMIN puede gestionar únicamente su organización.
-- Las acciones devuelven un error genérico sin filtrar existencia de recursos ajenos.
+- Restricciones para intervalos, precios, depósitos, buffers, cantidades y días de semana.
+- Índices para reservas, pedidos, clientes, tokens, auditoría y waitlist.
+- Migraciones verificadas en CI contra PostgreSQL 16 limpio.
+- Tablas operativas fuera del dominio Prisma documentadas en `prisma/README.md`.
 
-### P0-2 — Validación canónica de disponibilidad al crear o reprogramar
+### 10. Calidad y seguridad automatizadas
 
-**Problema**  
-El wizard consulta slots calculados por `lib/availability/engine.ts`, pero `createBookingAction` y `rescheduleBookingAction` aceptan `startAt` y `endAt` enviados por cliente. La restricción PostgreSQL evita solapamientos, pero no impide reservas fuera de horario, con duración manipulada, profesional no vinculado al servicio, excepciones cerradas o bloqueos manuales.
+- CI: instalación reproducible, audit crítico, Prisma, migraciones, lint, type-check, tests, build y Playwright.
+- CodeQL semanal y por PR.
+- Dependabot para npm y GitHub Actions.
+- CODEOWNERS en áreas sensibles.
+- Plantilla de PR con checklist de seguridad y rollback.
+- Pruebas de invariantes de tenant, reservas, Stripe e imágenes.
 
-**Implementación requerida**
+### 11. Observabilidad y operación
 
-- Crear un servicio único `validateAndResolveBookingSlot`.
-- Entrada permitida: `centerId`, `serviceId`, `staffId`, `startAt`.
-- El servidor debe obtener duración y buffers desde `Service` y calcular `endAt`.
-- Validar vínculo `ServiceStaff`, centro publicado, servicio/profesional activos, horario, excepción, bloqueos manuales, ventana máxima de reserva y antelación mínima.
-- Reutilizar exactamente la misma función en disponibilidad, alta y reprogramación.
-- Traducir el error PostgreSQL `23P01` de la exclusión a `SLOT_TAKEN`.
+- Logger JSON con redacción de datos sensibles.
+- Webhook opcional para alertas operativas.
+- `/api/health/live` para liveness.
+- `/api/health/ready` para base de datos, secretos, integraciones y flags.
+- Crons de reservas, stock, follow-ups, recordatorios y retención.
+- Limpieza semanal de tokens expirados y eventos Stripe antiguos.
 
-**Criterios de aceptación**
+### 12. UX y accesibilidad
 
-- El cliente deja de enviar `endAt`.
-- Un horario inventado o alterado es rechazado.
-- Un profesional no asignado al servicio es rechazado.
-- Una reserva en día cerrado o bloque manual es rechazada.
-- Test de concurrencia: dos solicitudes simultáneas al mismo slot producen una sola reserva.
+- Enlace global “Saltar al contenido principal”.
+- Foco visible coherente.
+- Respeto a `prefers-reduced-motion`.
+- Estados de upload accesibles (`aria-busy`, `role=alert`).
+- Mensajes de error más específicos sin filtrar recursos ajenos.
 
-### P0-3 — Liberación de stock en Checkout abandonado
+## Integraciones externas obligatorias
 
-**Problema**  
-El stock se reserva al crear el pedido. Ahora se revierte si falla la creación de la sesión, pero sigue faltando una expiración para sesiones creadas y nunca pagadas.
+Estas tareas requieren paneles o credenciales fuera del repositorio:
 
-**Implementación requerida**
+1. **Vercel:** cargar todas las variables de `.env.example` y ejecutar migraciones.
+2. **Upstash:** crear Redis y configurar sus dos variables en producción.
+3. **Stripe:** claves live, precios, endpoint webhook, eventos requeridos y prueba con Stripe CLI.
+4. **Resend:** dominio verificado, SPF, DKIM y DMARC.
+5. **Cloudflare R2:** bucket privado de escritura, CDN, CORS mínimo y lifecycle.
+6. **Google OAuth:** redirect URIs exactas del dominio final.
+7. **DNS:** dominio y CDN resolviendo con HTTPS.
+8. **Observabilidad:** URL privada del canal de alertas.
+9. **n8n:** credenciales, monitor de crons y canal operativo.
 
-- Añadir `expiresAt` o `stockReservedUntil` a `Order`.
-- Configurar `expires_at` de Stripe Checkout.
-- Procesar `checkout.session.expired` para cancelar y reponer stock de forma idempotente.
-- Añadir cron de respaldo para reservas de stock vencidas.
+## Smoke tests de preview
 
-**Criterios de aceptación**
+- Registro cliente y negocio, verificación, login y reset.
+- Alta/edición de centro, servicio, profesional y horarios.
+- Reserva normal, con señal, cancelación y reprogramación.
+- Profesional no vinculado, día cerrado y bloqueo manual rechazados.
+- Dos reservas simultáneas al mismo hueco.
+- Dos compras sobre la última unidad.
+- Checkout pagado, fallido, duplicado y expirado.
+- Cambio, impago, cancelación y reactivación de plan.
+- Upload válido y rechazo de archivo falso, sobredimensionado o con metadatos.
+- Usuario de organización A intentando mutar recursos de B.
+- Liveness/readiness y ejecución autenticada de todos los crons.
 
-- Un checkout abandonado devuelve el stock automáticamente.
-- Repetir webhook/cron no duplica stock.
-- Un pedido pagado nunca se libera.
+## Criterio de salida
 
-## Pendientes P1
+La aplicación se considera apta para piloto cuando:
 
-### Rate limiting distribuido
+- CI y CodeQL están verdes;
+- las migraciones pasan desde cero y sobre staging;
+- el preview supera todos los smoke tests;
+- `/api/health/ready` devuelve `200` en producción;
+- las integraciones externas están configuradas;
+- existe backup verificado y procedimiento de rollback;
+- se ha probado con cuentas Stripe test, nunca directamente con live.
 
-El middleware actual es por isolate y solo cubre rutas API. Implementar Upstash Redis, Vercel KV o equivalente para:
-
-- login y recuperación de contraseña;
-- leads y formularios públicos;
-- consulta/cancelación/reprogramación por código;
-- creación de reservas, pedidos y waitlist;
-- firma de uploads.
-
-Añadir CAPTCHA o Turnstile en formularios públicos de alto abuso.
-
-### Verificación real del archivo subido
-
-La firma ahora fija el MIME declarado, pero R2 no inspecciona contenido. Añadir flujo de cuarentena:
-
-1. subir a prefijo privado;
-2. worker valida magic bytes, dimensiones y tamaño real;
-3. reencode opcional;
-4. mover a prefijo público;
-5. eliminar objetos inválidos.
-
-### CSP
-
-Eliminar gradualmente `unsafe-eval` y reducir `unsafe-inline` usando nonces/hashes. Restringir `img-src` y `connect-src` a dominios configurados.
-
-### Emails y observabilidad
-
-- Cola/reintentos para emails transaccionales.
-- Registro idempotente de webhooks Stripe mediante `event.id`.
-- Sentry u OpenTelemetry.
-- Alertas de cron, fallos de pago y errores de reserva.
-
-## Integraciones externas no completables desde código
-
-Estas tareas requieren credenciales, DNS o paneles externos:
-
-- Stripe: claves live, productos/precios, endpoint webhook y pruebas con Stripe CLI.
-- Resend: API key, dominio verificado, DKIM/SPF/DMARC.
-- R2: bucket, CORS, dominio CDN y lifecycle.
-- Google OAuth: client ID/secret y redirect URIs.
-- Dominio: DNS y dominio personalizado en Vercel.
-- n8n: activar monitor de cron y canales de alerta.
-- Vercel: confirmar variables de producción y ejecutar migraciones.
-
-## Orden de ejecución recomendado
-
-1. Completar P0-1 y tests multi-tenant.
-2. Completar P0-2 y tests de concurrencia/disponibilidad.
-3. Completar P0-3 y webhook `checkout.session.expired`.
-4. Activar rate limiting distribuido.
-5. Ejecutar CI hasta verde.
-6. Desplegar preview y ejecutar smoke tests.
-7. Configurar integraciones externas.
-8. Piloto cerrado con 3–5 centros.
-9. Solo después habilitar cobros live y captación pública.
-
-## Smoke tests obligatorios
-
-- Registro, verificación y login.
-- Alta y edición de centro, servicios, staff y horarios.
-- Reserva normal, reserva con señal, cancelación y reprogramación.
-- Doble reserva concurrente.
-- Día cerrado, excepción y bloqueo manual.
-- Pedido con stock limitado y dos compras concurrentes.
-- Checkout pagado, fallido, expirado y webhook duplicado.
-- Cambio de plan, impago, cancelación y reactivación.
-- Upload válido y rechazo de tipo/tamaño inválido.
-- Acceso cruzado entre dos organizaciones.
-
-## Criterio de salida a producción
-
-La app solo se considera lista cuando:
-
-- todos los P0 están completados;
-- CI está verde en una rama limpia;
-- migraciones se aplican desde cero y sobre una copia de staging;
-- smoke tests pasan en preview;
-- Stripe, email, storage, DNS y cron están operativos;
-- existe rollback documentado;
-- no hay secretos en el repositorio;
-- el piloto cerrado confirma la operativa real.
+La activación pública y cobro live solo debe realizarse tras un piloto cerrado con 3–5 centros y al menos una semana de observación sin incidentes críticos.
