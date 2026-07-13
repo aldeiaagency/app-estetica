@@ -263,13 +263,28 @@ PREMIUM (Partner)   → Multi-centro, API, todas las features
 
 ## REFERENCIA RÁPIDA
 
-**Documento de configuración:** `docs/FASE0-CONFIGURACION-EXTERNA.md`
+**Documentos de configuración:**
+- `docs/FASE0-CONFIGURACION-EXTERNA.md` — Instrucciones paso a paso para cada servicio
+- `docs/CHECKLIST-FASE0-OPERATIVA-2026-07-13.md` — **👈 EMPEZAR AQUÍ** (checklist operativo con responsables)
 
-**Para comenzar smoke tests:**
-1. Leer `FASE0-CONFIGURACION-EXTERNA.md` secciones 2-6
-2. Obtener credenciales de Upstash, Resend, R2
-3. Configurar en Vercel
-4. Re-deploy: `vercel --prod`
-5. Ejecutar tests 1-13 de sección 7
+**Flujo resumido:**
+1. **aledeiaceo@gmail.com:** Obtener credenciales (Upstash, Meta, Resend, R2)
+   - Tiempo estimado: 4-8h (incluye espera aprobación template Meta)
+2. **Claude Code:** Configurar variables en Vercel Production
+   - Tiempo: 5 min
+3. **Vercel:** Auto-redeploy con nuevas variables
+   - Tiempo: 2-3 min
+4. **Todos:** Ejecutar smoke tests
+   - Tiempo: 30-45 min
 
-**Preguntas de implementación → Sección 5-6**
+**Total estimado:** ~5h hasta Fase 0 operativa (MVP con reservas, productos, WhatsApp, emails, uploads).
+
+---
+
+## HISTÓRICO DE CAMBIOS (2026-07-13)
+
+**21:45 UTC** — Prisma migration applied (21/21 ✅), code committed, docs updated.
+
+**21:50 UTC** — Created operational checklist with clear responsibilities.
+
+**Status:** ✅ Code ready, 🔴 Awaiting external credentials.
