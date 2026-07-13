@@ -85,7 +85,7 @@ describe('secure registration', () => {
     await registerUser(null, registrationForm({ plan: 'growth' }))
 
     expect(mocks.organizationCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ plan: 'GROWTH' }),
+      data: expect.objectContaining({ plan: 'PRO' }),
     })
     expect(mocks.userCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -94,6 +94,32 @@ describe('secure registration', () => {
         emailVerified: null,
       }),
     })
+  })
+
+  it('maps canonical commercial slugs to their technical plans', async () => {
+    for (const [slug, technicalPlan] of [['presencia', 'BASIC'], ['growth', 'PRO'], ['elite', 'GROWTH']] as const) {
+      vi.clearAllMocks()
+      mocks.getRequestFingerprint.mockResolvedValue('fingerprint')
+      mocks.enforceRateLimit.mockResolvedValue(undefined)
+      mocks.userFindUnique.mockResolvedValue(null)
+      mocks.isEmailConfigured.mockReturnValue(true)
+      mocks.bcryptHash.mockResolvedValue('password-hash')
+      mocks.organizationCreate.mockResolvedValue({ id: 'organization-1' })
+      mocks.userCreate.mockResolvedValue({ id: 'user-1', name: 'Ana Garcia' })
+      mocks.transaction.mockImplementation(async callback => callback({
+        organization: { create: mocks.organizationCreate },
+        user: { create: mocks.userCreate },
+      }))
+      mocks.authTokenIdentifier.mockReturnValue('email-verify:ana@example.com')
+      mocks.createAuthToken.mockResolvedValue('verification-token')
+      mocks.sendEmailVerification.mockResolvedValue(undefined)
+
+      await registerUser(null, registrationForm({ plan: slug }))
+
+      expect(mocks.organizationCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({ plan: technicalPlan }),
+      })
+    }
   })
 
   it('rejects arbitrary or privileged plans before accessing the database', async () => {

@@ -9,7 +9,7 @@ import { registerUser } from '@/app/actions/auth'
 function SignUpForm() {
   const searchParams = useSearchParams()
   const requestedPlan = searchParams.get('plan')?.toLowerCase()
-  const plan = ['basic', 'growth', 'pro'].includes(requestedPlan ?? '') ? requestedPlan! : 'basic'
+  const plan = ['presencia', 'growth', 'elite'].includes(requestedPlan ?? '') ? requestedPlan! : 'presencia'
   const isBusiness = searchParams.get('tipo') === 'negocio' || searchParams.has('plan')
   const [tipo, setTipo] = useState<'cliente' | 'negocio'>(isBusiness ? 'negocio' : 'cliente')
   const [showPassword, setShowPassword] = useState(false)

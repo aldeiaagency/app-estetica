@@ -3,6 +3,7 @@ import {
   PLAN_FEATURES,
   PLAN_PRICES_CENTS,
   canUsePlanFeature,
+  getPlanBySlug,
   getPlanUpgrade,
 } from '@/lib/billing/plans'
 
@@ -22,6 +23,8 @@ describe('PLAN_FEATURES integrity', () => {
     expect(basic.maxStaffPerCenter).toBe(3)
     expect(basic.hasAI).toBe(false)
     expect(basic.hasCRM).toBe(false)
+    expect(basic.hasProducts).toBe(true)
+    expect(basic.hasPromotions).toBe(true)
   })
 
   it('PREMIUM has all features enabled', () => {
@@ -53,9 +56,10 @@ describe('PLAN_FEATURES integrity', () => {
     }
   })
 
-  it('only PREMIUM has SMS and WhatsApp', () => {
+  it('shared WhatsApp is included before SMS', () => {
     for (const plan of ['BASIC', 'PRO', 'GROWTH'] as const) {
       expect(PLAN_FEATURES[plan].notificationChannels).not.toContain('sms')
+      expect(PLAN_FEATURES[plan].notificationChannels).toContain('whatsapp')
     }
     expect(PLAN_FEATURES.PREMIUM.notificationChannels).toContain('sms')
     expect(PLAN_FEATURES.PREMIUM.notificationChannels).toContain('whatsapp')
@@ -105,5 +109,18 @@ describe('getPlanUpgrade', () => {
   })
   it('returns null for PREMIUM (no higher plan)', () => {
     expect(getPlanUpgrade('PREMIUM')).toBeNull()
+  })
+})
+
+describe('getPlanBySlug', () => {
+  it('maps canonical commercial slugs', () => {
+    expect(getPlanBySlug('presencia')).toBe('BASIC')
+    expect(getPlanBySlug('growth')).toBe('PRO')
+    expect(getPlanBySlug('elite')).toBe('GROWTH')
+    expect(getPlanBySlug('partner')).toBe('PREMIUM')
+  })
+
+  it('returns null for an unknown slug', () => {
+    expect(getPlanBySlug('pro')).toBeNull()
   })
 })

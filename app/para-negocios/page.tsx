@@ -83,7 +83,7 @@ const ADD_ONS = [
   {
     icon: Bell,
     title: 'Canales avanzados',
-    text: 'WhatsApp y SMS quedan como add-on o plan avanzado cuando el negocio tenga consentimiento y necesidad real.',
+    text: 'Presencia incluye recordatorios desde el WhatsApp compartido de Belleza Local; el agente propio y SMS quedan para add-ons posteriores.',
   },
   {
     icon: ListChecks,
@@ -108,11 +108,11 @@ const FAQS = [
   },
   {
     q: 'Puedo empezar solo con presencia?',
-    a: 'Si. Presencia sirve para ordenar el perfil y aceptar reservas. Growth anade recurrencia, packs, beneficios y productos.',
+    a: 'Si. Presencia incluye perfil, reservas, recordatorios desde el WhatsApp compartido y marketplace de productos con ofertas y pago en el centro. Growth anade recurrencia, packs y beneficios avanzados.',
   },
   {
     q: 'WhatsApp esta incluido?',
-    a: 'No lo damos por hecho en todos los planes. Es un canal sensible y se activa como add-on o capacidad avanzada cuando hay consentimiento y operativa preparada.',
+    a: 'Presencia incluye recordatorios transaccionales desde un numero comun de Belleza Local, siempre con consentimiento. El agente de WhatsApp propio de cada centro es un add-on posterior.',
   },
 ]
 

@@ -17,9 +17,11 @@ const passwordSchema = z.string()
   .regex(/[A-Z]/, 'Incluye una mayúscula')
   .regex(/[0-9]/, 'Incluye un número')
 
-const selfServePlanSchema = z.enum(['basic', 'growth', 'pro']).transform(plan => ({
+const selfServePlanSchema = z.enum(['presencia', 'growth', 'elite', 'basic', 'pro']).transform(plan => ({
+  presencia: 'BASIC',
+  growth: 'PRO',
+  elite: 'GROWTH',
   basic: 'BASIC',
-  growth: 'GROWTH',
   pro: 'PRO',
 } as const)[plan])
 

@@ -47,6 +47,8 @@ export const PLAN_MARKETING: Record<Plan, PlanMarketing> = {
     highlights: [
       'Perfil en Belleza Local',
       'Reservas online y confirmaciones por email',
+      'Marketplace de productos con ofertas y pago en el centro',
+      'Recordatorios por WhatsApp compartido',
       'Hasta 10 servicios y 3 profesionales',
       'Base preparada para crecer a seguimiento',
     ],
@@ -109,8 +111,8 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     maxStaffPerCenter: 3,
     hasBookingDeposit: false,
     hasBonos: false,
-    hasProducts: false,
-    hasPromotions: false,
+    hasProducts: true,
+    hasPromotions: true,
     hasReviews: false,
     hasWaitlist: false,
     hasCRM: false,
@@ -119,7 +121,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     hasWhiteLabelOption: false,
     hasApiAccess: false,
     hasAI: false,
-    notificationChannels: ['email'],
+    notificationChannels: ['email', 'whatsapp'],
   },
   PRO: {
     maxCenters: 1,
@@ -137,7 +139,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     hasWhiteLabelOption: false,
     hasApiAccess: false,
     hasAI: true,
-    notificationChannels: ['email'],
+    notificationChannels: ['email', 'whatsapp'],
   },
   GROWTH: {
     maxCenters: 3,
@@ -155,7 +157,7 @@ export const PLAN_FEATURES: Record<Plan, PlanFeatures> = {
     hasWhiteLabelOption: false,
     hasApiAccess: false,
     hasAI: true,
-    notificationChannels: ['email'],
+    notificationChannels: ['email', 'whatsapp'],
   },
   PREMIUM: {
     maxCenters: -1,

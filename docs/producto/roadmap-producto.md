@@ -1,5 +1,7 @@
 # Roadmap de Producto — Belleza Local
 
+> Este documento conserva el roadmap histórico de construcción. El plan vigente de lanzamiento y activación comercial está en [`plan-lanzamiento-validacion-2026.md`](./plan-lanzamiento-validacion-2026.md).
+
 ## Fase 0 — Fundamentos (semanas 1-4)
 
 **Objetivo**: Infraestructura lista, documentación cerrada, scaffold del proyecto.

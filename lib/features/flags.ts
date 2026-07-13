@@ -21,7 +21,7 @@ const ENV_KEYS: Record<FeatureFlag, string> = {
 
 const CORE_DEFAULTS: Record<FeatureFlag, boolean> = {
   marketplace: true,
-  products: false,
+  products: true,
   bonos: false,
   beautyConcierge: false,
   aiRecommendations: false,
