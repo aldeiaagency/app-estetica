@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/integration-outbox",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 5 * * *"
     }
   ]
 }
