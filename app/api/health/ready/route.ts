@@ -32,7 +32,9 @@ export async function GET() {
   }
 
   const flags = getFeatureFlags()
-  if (flags.products || flags.bonos) {
+  // Fase 0 uses click & collect: products do not require online payment.
+  // Stripe becomes mandatory only when a payment-enabled feature is enabled.
+  if (flags.bonos) {
     checks.stripe.required = true
     checks.stripeWebhook.required = true
   }

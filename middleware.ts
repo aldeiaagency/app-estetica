@@ -78,7 +78,8 @@ export default auth(async request => {
   const isLoggedIn = Boolean(request.auth?.user?.id)
   const role = request.auth?.user?.role
 
-  if (nextUrl.pathname.startsWith('/api/') && !nextUrl.pathname.startsWith('/api/webhooks/')) {
+  const isHealthEndpoint = nextUrl.pathname === '/api/health/live' || nextUrl.pathname === '/api/health/ready'
+  if (nextUrl.pathname.startsWith('/api/') && !nextUrl.pathname.startsWith('/api/webhooks/') && !isHealthEndpoint) {
     const ip = getClientIp(request)
     if (await isRateLimited(ip)) {
       return new NextResponse('Too Many Requests', {

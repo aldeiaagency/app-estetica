@@ -43,6 +43,28 @@ function hasReachedLimit(current: number, limit: number) {
 
 const optionalUrl = z.string().trim().url('URL inválida').optional().or(z.literal(''))
 
+const promotionSchema = z.object({
+  title: z.string().trim().min(2).max(120),
+  description: z.string().trim().max(500).optional(),
+  scope: z.enum(['PRODUCT', 'CATEGORY', 'ORDER']),
+  code: z.string().trim().toUpperCase().max(40).optional(),
+  discountType: z.enum(['PERCENTAGE', 'FIXED_AMOUNT']),
+  discountValue: z.number().int().positive().max(10_000_000),
+  minimumOrderCents: z.number().int().nonnegative().max(10_000_000).optional(),
+  maxDiscountCents: z.number().int().positive().max(10_000_000).optional(),
+  maxUses: z.number().int().positive().max(1_000_000).optional(),
+  perCustomerLimit: z.number().int().positive().max(100).default(1),
+  categoryId: z.string().cuid().optional(),
+  productIds: z.array(z.string().cuid()).max(100).default([]),
+  startsAt: z.coerce.date(),
+  endsAt: z.coerce.date(),
+}).superRefine((data, ctx) => {
+  if (data.endsAt <= data.startsAt) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['endsAt'], message: 'La fecha final debe ser posterior a la inicial' })
+  if (data.discountType === 'PERCENTAGE' && data.discountValue > 100) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['discountValue'], message: 'El porcentaje no puede superar el 100%' })
+  if (data.scope === 'PRODUCT' && data.productIds.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['productIds'], message: 'Selecciona al menos un producto' })
+  if (data.scope === 'CATEGORY' && !data.categoryId) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['categoryId'], message: 'Selecciona una categoría' })
+})
+
 function cleanOptionalUrl(value?: string | null) {
   const trimmed = value?.trim()
   return trimmed || null
@@ -581,6 +603,71 @@ export async function toggleProductActiveAction(
     return { success: true }
   } catch (error) {
     return actionError(error, 'Error al actualizar el producto')
+  }
+}
+
+export async function createProductPromotionAction(
+  data: z.input<typeof promotionSchema>,
+): Promise<{ success: boolean; error?: string; promotionId?: string }> {
+  const parsed = promotionSchema.safeParse(data)
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos de promoción inválidos' }
+  try {
+    const { organizationId, features } = await getBusinessContext()
+    if (!features.hasPromotions) return { success: false, error: 'Las promociones no están disponibles en tu plan.' }
+    const center = await getOwnedCenter(organizationId)
+    if (!center) return { success: false, error: 'Centro no encontrado' }
+    const productIds = [...new Set(parsed.data.productIds)]
+    if (productIds.length > 0) {
+      const ownedProducts = await prisma.product.count({ where: { id: { in: productIds }, centerId: center.id } })
+      if (ownedProducts !== productIds.length) return { success: false, error: 'Hay productos que no pertenecen a tu centro.' }
+    }
+    if (parsed.data.code) {
+      const duplicate = await prisma.promotion.findFirst({ where: { centerId: center.id, code: parsed.data.code } })
+      if (duplicate) return { success: false, error: 'Ese código de cupón ya existe en tu centro.' }
+    }
+    const promotion = await prisma.promotion.create({
+      data: {
+        centerId: center.id,
+        title: parsed.data.title,
+        description: parsed.data.description || null,
+        scope: parsed.data.scope,
+        code: parsed.data.code || null,
+        discountType: parsed.data.discountType,
+        discountValue: parsed.data.discountValue,
+        minimumOrderCents: parsed.data.minimumOrderCents ?? null,
+        maxDiscountCents: parsed.data.maxDiscountCents ?? null,
+        maxUses: parsed.data.maxUses ?? null,
+        perCustomerLimit: parsed.data.perCustomerLimit,
+        categoryId: parsed.data.categoryId || null,
+        startsAt: parsed.data.startsAt,
+        endsAt: parsed.data.endsAt,
+        products: productIds.length > 0
+          ? { create: productIds.map(productId => ({ productId })) }
+          : undefined,
+      },
+    })
+    revalidatePath('/dashboard/promociones')
+    revalidatePath('/productos')
+    return { success: true, promotionId: promotion.id }
+  } catch (error) {
+    return actionError(error, 'No se pudo crear la promoción')
+  }
+}
+
+export async function toggleProductPromotionAction(
+  promotionId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { organizationId, features } = await getBusinessContext()
+    if (!features.hasPromotions) return { success: false, error: 'Las promociones no están disponibles en tu plan.' }
+    const promotion = await prisma.promotion.findFirst({ where: { id: promotionId, center: { organizationId } } })
+    if (!promotion) return { success: false, error: 'Promoción no encontrada' }
+    await prisma.promotion.update({ where: { id: promotion.id }, data: { active: !promotion.active } })
+    revalidatePath('/dashboard/promociones')
+    revalidatePath('/productos')
+    return { success: true }
+  } catch (error) {
+    return actionError(error, 'No se pudo actualizar la promoción')
   }
 }
 

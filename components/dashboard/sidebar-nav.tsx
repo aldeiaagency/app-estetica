@@ -17,6 +17,7 @@ import {
   Settings,
   ShoppingBag,
   ShoppingCart,
+  BadgePercent,
   Sparkles,
   UserCircle,
   Users,
@@ -41,6 +42,7 @@ const NAV_GROUPS = [
       { href: '/dashboard/bonos', label: 'Bonos', icon: Gift },
       { href: '/dashboard/productos', label: 'Productos', icon: ShoppingBag },
       { href: '/dashboard/pedidos', label: 'Pedidos', icon: ShoppingCart },
+      { href: '/dashboard/promociones', label: 'Promociones', icon: BadgePercent },
     ],
   },
   {

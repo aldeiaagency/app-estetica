@@ -101,6 +101,87 @@ v=DMARC1; p=quarantine; rua=mailto:dmarc@bellezalocal.es
 
 **Status:** Pendiente API key de producción + DNS
 
+## 3.1 WHATSAPP CENTRAL — 📱 CONFIGURACIÓN MANUAL
+
+✅ **Ya implementado:**
+- Envío transaccional de recordatorios
+- Consentimiento separado (independiente de email)
+- Claims atómicas por email y WhatsApp
+- Registro de entregas (SENT, DELIVERED, READ, FAILED, OPTED_OUT)
+- Webhook autenticado con HMAC-SHA256
+- Migraciones Prisma: WhatsAppDelivery, Customer.whatsapp*, Booking.whatsapp*
+
+**Variables requeridas en Vercel Production:**
+
+| Variable | Origen | Requerida | Tipo |
+|----------|--------|-----------|------|
+| `WHATSAPP_ACCESS_TOKEN` | Meta/WhatsApp | SÍ | Secret |
+| `WHATSAPP_PHONE_NUMBER_ID` | Meta/WhatsApp | SÍ | String |
+| `WHATSAPP_APP_SECRET` | Meta App | SÍ | Secret (webhook signature) |
+| `WHATSAPP_VERIFY_TOKEN` | User-generated | SÍ | Secret (webhook challenge) |
+| `WHATSAPP_REMINDER_TEMPLATE` | Aprobado en Meta | NO | Default: `belleza_local_booking_reminder` |
+| `WHATSAPP_TEMPLATE_LANGUAGE` | Meta template | NO | Default: `es` |
+| `WHATSAPP_API_VERSION` | Meta API | NO | Default: `v21.0` |
+
+**Pasos para el propietario:**
+
+1. **Crear Business Portfolio y WABA:**
+   - URL: https://www.facebook.com/business/
+   - Crear Business Account si no existe
+   - Crear o enlazar WABA (WhatsApp Business Account) dedicada a Belleza Local
+
+2. **Registrar número de teléfono:**
+   - Usar número dedicado (no personal)
+   - Verificación de propiedad requerida
+   - Aprobar nombre visible (p. ej. "Belleza Local")
+
+3. **Crear y aprobar template de recordatorio:**
+   - Template name: `belleza_local_booking_reminder`
+   - Category: UTILITY (sin limitaciones de horario)
+   - Variables (5): `{{1}}` nombre, `{{2}}` centro, `{{3}}` fecha, `{{4}}` hora, `{{5}}` enlace seguro
+   - Ejemplo: "Hola {{1}}, recordatorio de tu cita en {{2}} el {{3}} a las {{4}}. Confirma aquí: {{5}}"
+   - Esperar aprobación (24-48h)
+
+4. **Obtener credenciales:**
+   - Access Token: Meta → Your Apps → Settings → System User Access Tokens
+   - Phone Number ID: Meta → WhatsApp → Phone Numbers → ID del teléfono registrado
+   - App Secret: Meta → Settings → Basic → App Secret
+   - Verify Token: Generar aleatorio seguro (p. ej. `openssl rand -hex 32`)
+
+5. **Configurar webhook en Meta:**
+   - URL: `https://bellezalocal.es/api/webhooks/whatsapp`
+   - Verify Token: El generado en paso 4
+   - Subscribe to: `message_template_status_update`, `messages`, `message_template_status_update`
+   - Test con: enviar un mensaje de prueba desde Meta
+
+6. **Configurar en Vercel Production:**
+   ```bash
+   vercel env add WHATSAPP_ACCESS_TOKEN production
+   vercel env add WHATSAPP_PHONE_NUMBER_ID production
+   vercel env add WHATSAPP_APP_SECRET production
+   vercel env add WHATSAPP_VERIFY_TOKEN production
+   vercel env add WHATSAPP_REMINDER_TEMPLATE production  # opcional
+   vercel env add WHATSAPP_TEMPLATE_LANGUAGE production  # opcional
+   ```
+
+7. **Verificar con prueba real:**
+   - Crear reserva con cliente con teléfono válido
+   - Verificar consentimiento WhatsApp en Customer
+   - Ejecutar cron: `/api/cron/reminders`
+   - Verificar entrega en WhatsAppDelivery table
+   - Validar estadísticas: SENT → DELIVERED → READ (o FAILED)
+
+**Comportamiento:**
+- Solo envía a clientes con:
+  - Teléfono válido configurado
+  - `customer.whatsappConsent = true`
+  - Sin `customer.whatsappOptedOutAt`
+- Reintentos automáticos en caso de fallo temporal
+- Registro completo de entregas y errores
+- Respeta límites de rate-limit de Meta (80 msgs/sec por teléfono)
+
+**Status:** ✅ Código listo, 🔴 Credenciales pendientes de Meta
+
 ---
 
 ## 4. CLOUDFLARE R2 — 🪣 PENDIENTE CONFIGURACIÓN

@@ -8,6 +8,7 @@ import { PublicHeader } from '@/components/ui/public-header'
 import { PublicFooter } from '@/components/ui/public-footer'
 import { getCategoryData, collectDescendantIds, getAncestorChain, type CatNode } from '@/lib/catalog/categories'
 import { getSmartProducts } from '@/app/actions/beauty-routine'
+import { calculatePromotion, chooseBestPromotion, type PromotionRule } from '@/lib/marketplace/promotions'
 
 export const metadata: Metadata = {
   title: 'Productos de belleza',
@@ -121,6 +122,42 @@ export default async function ProductosPage({ searchParams }: Props) {
   const brands = brandRows.map(b => b.brand).filter((b): b is string => !!b)
   const smartProducts = await getSmartProducts(products.map(product => product.id))
   const smartById = new Map(smartProducts.map(product => [product.id, product]))
+  const automaticPromotions = await prisma.promotion.findMany({
+    where: {
+      centerId: { in: [...new Set(products.map(product => product.centerId))] },
+      active: true,
+      code: null,
+      scope: { in: ['PRODUCT', 'CATEGORY'] },
+      startsAt: { lte: new Date() },
+      endsAt: { gte: new Date() },
+    },
+    include: { products: { select: { productId: true } } },
+  })
+  const promotionByProduct = new Map<string, number>()
+  for (const product of products) {
+    const candidates = automaticPromotions
+      .filter(promotion => promotion.centerId === product.centerId)
+      .map(promotion => calculatePromotion({
+        id: promotion.id,
+        scope: promotion.scope,
+        code: promotion.code,
+        discountType: promotion.discountType,
+        discountValue: promotion.discountValue,
+        minimumOrderCents: promotion.minimumOrderCents,
+        maxDiscountCents: promotion.maxDiscountCents,
+        maxUses: promotion.maxUses,
+        usedCount: promotion.usedCount,
+        perCustomerLimit: promotion.perCustomerLimit,
+        productIds: promotion.products.map(item => item.productId),
+        categoryId: promotion.categoryId,
+        startsAt: promotion.startsAt,
+        endsAt: promotion.endsAt,
+        active: promotion.active,
+      } satisfies PromotionRule, [{ productId: product.id, categoryId: product.categoryId, unitPriceCents: product.priceCents, quantity: 1 }]))
+      .filter((result): result is NonNullable<typeof result> => result !== null)
+    const best = chooseBestPromotion(candidates)
+    if (best) promotionByProduct.set(product.id, best.discountCents)
+  }
 
   // ─── Navegación de categorías por niveles ────────────────────────────────────
   const ancestors = selectedCat ? getAncestorChain(selectedCat, categoryData.byId) : []
@@ -404,7 +441,10 @@ export default async function ProductosPage({ searchParams }: Props) {
                         <span className="truncate">{p.center.name} · {p.center.addressCity}</span>
                       </div>
                       <div className="mt-3 flex items-center justify-between">
-                        <span className="text-lg font-black text-[#0c1324]">{formatPrice(p.priceCents)}</span>
+                        <span className="text-lg font-black text-[#0c1324]">
+                          {promotionByProduct.has(p.id) && <span className="mr-2 text-xs font-semibold text-zinc-400 line-through">{formatPrice(p.priceCents)}</span>}
+                          {formatPrice(p.priceCents - (promotionByProduct.get(p.id) ?? 0))}
+                        </span>
                         <span className="flex items-center gap-1 rounded-full bg-[#e5edff] px-3 py-1 text-xs font-semibold text-[#2355c8]">
                           <Sparkles className="h-3 w-3" />Ver
                         </span>

@@ -32,6 +32,7 @@ const createBookingSchema = z.object({
   customerPhone: z.string().trim().max(30).optional(),
   consentGiven: z.boolean().refine(value => value === true, 'Debes aceptar la política de privacidad'),
   marketingConsent: z.boolean().default(false),
+  whatsappConsent: z.boolean().default(false),
 })
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>
@@ -104,9 +105,23 @@ export async function createBookingAction(input: unknown): Promise<
           consentGivenAt: new Date(),
           marketingConsent: false,
           marketingConsentDate: null,
+          whatsappConsent: data.whatsappConsent && Boolean(data.customerPhone),
+          whatsappConsentAt: data.whatsappConsent && data.customerPhone ? new Date() : null,
+          whatsappConsentSource: data.whatsappConsent && data.customerPhone ? 'booking' : null,
         },
         update: {},
       })
+      if (data.whatsappConsent && data.customerPhone) {
+        await tx.customer.update({
+          where: { id: customer.id },
+          data: {
+            whatsappConsent: true,
+            whatsappConsentAt: new Date(),
+            whatsappConsentSource: 'booking',
+            whatsappOptedOutAt: null,
+          },
+        })
+      }
 
       const depositExpiresAt = requiresOnlineDeposit
         ? new Date(Date.now() + DEPOSIT_HOLD_MINUTES * 60 * 1000)

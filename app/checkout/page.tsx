@@ -19,6 +19,7 @@ export default function CheckoutPage() {
   const [name,    setName]    = useState('')
   const [email,   setEmail]   = useState('')
   const [phone,   setPhone]   = useState('')
+  const [couponCode, setCouponCode] = useState('')
   const [consent, setConsent] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
 
@@ -58,6 +59,7 @@ export default function CheckoutPage() {
         customerName:  name.trim(),
         customerEmail: email.trim().toLowerCase(),
         customerPhone: phone.trim() || undefined,
+        couponCode: couponCode.trim() || undefined,
         consentGiven:  true,
         // Solo enviamos producto y cantidad; nombre y precio los pone el servidor desde la BD.
         items: items.map(i => ({
@@ -127,6 +129,14 @@ export default function CheckoutPage() {
                     className="input-base" placeholder="+34 600 000 000" autoComplete="tel"
                   />
                 </div>
+              </div>
+              <div>
+                <label htmlFor="checkout-coupon" className="label">Cupón de descuento <span className="font-normal text-[#8b96aa]">(opcional)</span></label>
+                <input
+                  id="checkout-coupon" type="text" value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                  className="input-base" placeholder="CÓDIGO" autoComplete="off" maxLength={40}
+                />
+                <p className="mt-1 text-xs text-[#8b96aa]">El descuento se valida al confirmar el pedido.</p>
               </div>
             </div>
 

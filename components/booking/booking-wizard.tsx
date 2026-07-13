@@ -150,6 +150,7 @@ export function BookingWizard({
   const [custPhone, setCustPhone] = useState('')
   const [consentGiven, setConsentGiven] = useState(false)
   const [marketingConsent, setMarketingConsent] = useState(false)
+  const [whatsappConsent, setWhatsappConsent] = useState(false)
   const [staffList, setStaffList] = useState<StaffMember[]>([])
   const [loadingStaff, setLoadingStaff] = useState(false)
   const [slots, setSlots] = useState<SlotData[]>([])
@@ -304,6 +305,7 @@ export function BookingWizard({
         customerPhone: custPhone.trim() || undefined,
         consentGiven: true,
         marketingConsent,
+        whatsappConsent,
       })
 
       if (result.success) {
@@ -653,6 +655,9 @@ export function BookingWizard({
               </ConsentRow>
               <ConsentRow checked={marketingConsent} onChange={setMarketingConsent}>
                 Acepto recibir comunicaciones del centro sobre ofertas y novedades. <span className="text-[#8b96aa]">(Opcional)</span>
+              </ConsentRow>
+              <ConsentRow checked={whatsappConsent} onChange={setWhatsappConsent}>
+                Acepto recibir el recordatorio transaccional de mi cita por WhatsApp desde el número común de Belleza Local. <span className="text-[#8b96aa]">(Opcional)</span>
               </ConsentRow>
 
               <button disabled={!custName.trim() || !custEmail.trim() || !consentGiven} onClick={() => setStep(5)} className="btn-primary w-full py-3 disabled:cursor-not-allowed disabled:opacity-40">

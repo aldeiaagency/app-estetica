@@ -88,7 +88,7 @@ Nota de operación: el informe de activación denomina al rate limit sin Upstash
 ### 4.4 Alta, planes y cobro
 
 1. Unificar nombres comerciales y técnicos: Presencia=`BASIC`, Growth=`PRO`, Elite=`GROWTH`, Partner=`PREMIUM`.
-2. Corregir y probar slugs de precios, signup, base de datos y onboarding. Actualmente `growth` se asigna al plan técnico `GROWTH` aunque comercialmente corresponde a `PRO`; `presencia` y `elite` tampoco están admitidos por el alta actual.
+2. Corregir y probar slugs de precios, signup, base de datos y onboarding. El mapeo canónico ya está aplicado: `presencia`=`BASIC`, `growth`=`PRO`, `elite`=`GROWTH`.
 3. Incluir marketplace sin pago online y WhatsApp compartido en Fundadores/Presencia.
 4. Definir un recordatorio WhatsApp por reserva y registrar su consumo.
 5. Activar suscripción o facturar manualmente a los primeros diez pilotos.
@@ -111,7 +111,7 @@ Acciones:
 
 ### 4.6 WhatsApp común de recordatorios
 
-Estado: **Completar y configurar**. Hoy los recordatorios son por email.
+Estado: **Código preparado; configurar y validar**. El canal email sigue operativo y el canal WhatsApp central ya tiene integración, consentimiento y webhook en código; faltan credenciales Meta, número y template aprobado.
 
 Arquitectura de fase 0:
 
@@ -167,13 +167,13 @@ El marketplace de Fase 0 será completamente operativo dentro de un alcance conc
 | Crear producto y activar/desactivar | Construido | Mantener |
 | Editar, duplicar, archivar y eliminar producto | Completar | CRUD seguro por centro |
 | Categoría, SKU, galería y stock bajo | Parcial | Completar datos y panel |
-| Ofertas automáticas y precio anterior | No construido | Modelo, reglas, UI y cálculo |
-| Cupones de descuento | No construido | Modelo, límites, validación y uso |
+| Ofertas automáticas y precio anterior | Construido en código | QA, datos reales y validación de reglas |
+| Cupones de descuento | Construido en código | QA de concurrencia y redenciones |
 | Aviso de pedido al centro | No construido | Email, dashboard y outbox |
-| Confirmación y cambios de estado a la clienta | No construido | Email obligatorio; WhatsApp opcional con consentimiento |
+| Confirmación y cambios de estado a la clienta | Parcial | Añadir emails de pedido y validar outbox |
 | Consulta segura y cancelación por la clienta | No construido | Enlace firmado, política y reposición de stock |
 | Imágenes gestionadas | Código parcial | Configurar R2 y probar galería |
-| Administración y moderación del catálogo | No construido | Ocultar, auditar y gestionar incidencias |
+| Administración y moderación del catálogo | Parcial | Completar ocultación, auditoría e incidencias |
 | Analítica de embudo | Parcial/no verificado | Vistas, carrito, pedido, recogida y descuento |
 
 #### Ofertas, descuentos y cupones
@@ -251,6 +251,8 @@ Para cobrar online falta decidir merchant of record, implementar Stripe Connect,
 - [x] Migraciones Supabase.
 - [x] Deploy de producción y CI/CodeQL.
 - [x] Remediaciones P0 de seguridad.
+- [x] Corrección de readiness para que click & collect no exija Stripe.
+- [x] Rate limit excluye endpoints de salud.
 - [ ] Upstash Redis EU y prueba de límites.
 - [ ] Resend con dominio verificado, SPF, DKIM y DMARC.
 - [ ] R2 con bucket, CDN, CORS y prueba de galería.
@@ -278,15 +280,17 @@ Para cobrar online falta decidir merchant of record, implementar Stripe Connect,
 
 #### Bloque D - Ofertas y descuentos
 
-- [ ] Migración de promociones de producto, cupones y redenciones.
-- [ ] Motor transaccional de elegibilidad y cálculo en servidor.
-- [ ] Desglose histórico en pedido y líneas.
-- [ ] Dashboard para crear, programar, pausar y medir promociones.
-- [ ] Precio anterior, badges, cupón y desglose en catálogo, ficha, carrito y checkout.
+- [x] Migración de promociones de producto, cupones y redenciones.
+- [x] Motor transaccional de elegibilidad y cálculo en servidor.
+- [x] Desglose histórico en pedido y líneas.
+- [x] Dashboard para crear, programar, pausar y medir promociones.
+- [x] Precio promocional visible en catálogo y ficha; cupón en checkout.
 - [ ] Pruebas de concurrencia, caducidad, topes y no acumulación.
 
 #### Bloque E - WhatsApp común
 
+- [x] Integración Meta Cloud API, consentimiento separado, claims y bajas en código.
+- [x] Registro de entregas y webhook autenticado en código.
 - [ ] Meta Business Portfolio/WABA verificados y número dedicado.
 - [ ] Template utility aprobado en español.
 - [ ] Consentimiento, baja y teléfonos E.164.

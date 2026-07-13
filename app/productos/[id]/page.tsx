@@ -7,6 +7,7 @@ import { formatPrice } from '@/lib/utils'
 import { AddToCartButton } from '@/components/ecommerce/add-to-cart-button'
 import { getSmartProduct } from '@/app/actions/beauty-routine'
 import { SaveToRoutineButton } from '@/components/beauty/save-to-routine-button'
+import { calculatePromotion, chooseBestPromotion, type PromotionRule } from '@/lib/marketplace/promotions'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -60,6 +61,36 @@ export default async function ProductoPage({ params }: Props) {
   if (!product || !product.center) notFound()
 
   const smartProduct = await getSmartProduct(product.id)
+  const automaticPromotions = await prisma.promotion.findMany({
+    where: {
+      centerId: product.center.id,
+      active: true,
+      code: null,
+      scope: { in: ['PRODUCT', 'CATEGORY'] },
+      startsAt: { lte: new Date() },
+      endsAt: { gte: new Date() },
+    },
+    include: { products: { select: { productId: true } } },
+  })
+  const automaticPromotion = chooseBestPromotion(automaticPromotions
+    .map(promotion => calculatePromotion({
+      id: promotion.id,
+      scope: promotion.scope,
+      code: promotion.code,
+      discountType: promotion.discountType,
+      discountValue: promotion.discountValue,
+      minimumOrderCents: promotion.minimumOrderCents,
+      maxDiscountCents: promotion.maxDiscountCents,
+      maxUses: promotion.maxUses,
+      usedCount: promotion.usedCount,
+      perCustomerLimit: promotion.perCustomerLimit,
+      productIds: promotion.products.map(item => item.productId),
+      categoryId: promotion.categoryId,
+      startsAt: promotion.startsAt,
+      endsAt: promotion.endsAt,
+      active: promotion.active,
+    } satisfies PromotionRule, [{ productId: product.id, categoryId: product.categoryId, unitPriceCents: product.priceCents, quantity: 1 }]))
+    .filter((result): result is NonNullable<typeof result> => result !== null))
   const center = product.center
   const avgRating = center.reviews.length > 0
     ? center.reviews.reduce((s, r) => s + r.rating, 0) / center.reviews.length
@@ -134,7 +165,11 @@ export default async function ProductoPage({ params }: Props) {
 
             {/* Price + stock */}
             <div className="mt-6">
-              <p className="text-3xl font-black text-[#0c1324]">{formatPrice(product.priceCents)}</p>
+              <p className="text-3xl font-black text-[#0c1324]">
+                {automaticPromotion && <span className="mr-2 text-base font-semibold text-zinc-400 line-through">{formatPrice(product.priceCents)}</span>}
+                {formatPrice(product.priceCents - (automaticPromotion?.discountCents ?? 0))}
+              </p>
+              {automaticPromotion && <p className="mt-1 text-xs font-bold text-emerald-700">Oferta aplicada automáticamente al pedido</p>}
               {outOfStock && (
                 <span className="mt-1 inline-block rounded-full bg-[#e5eaf2] px-3 py-1 text-xs font-semibold text-[#647089]">Agotado</span>
               )}
