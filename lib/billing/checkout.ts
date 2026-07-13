@@ -1,7 +1,12 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db/client'
-import { consumeOrderStockReservation } from '@/lib/billing/payment-integrity'
-import { sendBookingConfirmation } from '@/lib/notifications/email'
+import {
+  expireCheckoutSessionIfOpen,
+  settleOrderPaymentAtomically,
+} from '@/lib/billing/payment-integrity'
+import { processPaymentCompensation } from './payment-compensation'
 import { APP_URL, getStripe } from './stripe'
+import { createConfirmationToken } from '@/lib/security/confirmation-token'
 
 interface OrderLineItem {
   name: string
@@ -15,9 +20,18 @@ export async function createOrderCheckoutSession(params: {
   customerEmail: string
   centerName: string
   expiresAt: Date
+  idempotencyKey?: string
 }): Promise<string> {
+  const idempotencyKey = params.idempotencyKey ?? `order:${params.orderId}:checkout:v1`
+  const prepared = await prisma.order.updateMany({
+    where: { id: params.orderId, status: 'PENDING', checkoutSessionId: null },
+    data: { checkoutIdempotencyKey: idempotencyKey, paymentState: 'CHECKOUT_PENDING' },
+  })
+  if (prepared.count !== 1) throw new Error('ORDER_CHECKOUT_NOT_PENDING')
+
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
+    payment_method_types: ['card'],
     customer_email: params.customerEmail,
     expires_at: Math.floor(params.expiresAt.getTime() / 1000),
     line_items: params.items.map(item => ({
@@ -30,30 +44,50 @@ export async function createOrderCheckoutSession(params: {
     })),
     metadata: { type: 'order', orderId: params.orderId },
     payment_intent_data: { metadata: { type: 'order', orderId: params.orderId } },
-    success_url: `${APP_URL}/pedido/confirmado/${params.orderId}?paid=1`,
+    success_url: `${APP_URL}/pedido/confirmado/${params.orderId}?paid=1&token=${createConfirmationToken('order', params.orderId, params.customerEmail)}`,
     cancel_url: `${APP_URL}/carrito?checkout=cancelado`,
+  }, { idempotencyKey })
+
+  if (!session.url) {
+    await expireCheckoutSessionIfOpen(session.id).catch(() => undefined)
+    throw new Error('Stripe no devolvió URL de checkout')
+  }
+
+  const attached = await prisma.order.updateMany({
+    where: {
+      id: params.orderId,
+      checkoutIdempotencyKey: idempotencyKey,
+      OR: [
+        { status: 'PENDING', checkoutSessionId: null },
+        { paymentState: 'PAID', checkoutSessionId: session.id },
+      ],
+    },
+    data: { checkoutSessionId: session.id },
   })
-  if (!session.url) throw new Error('Stripe no devolvió URL de checkout')
+  if (attached.count !== 1) {
+    await expireCheckoutSessionIfOpen(session.id).catch(() => undefined)
+    throw new Error('ORDER_CHECKOUT_CANCELLED_DURING_CREATION')
+  }
   return session.url
 }
 
-export async function fulfillOrderPayment(orderId: string, paymentIntentId: string | null): Promise<void> {
-  await prisma.$transaction(async tx => {
-    const order = await tx.order.findUnique({ where: { id: orderId }, select: { status: true } })
-    if (!order) return
-    if (['PAID', 'READY', 'COMPLETED', 'CONFIRMED', 'SHIPPED', 'DELIVERED'].includes(order.status)) return
-    if (order.status === 'CANCELLED') throw new Error('ORDER_ALREADY_CANCELLED')
-
-    await tx.order.update({
+export async function fulfillOrderPayment(
+  orderId: string,
+  paymentIntentId: string,
+  checkoutSessionId: string,
+): Promise<void> {
+  const outcome = await settleOrderPaymentAtomically({ orderId, paymentIntentId, checkoutSessionId })
+  if (outcome === 'NOT_FOUND') throw new Error('ORDER_NOT_FOUND')
+  if (outcome === 'COMPENSATION_PENDING') {
+    const order = await prisma.order.findUnique({
       where: { id: orderId },
-      data: {
-        status: 'PAID',
-        paidAt: new Date(),
-        stripePaymentIntentId: paymentIntentId ?? undefined,
-      },
+      select: { checkoutSessionId: true },
     })
-  })
-  await consumeOrderStockReservation(orderId)
+    if (order?.checkoutSessionId && order.checkoutSessionId !== checkoutSessionId) {
+      await expireCheckoutSessionIfOpen(order.checkoutSessionId).catch(() => undefined)
+    }
+    await processPaymentCompensation(paymentIntentId)
+  }
 }
 
 export interface BonoCheckoutMetadata {
@@ -85,6 +119,7 @@ export async function createBonoCheckoutSession(params: {
 
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
+    payment_method_types: ['card'],
     customer_email: metadata.customerEmail,
     line_items: [{
       quantity: 1,
@@ -103,48 +138,58 @@ export async function createBonoCheckoutSession(params: {
   return session.url
 }
 
-export async function fulfillBonoPayment(meta: BonoCheckoutMetadata, paymentId: string): Promise<void> {
-  const existing = await prisma.bonoInstance.findFirst({ where: { stripePaymentId: paymentId } })
-  if (existing) return
+export async function fulfillBonoPayment(
+  meta: BonoCheckoutMetadata,
+  paymentIntentId: string,
+  checkoutSessionId: string,
+): Promise<void> {
+  try {
+    await prisma.$transaction(async tx => {
+      const existing = await tx.bonoInstance.findFirst({
+        where: { OR: [{ stripePaymentId: paymentIntentId }, { checkoutSessionId }] },
+        select: { id: true },
+      })
+      if (existing) return
 
-  const bono = await prisma.bono.findFirst({
-    where: { id: meta.bonoId, centerId: meta.centerId, active: true },
-    select: { id: true, sessions: true, validityDays: true, centerId: true },
-  })
-  if (!bono) throw new Error('BONO_NOT_AVAILABLE')
+      const bono = await tx.bono.findFirst({
+        where: { id: meta.bonoId, centerId: meta.centerId, active: true },
+        select: { id: true, sessions: true, validityDays: true, centerId: true },
+      })
+      if (!bono) throw new Error('BONO_NOT_AVAILABLE')
 
-  const email = meta.customerEmail.trim().toLowerCase()
-  await prisma.$transaction(async tx => {
-    const customer = await tx.customer.upsert({
-      where: { email_centerId: { email, centerId: bono.centerId } },
-      create: {
-        centerId: bono.centerId,
-        name: meta.customerName.trim() || email,
-        email,
-        phone: meta.customerPhone?.trim() || null,
-        consentGivenAt: new Date(),
-      },
-      update: {
-        name: meta.customerName.trim() || email,
-        phone: meta.customerPhone?.trim() || null,
-      },
-    })
+      const email = meta.customerEmail.trim().toLowerCase()
+      const customer = await tx.customer.upsert({
+        where: { email_centerId: { email, centerId: bono.centerId } },
+        create: {
+          centerId: bono.centerId,
+          name: meta.customerName.trim() || email,
+          email,
+          phone: meta.customerPhone?.trim() || null,
+          consentGivenAt: new Date(),
+        },
+        update: {},
+      })
 
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + bono.validityDays)
-    await tx.bonoInstance.create({
-      data: {
-        bonoId: bono.id,
-        customerId: customer.id,
-        centerId: bono.centerId,
-        sessionsRemaining: bono.sessions,
-        purchasedAt: new Date(),
-        activatedAt: new Date(),
-        expiresAt,
-        stripePaymentId: paymentId,
-      },
-    })
-  })
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + bono.validityDays)
+      await tx.bonoInstance.create({
+        data: {
+          bonoId: bono.id,
+          customerId: customer.id,
+          centerId: bono.centerId,
+          sessionsRemaining: bono.sessions,
+          purchasedAt: new Date(),
+          activatedAt: new Date(),
+          expiresAt,
+          checkoutSessionId,
+          stripePaymentId: paymentIntentId,
+        },
+      })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return
+    throw error
+  }
 }
 
 export async function createBookingDepositCheckoutSession(params: {
@@ -157,9 +202,23 @@ export async function createBookingDepositCheckoutSession(params: {
   depositCents: number
   depositExpiresAt: Date
   customerEmail: string
+  idempotencyKey?: string
 }): Promise<string> {
+  const idempotencyKey = params.idempotencyKey ?? `booking:${params.bookingId}:deposit-checkout:v1`
+  const prepared = await prisma.booking.updateMany({
+    where: {
+      id: params.bookingId,
+      status: 'PENDING',
+      depositPaid: false,
+      checkoutSessionId: null,
+    },
+    data: { checkoutIdempotencyKey: idempotencyKey, paymentState: 'CHECKOUT_PENDING' },
+  })
+  if (prepared.count !== 1) throw new Error('BOOKING_CHECKOUT_NOT_PENDING')
+
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
+    payment_method_types: ['card'],
     customer_email: params.customerEmail.trim().toLowerCase(),
     expires_at: Math.floor(params.depositExpiresAt.getTime() / 1000),
     line_items: [{
@@ -172,44 +231,29 @@ export async function createBookingDepositCheckoutSession(params: {
     }],
     metadata: { type: 'booking_deposit', bookingId: params.bookingId },
     payment_intent_data: { metadata: { type: 'booking_deposit', bookingId: params.bookingId } },
-    success_url: `${APP_URL}/reserva/confirmada/${params.confirmationCode}?paid=1`,
+    success_url: `${APP_URL}/reserva/confirmada/${params.confirmationCode}?paid=1&token=${createConfirmationToken('booking', params.confirmationCode, params.customerEmail)}`,
     cancel_url: `${APP_URL}/centro/${params.centerSlug}/reservar?servicio=${params.serviceId}&pago=cancelado`,
+  }, { idempotencyKey })
+
+  if (!session.url) {
+    await expireCheckoutSessionIfOpen(session.id).catch(() => undefined)
+    throw new Error('Stripe no devolvió URL de checkout')
+  }
+
+  const attached = await prisma.booking.updateMany({
+    where: {
+      id: params.bookingId,
+      checkoutIdempotencyKey: idempotencyKey,
+      OR: [
+        { status: 'PENDING', depositPaid: false, checkoutSessionId: null },
+        { paymentState: 'PAID', depositPaid: true, checkoutSessionId: session.id },
+      ],
+    },
+    data: { checkoutSessionId: session.id },
   })
-  if (!session.url) throw new Error('Stripe no devolvió URL de checkout')
+  if (attached.count !== 1) {
+    await expireCheckoutSessionIfOpen(session.id).catch(() => undefined)
+    throw new Error('BOOKING_CHECKOUT_CANCELLED_DURING_CREATION')
+  }
   return session.url
-}
-
-export async function fulfillBookingDeposit(bookingId: string, paymentIntentId: string | null): Promise<void> {
-  const booking = await prisma.$transaction(async tx => {
-    const existing = await tx.booking.findUnique({
-      where: { id: bookingId },
-      select: { status: true, depositPaid: true, depositExpiresAt: true },
-    })
-    if (!existing || existing.depositPaid) return null
-    if (existing.status !== 'PENDING' && existing.status !== 'CONFIRMED') return null
-    if (existing.depositExpiresAt && existing.depositExpiresAt < new Date()) throw new Error('BOOKING_DEPOSIT_EXPIRED')
-
-    return tx.booking.update({
-      where: { id: bookingId },
-      data: {
-        status: 'CONFIRMED',
-        depositPaid: true,
-        depositExpiresAt: null,
-        stripePaymentIntentId: paymentIntentId ?? undefined,
-      },
-      include: { service: true, staff: true, center: true, customer: true },
-    })
-  })
-  if (!booking) return
-
-  sendBookingConfirmation({
-    to: booking.customer.email,
-    customerName: booking.customer.name,
-    centerName: booking.center.name,
-    serviceName: booking.service.name,
-    staffName: booking.staff?.name,
-    startAt: booking.startAt,
-    confirmationCode: booking.confirmationCode,
-    centerSlug: booking.center.slug,
-  }).catch(error => console.error('[email] deposit booking confirmation failed', error))
 }

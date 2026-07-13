@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Menu, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { auth } from '@/lib/auth/config'
 import { prisma } from '@/lib/db/client'
 import { SidebarNav } from '@/components/dashboard/sidebar-nav'
+import { MobileSidebar } from '@/components/dashboard/mobile-sidebar'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -35,9 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
           <span className="font-black tracking-tight text-[#0c1324]">Belleza Local</span>
         </Link>
-        <button className="flex h-9 w-9 items-center justify-center rounded-md text-[#647089] hover:bg-[#edf3ff]" aria-label="Menu">
-          <Menu className="h-5 w-5" />
-        </button>
+        <MobileSidebar userName={session.user.name} userEmail={session.user.email} centerName={center?.name} />
       </div>
 
       <main className="flex-1 overflow-auto pt-14 md:pt-0">

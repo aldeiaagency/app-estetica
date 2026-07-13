@@ -15,7 +15,29 @@ declare global {
 const WINDOW_MS = 60_000
 const MAX_REQUESTS = 60
 
-function isRateLimited(ip: string): boolean {
+async function isRateLimited(ip: string): Promise<boolean> {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN
+  const production = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+  if (redisUrl && redisToken) {
+    try {
+      const bucket = Math.floor(Date.now() / WINDOW_MS)
+      const response = await fetch(`${redisUrl}/pipeline`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${redisToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify([
+          ['INCR', `rl:api:${ip}:${bucket}`],
+          ['EXPIRE', `rl:api:${ip}:${bucket}`, '65', 'NX'],
+        ]),
+      })
+      if (!response.ok) return production
+      const result = await response.json() as Array<{ result?: number }>
+      return Number(result[0]?.result ?? 1) > MAX_REQUESTS
+    } catch {
+      return production
+    }
+  }
+  if (production) return true
   if (!globalThis.__rl_store) globalThis.__rl_store = new Map()
   const store = globalThis.__rl_store
   const now = Date.now()
@@ -38,7 +60,7 @@ function disabledFeatureFor(pathname: string) {
   ))
 }
 
-export default auth(request => {
+export default auth(async request => {
   const { nextUrl } = request
   const disabled = disabledFeatureFor(nextUrl.pathname)
   if (disabled) {
@@ -58,7 +80,7 @@ export default auth(request => {
 
   if (nextUrl.pathname.startsWith('/api/') && !nextUrl.pathname.startsWith('/api/webhooks/')) {
     const ip = getClientIp(request)
-    if (isRateLimited(ip)) {
+    if (await isRateLimited(ip)) {
       return new NextResponse('Too Many Requests', {
         status: 429,
         headers: {

@@ -15,6 +15,14 @@ import { randomBytes } from 'crypto'
 import { flattenTaxonomy } from './product-taxonomy.mjs'
 
 const prisma = new PrismaClient()
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+if (IS_PRODUCTION || process.env.ALLOW_DEMO_SEED !== 'true') {
+  throw new Error('Seed bloqueado. Usa un entorno no productivo y ALLOW_DEMO_SEED=true.')
+}
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD
+if (!DEMO_PASSWORD || DEMO_PASSWORD.length < 12) {
+  throw new Error('SEED_DEMO_PASSWORD debe tener al menos 12 caracteres.')
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -68,7 +76,7 @@ async function seedServiceBusiness(catBySlug) {
     create: { name: 'Peluquería Ana García S.L.', slug: 'peluqueria-ana-garcia-sl', plan: 'PRO', maxCenters: 3 },
   })
 
-  const passwordHash = await bcrypt.hash('Demo2026!', 12)
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12)
   await prisma.user.upsert({
     where:  { email: 'ana@bellezalocal.es' },
     update: { organizationId: org.id },
@@ -331,7 +339,7 @@ async function seedProductBusiness(catBySlug) {
     create: { name: 'Glow Lab Beauty S.L.', slug: 'glow-lab-beauty-sl', plan: 'GROWTH', maxCenters: 3 },
   })
 
-  const passwordHash = await bcrypt.hash('Demo2026!', 12)
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12)
   await prisma.user.upsert({
     where:  { email: 'tienda@glowlab.es' },
     update: { organizationId: org.id },
@@ -511,8 +519,8 @@ async function main() {
 
   console.log('\n🎉 Seed completado!')
   console.log('─────────────────────────────────────────────')
-  console.log('💇 Servicios:  /centro/' + c1.slug + '   (login negocio: ana@bellezalocal.es / Demo2026!)')
-  console.log('🛍️  Productos:  /centro/' + c2.slug + '  (login negocio: tienda@glowlab.es / Demo2026!)')
+  console.log('💇 Servicios:  /centro/' + c1.slug + '   (login negocio: ana@bellezalocal.es)')
+  console.log('🛍️  Productos:  /centro/' + c2.slug + '  (login negocio: tienda@glowlab.es)')
   console.log('🔎 Marketplace: /productos   ·   Buscar: /buscar')
   console.log('─────────────────────────────────────────────')
 }

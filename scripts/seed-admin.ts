@@ -3,8 +3,19 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+if (isProduction || process.env.ALLOW_DEMO_SEED !== 'true') {
+  throw new Error('Seed bloqueado. Usa un entorno no productivo y ALLOW_DEMO_SEED=true.')
+}
+
+const seedPassword = process.env.SEED_DEMO_PASSWORD
+if (!seedPassword || seedPassword.length < 12) {
+  throw new Error('SEED_DEMO_PASSWORD debe tener al menos 12 caracteres.')
+}
+const demoPassword: string = seedPassword
+
 async function main() {
-  const password = await bcrypt.hash('BellezaLocal2026!', 12)
+  const password = await bcrypt.hash(demoPassword, 12)
 
   // Admin de plataforma
   const admin = await prisma.user.upsert({

@@ -117,4 +117,42 @@ describeDatabase('booking concurrency integration', () => {
     expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
     expect(results.filter(result => result.status === 'rejected')).toHaveLength(1)
   })
+
+  it('cancels an expired payment hold before exposing the slot', async () => {
+    const localDate = toZonedTime(addDays(new Date(), 7), 'Europe/Madrid')
+    const before = await getAvailableSlots({
+      centerId,
+      serviceId,
+      staffId,
+      date: format(localDate, 'yyyy-MM-dd'),
+    })
+    expect(before.length).toBeGreaterThan(0)
+    const slot = before[0]
+    const hold = await prisma.booking.create({
+      data: {
+        confirmationCode: `H${suffix.replace(/[^A-Z0-9]/gi, '').slice(-7).toUpperCase()}`,
+        centerId,
+        serviceId,
+        staffId,
+        customerId,
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: 'PENDING',
+        depositCents: 1000,
+        depositPaid: false,
+        depositExpiresAt: new Date(Date.now() - 60_000),
+        paymentState: 'CHECKOUT_PENDING',
+      },
+    })
+    bookingIds.push(hold.id)
+
+    const after = await getAvailableSlots({
+      centerId,
+      serviceId,
+      staffId,
+      date: format(localDate, 'yyyy-MM-dd'),
+    })
+    expect(after.some(candidate => candidate.startAt.getTime() === slot.startAt.getTime())).toBe(true)
+    expect((await prisma.booking.findUniqueOrThrow({ where: { id: hold.id } })).status).toBe('CANCELLED')
+  })
 })

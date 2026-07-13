@@ -4,7 +4,7 @@ test('public home renders without fatal browser errors', async ({ page }) => {
   const fatalErrors: string[] = []
   page.on('pageerror', error => fatalErrors.push(error.message))
 
-  const response = await page.goto('/')
+  const response = await page.goto('/', { waitUntil: 'domcontentloaded' })
   expect(response?.ok()).toBeTruthy()
   await expect(page.locator('body')).toBeVisible()
   await expect(page).toHaveTitle(/.+/)

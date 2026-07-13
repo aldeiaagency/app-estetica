@@ -26,7 +26,7 @@ function ResetPasswordForm() {
             <span className="text-xl font-black text-[#0c1324]">Belleza Local</span>
           </Link>
           <h1 className="mt-6 text-3xl font-black tracking-tight text-[#0c1324]">Nueva contrasena</h1>
-          <p className="mt-1 text-sm text-[#647089]">Elige una contrasena de al menos 8 caracteres.</p>
+          <p className="mt-1 text-sm text-[#647089]">Usa al menos 10 caracteres, con mayuscula, minuscula y numero.</p>
         </div>
 
         <div className="rounded-lg border border-[#d8dee9] bg-white p-8 shadow-[0_24px_70px_rgba(12,19,36,0.08)]">
@@ -44,16 +44,16 @@ function ResetPasswordForm() {
                 <input type="hidden" name="token" value={token} />
 
                 <div>
-                  <label className="label">Nueva contrasena</label>
+                  <label htmlFor="reset-password" className="label">Nueva contrasena</label>
                   <div className="relative">
                     <input
-                      type={showPassword ? 'text' : 'password'}
+                      id="reset-password" type={showPassword ? 'text' : 'password'}
                       name="password"
                       required
-                      minLength={8}
+                      minLength={10}
                       autoComplete="new-password"
                       className="input-base py-3 pr-11"
-                      placeholder="Minimo 8 caracteres"
+                      placeholder="10+ caracteres, mayuscula y numero"
                     />
                     <button
                       type="button"

@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { getPublicAppUrl } from '@/lib/config/app-url'
+import { createConfirmationToken } from '@/lib/security/confirmation-token'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 const FROM = process.env.EMAIL_FROM ?? 'BellezaLocal <noreply@bellezalocal.es>'
@@ -30,7 +31,8 @@ export async function sendBookingConfirmation(data: BookingConfirmationData): Pr
     hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid',
   })
 
-  const manageUrl = `${APP_URL}/reserva/confirmada/${data.confirmationCode}`
+  const token = createConfirmationToken('booking', data.confirmationCode, data.to)
+  const manageUrl = `${APP_URL}/reserva/confirmada/${data.confirmationCode}?token=${encodeURIComponent(token)}`
 
   const html = `
 <!DOCTYPE html>

@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
     where: {
       status: 'CONFIRMED',
       reminderSentAt: null,
+      OR: [{ reminderClaimedAt: null }, { reminderClaimedAt: { lt: new Date(Date.now() - 15 * 60 * 1000) } }],
       startAt: { gte: start, lte: end },
     },
     include: {
@@ -65,6 +66,15 @@ export async function GET(request: NextRequest) {
   let failed = 0
 
   for (const booking of bookings) {
+    const claimed = await prisma.booking.updateMany({
+      where: {
+        id: booking.id,
+        reminderSentAt: null,
+        OR: [{ reminderClaimedAt: null }, { reminderClaimedAt: { lt: new Date(Date.now() - 15 * 60 * 1000) } }],
+      },
+      data: { reminderClaimedAt: new Date(), reminderAttempts: { increment: 1 } },
+    })
+    if (claimed.count !== 1) continue
     try {
       await sendBookingReminder({
         to: booking.customer.email,
@@ -88,10 +98,11 @@ export async function GET(request: NextRequest) {
 
       await prisma.booking.update({
         where: { id: booking.id },
-        data: { reminderSentAt: new Date() },
+        data: { reminderSentAt: new Date(), reminderClaimedAt: null },
       })
       sent += 1
     } catch (err) {
+      await prisma.booking.update({ where: { id: booking.id }, data: { reminderClaimedAt: null } })
       failed += 1
       console.error('[cron/reminders] Failed to send reminder:', booking.id, err)
     }

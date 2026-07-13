@@ -156,6 +156,7 @@ export function BookingWizard({
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [monthAvailability, setMonthAvailability] = useState<MonthAvailability>({})
   const [loadingMonthAvailability, setLoadingMonthAvailability] = useState(false)
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null)
   const [waitlistError, setWaitlistError] = useState<string | null>(null)
@@ -181,17 +182,22 @@ export function BookingWizard({
   useEffect(() => {
     if (step !== 2 || !selectedService) return
     setLoadingStaff(true)
+    setAvailabilityError(null)
     setStaffList([])
     fetch(`/api/v1/staff?centerId=${centerId}&serviceId=${selectedService.id}`)
       .then(response => response.json())
       .then(data => setStaffList(data.staff ?? []))
-      .catch(() => setStaffList([]))
+      .catch(error => {
+        console.error('[booking] staff availability failed', error)
+        setAvailabilityError('No hemos podido cargar los profesionales. Intentalo de nuevo.')
+      })
       .finally(() => setLoadingStaff(false))
   }, [centerId, selectedService, step])
 
   useEffect(() => {
     if (step !== 3 || !selectedService) return
     setLoadingMonthAvailability(true)
+    setAvailabilityError(null)
     setMonthAvailability({})
     const params = new URLSearchParams({
       centerId,
@@ -207,7 +213,10 @@ export function BookingWizard({
         for (const day of data.days ?? []) next[day.date] = day.count
         setMonthAvailability(next)
       })
-      .catch(() => setMonthAvailability({}))
+      .catch(error => {
+        console.error('[booking] month availability failed', error)
+        setAvailabilityError('No hemos podido consultar la agenda. Intentalo de nuevo.')
+      })
       .finally(() => setLoadingMonthAvailability(false))
   }, [centerId, selectedService, selectedStaffId, step, visibleMonth])
 
@@ -220,7 +229,10 @@ export function BookingWizard({
     fetch(`/api/v1/availability?${params}`)
       .then(response => response.json())
       .then(data => setSlots(data.slots ?? []))
-      .catch(() => setSlots([]))
+      .catch(error => {
+        console.error('[booking] slot availability failed', error)
+        setAvailabilityError('No hemos podido consultar los horarios. Intentalo de nuevo.')
+      })
       .finally(() => setLoadingSlots(false))
   }, [centerId, selectedDate, selectedService, selectedStaffId, step])
 
@@ -299,7 +311,7 @@ export function BookingWizard({
           window.location.assign(result.checkoutUrl)
           return
         }
-        router.push(`/reserva/confirmada/${result.confirmationCode}`)
+        router.push(`/reserva/confirmada/${result.confirmationCode}?token=${encodeURIComponent(result.confirmationToken)}`)
         return
       }
 
@@ -513,7 +525,12 @@ export function BookingWizard({
                   <EmptyState icon={<CalendarDays className="h-8 w-8 text-[#8b96aa]" />} label="Selecciona un dia del calendario mensual" compact />
                 )}
                 {selectedDate && loadingSlots && <LoadingState label="Cargando horarios..." />}
-                {selectedDate && !loadingSlots && slots.length === 0 && (
+                {availabilityError && (
+                  <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {availabilityError}
+                  </div>
+                )}
+                {selectedDate && !loadingSlots && !availabilityError && slots.length === 0 && (
                   <>
                     <EmptyState label="Sin disponibilidad para este dia. Puedes probar otra fecha o apuntarte a la lista de espera." compact />
                     <div className="mt-4 rounded-lg border border-[#cfe0ff] bg-[#edf3ff] p-4">
@@ -523,14 +540,14 @@ export function BookingWizard({
                       </p>
 
                       <div className="mt-4 space-y-3">
-                        <Field label="Nombre" required>
-                          <input value={custName} onChange={event => setCustName(event.target.value)} className="input-base" placeholder="Tu nombre" autoComplete="name" />
+                        <Field id="waitlist-name" label="Nombre" required>
+                          <input id="waitlist-name" value={custName} onChange={event => setCustName(event.target.value)} className="input-base" placeholder="Tu nombre" autoComplete="name" />
                         </Field>
-                        <Field label="Email" required>
-                          <input value={custEmail} onChange={event => setCustEmail(event.target.value)} className="input-base" placeholder="tu@email.com" autoComplete="email" type="email" readOnly={isAuthenticated} />
+                        <Field id="waitlist-email" label="Email" required>
+                          <input id="waitlist-email" value={custEmail} onChange={event => setCustEmail(event.target.value)} className="input-base" placeholder="tu@email.com" autoComplete="email" type="email" readOnly={isAuthenticated} />
                         </Field>
-                        <Field label="Telefono">
-                          <input value={custPhone} onChange={event => setCustPhone(event.target.value)} className="input-base" placeholder="+34 600 000 000" autoComplete="tel" type="tel" />
+                        <Field id="waitlist-phone" label="Telefono">
+                          <input id="waitlist-phone" value={custPhone} onChange={event => setCustPhone(event.target.value)} className="input-base" placeholder="+34 600 000 000" autoComplete="tel" type="tel" />
                         </Field>
                         <ConsentRow checked={consentGiven} onChange={setConsentGiven}>
                           Acepto la{' '}
@@ -616,15 +633,15 @@ export function BookingWizard({
             )}
 
             <div className="mt-6 space-y-4">
-              <Field label="Nombre completo" required>
-                <input value={custName} onChange={event => setCustName(event.target.value)} className="input-base" placeholder="Tu nombre completo" autoComplete="name" />
+              <Field id="booking-name" label="Nombre completo" required>
+                <input id="booking-name" value={custName} onChange={event => setCustName(event.target.value)} className="input-base" placeholder="Tu nombre completo" autoComplete="name" />
               </Field>
-              <Field label="Email" required>
-                <input value={custEmail} onChange={event => setCustEmail(event.target.value)} className="input-base" placeholder="tu@email.com" autoComplete="email" type="email" readOnly={isAuthenticated} />
+              <Field id="booking-email" label="Email" required>
+                <input id="booking-email" value={custEmail} onChange={event => setCustEmail(event.target.value)} className="input-base" placeholder="tu@email.com" autoComplete="email" type="email" readOnly={isAuthenticated} />
                 {isAuthenticated && <p className="mt-1 text-[11px] text-[#647089]">Recibiras la confirmacion en el email de tu cuenta.</p>}
               </Field>
-              <Field label="Telefono">
-                <input value={custPhone} onChange={event => setCustPhone(event.target.value)} className="input-base" placeholder="+34 600 000 000" autoComplete="tel" type="tel" />
+              <Field id="booking-phone" label="Telefono">
+                <input id="booking-phone" value={custPhone} onChange={event => setCustPhone(event.target.value)} className="input-base" placeholder="+34 600 000 000" autoComplete="tel" type="tel" />
               </Field>
 
               <ConsentRow checked={consentGiven} onChange={setConsentGiven}>
@@ -836,10 +853,10 @@ function EmptyState({ icon, label, compact = false }: { icon?: ReactNode; label:
   )
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
+function Field({ id, label, required, children }: { id: string; label: string; required?: boolean; children: ReactNode }) {
   return (
     <div>
-      <label className="label">
+      <label htmlFor={id} className="label">
         {label} {required && <span className="text-[#2f6df6]">*</span>}
       </label>
       {children}

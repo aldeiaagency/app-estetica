@@ -5,8 +5,9 @@ import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { auth } from '@/lib/auth/config'
+import { requireOrganization, requirePlatformAdmin } from '@/lib/auth/authorization'
+import { getBeautyProfileByUserId } from '@/lib/beauty/profile-data'
 import { prisma } from '@/lib/db/client'
-import { getBeautyProfile } from '@/app/actions/beauty-profile'
 
 export type BeautyBenefitType =
   | 'DISCOUNT'
@@ -46,8 +47,14 @@ const benefitInputSchema = z.object({
 
 export type BenefitInput = z.infer<typeof benefitInputSchema>
 
-export async function getAvailableBenefits(profileId?: string | null, limit = 12) {
+export async function getAvailableBenefits(_legacyProfileId?: string | null, limit = 12) {
   try {
+    const session = await auth()
+    const userId = session?.user?.id
+    const profile = userId ? await getBeautyProfileByUserId(userId) : null
+    const profileId = profile?.id ?? null
+    const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 50)
+
     return await prisma.$queryRaw<BeautyBenefitRecord[]>`
       SELECT
         b."id",
@@ -72,7 +79,7 @@ export async function getAvailableBenefits(profileId?: string | null, limit = 12
         AND (b."startsAt" IS NULL OR b."startsAt" <= CURRENT_TIMESTAMP)
         AND (b."endsAt" IS NULL OR b."endsAt" >= CURRENT_TIMESTAMP)
       ORDER BY b."createdAt" DESC
-      LIMIT ${limit}
+      LIMIT ${safeLimit}
     `
   } catch {
     return []
@@ -112,8 +119,10 @@ export async function getBenefitsForCenterIds(centerIds: string[]) {
   }
 }
 
-export async function getBenefitsForOrganization(orgId: string) {
+export async function getBenefitsForOrganization(_legacyOrgId?: string) {
   try {
+    const { organizationId } = await requireOrganization()
+
     return await prisma.$queryRaw<BeautyBenefitRecord[]>`
       SELECT
         b."id",
@@ -133,7 +142,7 @@ export async function getBenefitsForOrganization(orgId: string) {
         NULL AS "userBenefitStatus"
       FROM "BeautyBenefit" b
       JOIN "Center" c ON c."id" = b."centerId"
-      WHERE c."organizationId" = ${orgId}
+      WHERE c."organizationId" = ${organizationId}
       ORDER BY b."createdAt" DESC
     `
   } catch {
@@ -142,17 +151,14 @@ export async function getBenefitsForOrganization(orgId: string) {
 }
 
 export async function createBeautyBenefitAction(input: unknown): Promise<{ success: boolean; error?: string }> {
-  const session = await auth()
-  const orgId = session?.user?.organizationId
-  if (!orgId) return { success: false, error: 'Sin permisos' }
-
-  const parsed = benefitInputSchema.safeParse(input)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos invalidos' }
-  }
-
   try {
-    const center = await prisma.center.findFirst({ where: { organizationId: orgId }, select: { id: true, slug: true } })
+    const { organizationId } = await requireOrganization()
+    const parsed = benefitInputSchema.safeParse(input)
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos invalidos' }
+    }
+
+    const center = await prisma.center.findFirst({ where: { organizationId }, select: { id: true, slug: true } })
     if (!center) return { success: false, error: 'Centro no encontrado' }
 
     await prisma.$executeRaw`
@@ -188,16 +194,14 @@ export async function createBeautyBenefitAction(input: unknown): Promise<{ succe
 }
 
 export async function toggleBeautyBenefitActiveAction(benefitId: string): Promise<{ success: boolean; error?: string }> {
-  const session = await auth()
-  const orgId = session?.user?.organizationId
-  if (!orgId) return { success: false, error: 'Sin permisos' }
-
   try {
+    const { organizationId } = await requireOrganization()
+
     const rows = await prisma.$queryRaw<{ id: string; active: boolean; centerSlug: string }[]>`
       SELECT b."id", b."active", c."slug" AS "centerSlug"
       FROM "BeautyBenefit" b
       JOIN "Center" c ON c."id" = b."centerId"
-      WHERE b."id" = ${benefitId} AND c."organizationId" = ${orgId}
+      WHERE b."id" = ${benefitId} AND c."organizationId" = ${organizationId}
       LIMIT 1
     `
 
@@ -222,6 +226,12 @@ export async function toggleBeautyBenefitActiveAction(benefitId: string): Promis
 }
 
 export async function ensureStarterBenefitsAction(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requirePlatformAdmin()
+  } catch {
+    return { success: false, error: 'Sin permisos' }
+  }
+
   try {
     const countRows = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*)::bigint AS count
@@ -249,7 +259,7 @@ export async function claimBenefitAction(benefitId: string): Promise<{ success: 
   const userId = session?.user?.id
   if (!userId) return { success: false, error: 'Inicia sesion para guardar beneficios.' }
 
-  const profile = await getBeautyProfile(userId)
+  const profile = await getBeautyProfileByUserId(userId)
   if (!profile) return { success: false, error: 'Completa primero tu Beauty Profile.' }
 
   try {

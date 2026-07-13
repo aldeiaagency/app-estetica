@@ -115,5 +115,6 @@ export function isBookingOverlapError(error: unknown): boolean {
   const candidate = error as { code?: string; meta?: { database_error?: string }; message?: string }
   return candidate.code === '23P01'
     || candidate.meta?.database_error?.includes('23P01') === true
+    || candidate.message?.includes('Booking_staff_active_no_overlap') === true
     || candidate.message?.includes('Booking_no_overlap_active') === true
 }

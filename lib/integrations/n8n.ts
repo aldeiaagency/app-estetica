@@ -1,4 +1,5 @@
 import { getPublicAppUrl } from '@/lib/config/app-url'
+import { createHmac } from 'node:crypto'
 
 type BusinessLeadPayload = {
   id: string
@@ -13,35 +14,42 @@ type BusinessLeadPayload = {
   consentGivenAt: string
 }
 
-async function postWebhook(url: string, payload: unknown, label: string) {
+export async function postN8nWebhook(url: string, payload: unknown, eventId: string) {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 3000)
+  const timeout = setTimeout(() => controller.abort(), 10000)
 
   try {
+    const body = JSON.stringify(payload)
+    const timestamp = String(Date.now())
+    const signingSecret = process.env.N8N_WEBHOOK_SIGNING_SECRET
+    if (!signingSecret) throw new Error('N8N_WEBHOOK_SIGNING_SECRET is not configured')
+    const signature = createHmac('sha256', signingSecret).update(`${timestamp}.${body}`).digest('hex')
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: {
+        'content-type': 'application/json',
+        'x-belleza-event-id': eventId,
+        'x-belleza-timestamp': timestamp,
+        'x-belleza-signature': `sha256=${signature}`,
+      },
+      body,
       signal: controller.signal,
     })
 
     if (!response.ok) {
-      console.error(`[n8n] ${label} webhook failed:`, response.status, await response.text())
+      throw new Error(`n8n responded ${response.status}: ${(await response.text()).slice(0, 200)}`)
     }
   } catch (error) {
-    console.error(`[n8n] ${label} webhook error:`, error)
+    throw error
   } finally {
     clearTimeout(timeout)
   }
 }
 
-export async function notifyBusinessLead(payload: BusinessLeadPayload) {
-  const url = process.env.N8N_WEBHOOK_LEAD_B2B_URL
-  if (!url) return
-
-  await postWebhook(url, {
+export function businessLeadEvent(payload: BusinessLeadPayload) {
+  return {
     event: 'lead.b2b.created',
     appUrl: getPublicAppUrl(),
     ...payload,
-  }, 'lead-b2b')
+  }
 }

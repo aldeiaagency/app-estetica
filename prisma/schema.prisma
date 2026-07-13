@@ -253,10 +253,11 @@ model Center {
   coverImage    String?
   galleryImages String[] @default([])
 
-  published  Boolean   @default(false)
-  approvedAt DateTime?
-  approvedBy String?
-  seoNoindex Boolean   @default(false)
+  published               Boolean   @default(false)
+  approvedAt              DateTime?
+  approvedBy              String?
+  seoNoindex              Boolean   @default(false)
+  cancellationNoticeHours Int       @default(24)
 
   organization      Organization        @relation(fields: [organizationId], references: [id])
   services          Service[]
@@ -484,14 +485,20 @@ model Booking {
   status  BookingStatus @default(PENDING)
   source  BookingSource @default(WEB)
 
-  depositCents          Int?
-  depositPaid           Boolean   @default(false)
-  depositExpiresAt      DateTime?
-  stripePaymentIntentId String?
+  depositCents           Int?
+  depositPaid            Boolean      @default(false)
+  depositExpiresAt       DateTime?
+  stripePaymentIntentId  String?
+  checkoutSessionId      String?      @unique
+  checkoutIdempotencyKey String?      @unique
+  paymentState           PaymentState @default(NOT_REQUIRED)
+  refundedAt             DateTime?
 
   notes              String?
   internalNotes      String?
   reminderSentAt     DateTime?
+  reminderClaimedAt  DateTime?
+  reminderAttempts   Int          @default(0)
   noShowAt           DateTime?
   cancelledAt        DateTime?
   cancelledBy        CancelledBy?
@@ -513,6 +520,7 @@ model Booking {
   @@index([customerId])
   @@index([staffId, startAt, endAt])
   @@index([status, depositExpiresAt])
+  @@index([paymentState])
 }
 
 model WaitlistEntry {
@@ -579,6 +587,9 @@ model FollowUpMessage {
   scheduledFor DateTime
   sentAt       DateTime?
   dismissedAt  DateTime?
+  processingAt DateTime?
+  attempts     Int       @default(0)
+  lastError    String?
 
   center   Center            @relation(fields: [centerId], references: [id], onDelete: Cascade)
   customer Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -592,6 +603,34 @@ model FollowUpMessage {
   @@index([centerId, status, scheduledFor])
   @@index([customerId, status])
   @@index([purpose, status])
+}
+
+model IntegrationOutbox {
+  id           String    @id @default(cuid())
+  eventType    String
+  destination  String
+  payload      Json
+  status       String    @default("PENDING")
+  attempts     Int       @default(0)
+  availableAt  DateTime  @default(now())
+  processingAt DateTime?
+  deliveredAt  DateTime?
+  lastError    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, availableAt, processingAt])
+}
+
+model DataRetentionRun {
+  id         String    @id @default(cuid())
+  status     String
+  summary    Json
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  error      String?
+
+  @@index([startedAt])
 }
 
 // COMERCIO (plan Pro)
@@ -679,7 +718,8 @@ model BonoInstance {
   purchasedAt       DateTime  @default(now())
   activatedAt       DateTime?
   expiresAt         DateTime?
-  stripePaymentId   String?
+  checkoutSessionId String?   @unique
+  stripePaymentId   String?   @unique
 
   bono     Bono     @relation(fields: [bonoId], references: [id])
   customer Customer @relation(fields: [customerId], references: [id])
@@ -828,17 +868,23 @@ model Order {
   status     OrderStatus @default(PENDING)
   notes      String?
 
-  stripePaymentIntentId String?
-  paidAt                DateTime?
+  stripePaymentIntentId  String?
+  checkoutSessionId      String?      @unique
+  checkoutIdempotencyKey String?      @unique
+  paymentState           PaymentState @default(NOT_REQUIRED)
+  paidAt                 DateTime?
+  refundedAt             DateTime?
 
-  center Center      @relation(fields: [centerId], references: [id])
-  items  OrderItem[]
+  center           Center                 @relation(fields: [centerId], references: [id])
+  items            OrderItem[]
+  stockReservation OrderStockReservation?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([centerId, status])
   @@index([customerEmail])
+  @@index([paymentState])
 }
 
 model OrderItem {
@@ -854,6 +900,18 @@ model OrderItem {
   product Product @relation(fields: [productId], references: [id])
 
   @@index([orderId])
+}
+
+model OrderStockReservation {
+  orderId       String    @id
+  expiresAt     DateTime
+  releasedAt    DateTime?
+  consumedAt    DateTime?
+  restockedAt   DateTime?
+  releaseReason String?
+  createdAt     DateTime  @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model Promotion {
@@ -922,6 +980,38 @@ model OrganizationAddOn {
   organization Organization @relation(fields: [organizationId], references: [id])
 
   @@index([organizationId, active])
+}
+
+model StripeWebhookEvent {
+  id          String    @id
+  type        String
+  status      String    @default("PROCESSING")
+  attempts    Int       @default(1)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  claimedAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
+model PaymentCompensation {
+  id              String                    @id @default(cuid())
+  targetType      PaymentCompensationTarget
+  targetId        String
+  paymentIntentId String                    @unique
+  idempotencyKey  String                    @unique
+  reason          String
+  status          PaymentCompensationStatus @default(PENDING)
+  attempts        Int                       @default(0)
+  stripeRefundId  String?                   @unique
+  lastError       String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  completedAt     DateTime?
+
+  @@index([status, updatedAt])
+  @@index([targetType, targetId])
 }
 
 // ─────────────────────────────────────────────────────
@@ -1057,6 +1147,28 @@ enum OrderStatus {
   CONFIRMED // (legacy) confirmado manualmente sin cobro online
   SHIPPED // (deprecated) no se usa en v1 click & collect
   DELIVERED // (deprecated) no se usa en v1 click & collect
+  CANCELLED
+}
+
+enum PaymentState {
+  NOT_REQUIRED
+  CHECKOUT_PENDING
+  PAID
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+}
+
+enum PaymentCompensationTarget {
+  ORDER
+  BOOKING
+}
+
+enum PaymentCompensationStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
   CANCELLED
 }
 

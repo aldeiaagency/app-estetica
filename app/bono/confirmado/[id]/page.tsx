@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CheckCircle2, Sparkles, Gift, Calendar, Clock, ShoppingBag } from 'lucide-react'
 import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
+import { auth } from '@/lib/auth/config'
 
 export const metadata: Metadata = {
   title: 'Bono confirmado — BellezaLocal',
@@ -14,6 +15,7 @@ interface Props { params: Promise<{ id: string }> }
 
 export default async function BonoConfirmadoPage({ params }: Props) {
   const { id } = await params
+  const session = await auth()
 
   const instance = await prisma.bonoInstance.findUnique({
     where: { id },
@@ -24,11 +26,11 @@ export default async function BonoConfirmadoPage({ params }: Props) {
           center:  { select: { name: true, slug: true, addressCity: true, phone: true } },
         },
       },
-      customer: { select: { name: true, email: true } },
+      customer: { select: { name: true, email: true, userId: true } },
     },
   })
 
-  if (!instance) notFound()
+  if (!instance || !session?.user?.id || instance.customer.userId !== session.user.id) notFound()
 
   const { bono, customer } = instance
   const purchaseDate = instance.purchasedAt.toLocaleDateString('es-ES', {
@@ -109,7 +111,6 @@ export default async function BonoConfirmadoPage({ params }: Props) {
           <p className="mt-1 text-xs text-[#8b96aa]">
             Muestra este código al centro para que registren el uso de cada sesión
           </p>
-          <p className="mt-2 text-xs text-[#b9c4d5]">ID completo: {instance.id}</p>
         </div>
 
         {/* What's next */}

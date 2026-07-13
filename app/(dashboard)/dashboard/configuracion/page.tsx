@@ -18,7 +18,7 @@ export default async function ConfiguracionPage() {
         category: true, phone: true, whatsapp: true, email: true, website: true,
         coverImage: true, galleryImages: true,
         addressStreet: true, addressCity: true, addressProvince: true,
-        addressPostalCode: true, published: true,
+        addressPostalCode: true, cancellationNoticeHours: true, published: true,
       },
     }),
   ])

@@ -2,17 +2,18 @@ import type { Plan } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import {
-  fulfillBookingDeposit,
   fulfillBonoPayment,
   fulfillOrderPayment,
   type BonoCheckoutMetadata,
 } from '@/lib/billing/checkout'
+import { fulfillBookingDeposit, cancelUnpaidBookingHold } from '@/lib/billing/booking-payments'
 import {
   claimStripeEvent,
   completeStripeEvent,
   failStripeEvent,
   releaseOrderStockReservation,
 } from '@/lib/billing/payment-integrity'
+import { syncPaymentCompensationRefund } from '@/lib/billing/payment-compensation'
 import { PRICE_ID_TO_PLAN } from '@/lib/billing/price-map'
 import { stripe } from '@/lib/billing/stripe'
 import { prisma } from '@/lib/db/client'
@@ -58,13 +59,14 @@ async function processPaidCheckout(session: Stripe.Checkout.Session) {
   const paymentIntentId = typeof session.payment_intent === 'string'
     ? session.payment_intent
     : session.payment_intent?.id ?? null
+  if (!paymentIntentId) throw new Error('MISSING_PAYMENT_INTENT_ID')
 
   if (metadata.type === 'order' && metadata.orderId) {
-    await fulfillOrderPayment(metadata.orderId, paymentIntentId)
+    await fulfillOrderPayment(metadata.orderId, paymentIntentId, session.id)
   } else if (metadata.type === 'bono' && metadata.bonoId) {
-    await fulfillBonoPayment(metadata as unknown as BonoCheckoutMetadata, paymentIntentId ?? session.id)
+    await fulfillBonoPayment(metadata as unknown as BonoCheckoutMetadata, paymentIntentId, session.id)
   } else if (metadata.type === 'booking_deposit' && metadata.bookingId) {
-    await fulfillBookingDeposit(metadata.bookingId, paymentIntentId ?? session.id)
+    await fulfillBookingDeposit(metadata.bookingId, paymentIntentId, session.id)
   }
 }
 
@@ -73,15 +75,7 @@ async function expireCheckout(session: Stripe.Checkout.Session, reason: string) 
   if (metadata.type === 'order' && metadata.orderId) {
     await releaseOrderStockReservation(metadata.orderId, reason)
   } else if (metadata.type === 'booking_deposit' && metadata.bookingId) {
-    await prisma.booking.updateMany({
-      where: { id: metadata.bookingId, status: 'PENDING', depositPaid: false },
-      data: {
-        status: 'CANCELLED',
-        cancelledAt: new Date(),
-        cancelledBy: 'SYSTEM',
-        cancellationReason: 'La sesión de pago de la señal expiró.',
-      },
-    })
+    await cancelUnpaidBookingHold(metadata.bookingId, `Checkout de señal cancelado: ${reason}`)
   }
 }
 
@@ -139,6 +133,12 @@ export async function POST(request: NextRequest) {
 
       case 'checkout.session.async_payment_failed':
         await expireCheckout(event.data.object as Stripe.Checkout.Session, 'async_payment_failed')
+        break
+
+      case 'refund.created':
+      case 'refund.updated':
+      case 'refund.failed':
+        await syncPaymentCompensationRefund(event.data.object as Stripe.Refund)
         break
 
       case 'customer.subscription.created':

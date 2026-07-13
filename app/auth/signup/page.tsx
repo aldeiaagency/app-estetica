@@ -8,7 +8,9 @@ import { registerUser } from '@/app/actions/auth'
 
 function SignUpForm() {
   const searchParams = useSearchParams()
-  const isBusiness = searchParams.get('tipo') === 'negocio'
+  const requestedPlan = searchParams.get('plan')?.toLowerCase()
+  const plan = ['basic', 'growth', 'pro'].includes(requestedPlan ?? '') ? requestedPlan! : 'basic'
+  const isBusiness = searchParams.get('tipo') === 'negocio' || searchParams.has('plan')
   const [tipo, setTipo] = useState<'cliente' | 'negocio'>(isBusiness ? 'negocio' : 'cliente')
   const [showPassword, setShowPassword] = useState(false)
   const [state, action, pending] = useActionState(registerUser, null)
@@ -55,39 +57,42 @@ function SignUpForm() {
 
           <form action={action} className="space-y-4">
             <input type="hidden" name="role" value={tipo === 'negocio' ? 'BUSINESS_ADMIN' : 'CUSTOMER'} />
+            {tipo === 'negocio' && <input type="hidden" name="plan" value={plan} />}
 
             {tipo === 'negocio' && (
               <div>
-                <label className="label">Nombre del negocio</label>
-                <input type="text" name="businessName" required className="input-base py-3" placeholder="Peluqueria Ana Garcia" />
+                <label htmlFor="signup-business" className="label">Nombre del negocio</label>
+                <input id="signup-business" type="text" name="businessName" required className="input-base py-3" placeholder="Peluqueria Ana Garcia" />
               </div>
             )}
 
             <div>
-              <label className="label">Tu nombre</label>
-              <input type="text" name="name" required className="input-base py-3" placeholder="Nombre completo" />
+              <label htmlFor="signup-name" className="label">Tu nombre</label>
+              <input id="signup-name" type="text" name="name" required className="input-base py-3" placeholder="Nombre completo" />
             </div>
 
             <div>
-              <label className="label">Email</label>
-              <input type="email" name="email" required autoComplete="email" className="input-base py-3" placeholder="tu@email.com" />
+              <label htmlFor="signup-email" className="label">Email</label>
+              <input id="signup-email" type="email" name="email" required autoComplete="email" className="input-base py-3" placeholder="tu@email.com" />
             </div>
 
             <div>
-              <label className="label">Contrasena</label>
+              <label htmlFor="signup-password" className="label">Contrasena</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  id="signup-password"
                   name="password"
                   required
-                  minLength={8}
+                  minLength={10}
                   autoComplete="new-password"
                   className="input-base py-3 pr-11"
-                  placeholder="Minimo 8 caracteres"
+                  placeholder="10+ caracteres, mayuscula y numero"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b96aa] hover:text-[#0c1324]"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

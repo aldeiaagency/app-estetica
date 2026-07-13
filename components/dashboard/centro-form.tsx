@@ -39,6 +39,7 @@ interface CenterData {
   addressCity: string
   addressProvince: string
   addressPostalCode: string
+  cancellationNoticeHours: number
 }
 
 interface CentroFormProps {
@@ -84,6 +85,7 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
           addressCity:      fd.get('addressCity') as string,
           addressProvince:  fd.get('addressProvince') as string,
           addressPostalCode:(fd.get('addressPostalCode') as string) || undefined,
+          cancellationNoticeHours: Number(fd.get('cancellationNoticeHours') ?? 24),
         },
         orgId
       )
@@ -307,6 +309,11 @@ export function CentroForm({ center, orgId, canUseAI }: CentroFormProps) {
       <div>
         <label className={labelCls}>Código postal</label>
         <input name="addressPostalCode" defaultValue={center?.addressPostalCode ?? ''} placeholder="28001" maxLength={5} className={inputCls} />
+      </div>
+
+      <div>
+        <label htmlFor="cancellationNoticeHours" className={labelCls}>Antelacion para cancelar (horas)</label>
+        <input id="cancellationNoticeHours" name="cancellationNoticeHours" type="number" min={0} max={168} required defaultValue={center?.cancellationNoticeHours ?? 24} className={inputCls} />
       </div>
 
       {/* Submit */}

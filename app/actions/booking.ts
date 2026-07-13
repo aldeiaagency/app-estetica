@@ -7,6 +7,10 @@ import { prisma } from '@/lib/db/client'
 import { sendBookingConfirmation } from '@/lib/notifications/email'
 import { notifyWaitlistForBookingOpening } from '@/lib/waitlist/notifications'
 import { createBookingDepositCheckoutSession } from '@/lib/billing/checkout'
+import {
+  cancelBookingWithPaymentSafety,
+  cancelUnpaidBookingHold,
+} from '@/lib/billing/booking-payments'
 import { isStripeConfigured } from '@/lib/billing/stripe'
 import {
   bookingSlotErrorMessage,
@@ -14,6 +18,7 @@ import {
   resolveBookableSlot,
 } from '@/lib/availability/booking-slot'
 import { enforceRateLimit, getRequestFingerprint } from '@/lib/security/rate-limit'
+import { createConfirmationToken } from '@/lib/security/confirmation-token'
 
 const DEPOSIT_HOLD_MINUTES = 35
 
@@ -44,7 +49,7 @@ const waitlistSchema = z.object({
 })
 
 export async function createBookingAction(input: unknown): Promise<
-  { success: true; confirmationCode: string; checkoutUrl?: string } | { success: false; error: string }
+  { success: true; confirmationCode: string; confirmationToken: string; checkoutUrl?: string } | { success: false; error: string }
 > {
   const parsed = createBookingSchema.safeParse(input)
   if (!parsed.success) {
@@ -97,23 +102,17 @@ export async function createBookingAction(input: unknown): Promise<
           email: data.customerEmail,
           phone: data.customerPhone || null,
           consentGivenAt: new Date(),
-          marketingConsent: data.marketingConsent,
-          marketingConsentDate: data.marketingConsent ? new Date() : null,
+          marketingConsent: false,
+          marketingConsentDate: null,
         },
-        update: {
-          name: data.customerName,
-          phone: data.customerPhone || null,
-          ...(data.marketingConsent
-            ? { marketingConsent: true, marketingConsentDate: new Date() }
-            : {}),
-        },
+        update: {},
       })
 
       const depositExpiresAt = requiresOnlineDeposit
         ? new Date(Date.now() + DEPOSIT_HOLD_MINUTES * 60 * 1000)
         : null
 
-      return tx.booking.create({
+      const booking = await tx.booking.create({
         data: {
           confirmationCode: generateConfirmationCode(),
           centerId: data.centerId,
@@ -127,7 +126,19 @@ export async function createBookingAction(input: unknown): Promise<
           depositCents: depositCents || null,
           depositPaid: false,
           depositExpiresAt,
+          paymentState: requiresOnlineDeposit ? 'CHECKOUT_PENDING' : 'NOT_REQUIRED',
         },
+        include: {
+          service: true,
+          staff: true,
+          center: true,
+          customer: true,
+        },
+      })
+      if (!requiresOnlineDeposit) return booking
+      return tx.booking.update({
+        where: { id: booking.id },
+        data: { checkoutIdempotencyKey: `booking-checkout:${booking.id}` },
         include: {
           service: true,
           staff: true,
@@ -138,6 +149,7 @@ export async function createBookingAction(input: unknown): Promise<
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
     if (requiresOnlineDeposit) {
+      const confirmationToken = createConfirmationToken('booking', booking.confirmationCode, booking.customer.email)
       try {
         const checkoutUrl = await createBookingDepositCheckoutSession({
           bookingId: booking.id,
@@ -150,19 +162,12 @@ export async function createBookingAction(input: unknown): Promise<
           depositExpiresAt: booking.depositExpiresAt
             ?? new Date(Date.now() + DEPOSIT_HOLD_MINUTES * 60 * 1000),
           customerEmail: booking.customer.email,
+          idempotencyKey: booking.checkoutIdempotencyKey!,
         })
-        return { success: true, confirmationCode: booking.confirmationCode, checkoutUrl }
+        return { success: true, confirmationCode: booking.confirmationCode, confirmationToken, checkoutUrl }
       } catch (error) {
         console.error('[booking] deposit checkout creation failed', error)
-        await prisma.booking.updateMany({
-          where: { id: booking.id, status: 'PENDING', depositPaid: false },
-          data: {
-            status: 'CANCELLED',
-            cancelledAt: new Date(),
-            cancelledBy: 'SYSTEM',
-            cancellationReason: 'No se pudo iniciar el pago del depósito.',
-          },
-        })
+        await cancelUnpaidBookingHold(booking.id, 'No se pudo iniciar el pago del depósito.')
         return { success: false, error: 'No se pudo iniciar el pago del depósito. Inténtalo de nuevo.' }
       }
     }
@@ -178,7 +183,11 @@ export async function createBookingAction(input: unknown): Promise<
       centerSlug: booking.center.slug,
     }).catch(error => console.error('[email] booking confirmation failed', error))
 
-    return { success: true, confirmationCode: booking.confirmationCode }
+    return {
+      success: true,
+      confirmationCode: booking.confirmationCode,
+      confirmationToken: createConfirmationToken('booking', booking.confirmationCode, booking.customer.email),
+    }
   } catch (error) {
     if (isBookingOverlapError(error)) {
       return { success: false, error: 'Ese horario acaba de ser ocupado. Selecciona otro.' }
@@ -241,16 +250,10 @@ export async function joinWaitlistAction(input: unknown): Promise<
           email: data.customerEmail,
           phone: data.customerPhone || null,
           consentGivenAt: new Date(),
-          marketingConsent: data.marketingConsent,
-          marketingConsentDate: data.marketingConsent ? new Date() : null,
+          marketingConsent: false,
+          marketingConsentDate: null,
         },
-        update: {
-          name: data.customerName,
-          phone: data.customerPhone || null,
-          ...(data.marketingConsent
-            ? { marketingConsent: true, marketingConsentDate: new Date() }
-            : {}),
-        },
+        update: {},
       })
 
       const existing = await tx.waitlistEntry.findFirst({
@@ -306,34 +309,34 @@ export async function cancelBookingAction(
     include: { customer: true, service: true, center: true },
   })
   if (!booking) return { success: false, error: 'Reserva no encontrada. Comprueba el código y el email.' }
-  if (['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(booking.status)) {
+  if (['COMPLETED', 'NO_SHOW'].includes(booking.status)) {
     return { success: false, error: 'Esta reserva ya no se puede cancelar.' }
   }
 
   const now = new Date()
   const hoursUntilStart = (booking.startAt.getTime() - now.getTime()) / 3_600_000
-  if (hoursUntilStart < 24) {
-    return { success: false, error: 'La cancelación debe realizarse con al menos 24 horas de antelación.' }
+  if (booking.status !== 'CANCELLED' && hoursUntilStart < booking.center.cancellationNoticeHours) {
+    return { success: false, error: `La cancelacion debe realizarse con al menos ${booking.center.cancellationNoticeHours} horas de antelacion.` }
   }
 
-  const updated = await prisma.booking.updateMany({
-    where: { id: booking.id, status: { in: ['PENDING', 'CONFIRMED'] } },
-    data: {
-      status: 'CANCELLED',
-      cancelledAt: now,
-      cancelledBy: 'CUSTOMER',
-      cancellationReason: reason?.trim().slice(0, 500) || null,
-    },
+  const cancellation = await cancelBookingWithPaymentSafety({
+    bookingId: booking.id,
+    cancelledBy: 'CUSTOMER',
+    reason,
   })
-  if (updated.count === 0) return { success: false, error: 'La reserva ya no se puede cancelar.' }
 
-  notifyWaitlistForBookingOpening({
-    centerId: booking.centerId,
-    serviceId: booking.serviceId,
-    staffId: booking.staffId,
-    startAt: booking.startAt,
-  }).catch(error => console.error('[waitlist] cancellation notification failed', error))
+  if (cancellation.changed) {
+    notifyWaitlistForBookingOpening({
+      centerId: booking.centerId,
+      serviceId: booking.serviceId,
+      staffId: booking.staffId,
+      startAt: booking.startAt,
+    }).catch(error => console.error('[waitlist] cancellation notification failed', error))
+  }
 
+  if (!cancellation.success) {
+    return { success: false, error: cancellation.error ?? 'No se pudo cancelar la reserva.' }
+  }
   return { success: true }
 }
 
@@ -365,13 +368,14 @@ export async function rescheduleBookingAction(input: unknown): Promise<
 
   const booking = await prisma.booking.findFirst({
     where: { confirmationCode: data.confirmationCode, customer: { email: data.customerEmail } },
+    include: { center: { select: { cancellationNoticeHours: true } } },
   })
   if (!booking) return { success: false, error: 'Reserva no encontrada.' }
   if (booking.status !== 'CONFIRMED') {
     return { success: false, error: 'Esta reserva no se puede modificar.' }
   }
-  if ((booking.startAt.getTime() - Date.now()) / 3_600_000 < 24) {
-    return { success: false, error: 'La modificación debe realizarse con al menos 24 horas de antelación.' }
+  if ((booking.startAt.getTime() - Date.now()) / 3_600_000 < booking.center.cancellationNoticeHours) {
+    return { success: false, error: `La modificacion debe realizarse con al menos ${booking.center.cancellationNoticeHours} horas de antelacion.` }
   }
 
   let resolved: Awaited<ReturnType<typeof resolveBookableSlot>>

@@ -10,6 +10,12 @@ export default defineConfig({
       reporter: ['text', 'json-summary'],
       include: ['lib/**/*.ts'],
       exclude: ['lib/db/**', 'lib/auth/**', 'lib/email/client.ts'],
+      thresholds: {
+        statements: 10,
+        branches: 8,
+        functions: 15,
+        lines: 10,
+      },
     },
   },
   resolve: {

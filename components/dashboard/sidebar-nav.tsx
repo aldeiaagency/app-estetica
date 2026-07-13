@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  BarChart3,
   Calendar,
   Clock,
   Gem,
@@ -19,8 +18,6 @@ import {
   ShoppingBag,
   ShoppingCart,
   Sparkles,
-  Star,
-  Tag,
   UserCircle,
   Users,
 } from 'lucide-react'
@@ -44,25 +41,22 @@ const NAV_GROUPS = [
       { href: '/dashboard/bonos', label: 'Bonos', icon: Gift },
       { href: '/dashboard/productos', label: 'Productos', icon: ShoppingBag },
       { href: '/dashboard/pedidos', label: 'Pedidos', icon: ShoppingCart },
-      { href: '/dashboard/promociones', label: 'Promociones', icon: Tag },
     ],
   },
   {
     label: 'Negocio',
     items: [
-      { href: '/dashboard/resenas', label: 'Resenas', icon: Star },
       { href: '/dashboard/beneficios', label: 'Beneficios', icon: Sparkles },
       { href: '/dashboard/seguimientos', label: 'Seguimientos', icon: MessageSquareText },
       { href: '/dashboard/recurrencia', label: 'Recurrencia', icon: Repeat2 },
       { href: '/dashboard/campanas', label: 'Campanas', icon: Megaphone },
-      { href: '/dashboard/analitica', label: 'Analitica', icon: BarChart3 },
       { href: '/dashboard/plan', label: 'Mi plan', icon: Package },
       { href: '/dashboard/configuracion', label: 'Configuracion', icon: Settings },
     ],
   },
 ]
 
-interface SidebarNavProps {
+export interface SidebarNavProps {
   userName?: string | null
   userEmail?: string | null
   centerName?: string | null
@@ -77,7 +71,7 @@ export function SidebarNav({ userName, userEmail, centerName }: SidebarNavProps)
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-white/10 bg-[#0c1324]">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-white/10 bg-[#0c1324]">
       <div className="border-b border-white/10 px-5 py-5">
         <Link href="/" className="group flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#2f6df6] shadow-[0_12px_26px_rgba(47,109,246,0.28)] transition-transform group-hover:scale-105">

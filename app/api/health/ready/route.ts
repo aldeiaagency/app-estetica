@@ -39,10 +39,10 @@ export async function GET() {
   if (flags.products) checks.storage.required = true
 
   const ready = Object.values(checks).every(check => !check.required || check.ok)
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
   return NextResponse.json({
     status: ready ? 'ready' : 'not_ready',
-    checks,
-    features: flags,
+    ...(isProduction ? {} : { checks, features: flags }),
     timestamp: new Date().toISOString(),
   }, {
     status: ready ? 200 : 503,

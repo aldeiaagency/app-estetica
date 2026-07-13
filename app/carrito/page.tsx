@@ -9,7 +9,11 @@ function formatPrice(cents: number) {
 }
 
 export default function CarritoPage() {
-  const { items, removeItem, updateQuantity, totalCents, totalItems } = useCart()
+  const { items, hydrated, removeItem, updateQuantity, totalCents, totalItems } = useCart()
+
+  if (!hydrated) {
+    return <div className="flex min-h-screen items-center justify-center bg-[#f1f4f8]" role="status">Cargando carrito...</div>
+  }
 
   if (items.length === 0) {
     return (
@@ -81,6 +85,7 @@ export default function CarritoPage() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                  aria-label={`Reducir cantidad de ${item.name}`}
                   className="flex h-8 w-8 items-center justify-center rounded-md border border-[#d8dee9] text-[#647089] hover:bg-[#f1f4f8] transition-colors"
                 >
                   <Minus className="h-3 w-3" />
@@ -88,6 +93,7 @@ export default function CarritoPage() {
                 <span className="w-8 text-center text-sm font-bold text-[#0c1324]">{item.quantity}</span>
                 <button
                   onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                  aria-label={`Aumentar cantidad de ${item.name}`}
                   className="flex h-8 w-8 items-center justify-center rounded-md border border-[#d8dee9] text-[#647089] hover:bg-[#f1f4f8] transition-colors"
                 >
                   <Plus className="h-3 w-3" />
@@ -102,6 +108,7 @@ export default function CarritoPage() {
               {/* Remove */}
               <button
                 onClick={() => removeItem(item.productId)}
+                aria-label={`Eliminar ${item.name} del carrito`}
                 className="ml-1 flex h-8 w-8 items-center justify-center rounded-md text-[#8b96aa] transition-colors hover:bg-red-50 hover:text-red-500"
               >
                 <Trash2 className="h-3.5 w-3.5" />

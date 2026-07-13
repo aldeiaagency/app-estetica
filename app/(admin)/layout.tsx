@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth/config'
 import { redirect } from 'next/navigation'
 import { LogOut, Sparkles } from 'lucide-react'
 import { AdminNav } from '@/components/admin/admin-nav'
+import { MobileAdminNav } from '@/components/admin/mobile-admin-nav'
 
 export default async function AdminLayout({
   children,
@@ -40,7 +41,11 @@ export default async function AdminLayout({
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto bg-zinc-50 p-8">{children}</main>
+      <div className="fixed top-0 z-40 flex w-full items-center justify-between border-b border-zinc-200 bg-white px-4 py-3 md:hidden">
+        <Link href="/admin" className="font-bold text-zinc-900">BellezaLocal Admin</Link>
+        <MobileAdminNav />
+      </div>
+      <main className="flex-1 overflow-auto bg-zinc-50 p-4 pt-20 sm:p-6 sm:pt-20 md:p-8">{children}</main>
     </div>
   )
 }

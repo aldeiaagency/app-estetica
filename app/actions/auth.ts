@@ -17,12 +17,19 @@ const passwordSchema = z.string()
   .regex(/[A-Z]/, 'Incluye una mayúscula')
   .regex(/[0-9]/, 'Incluye un número')
 
+const selfServePlanSchema = z.enum(['basic', 'growth', 'pro']).transform(plan => ({
+  basic: 'BASIC',
+  growth: 'GROWTH',
+  pro: 'PRO',
+} as const)[plan])
+
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().trim().email().transform(value => value.toLowerCase()),
   password: passwordSchema,
   businessName: z.string().trim().max(160).optional(),
   role: z.enum(['CUSTOMER', 'BUSINESS_ADMIN']).default('CUSTOMER'),
+  plan: selfServePlanSchema.default('basic'),
   termsAccepted: z.literal('on', {
     errorMap: () => ({ message: 'Debes aceptar los términos y la política de privacidad.' }),
   }),
@@ -49,6 +56,7 @@ export async function registerUser(_previousState: { error: string } | null, for
     password: formData.get('password'),
     businessName: formData.get('businessName') ?? undefined,
     role: formData.get('role') ?? 'CUSTOMER',
+    plan: formData.get('plan') ?? 'basic',
     termsAccepted: formData.get('termsAccepted'),
   })
   if (!parsed.success) return { error: parsed.error.errors[0]?.message ?? 'Datos inválidos.' }
@@ -65,8 +73,11 @@ export async function registerUser(_previousState: { error: string } | null, for
   const existing = await prisma.user.findUnique({ where: { email: data.email }, select: { id: true } })
   if (existing) return { error: 'No se pudo crear la cuenta con esos datos.' }
 
+  if (!isEmailConfigured()) {
+    return { error: 'El registro no esta disponible temporalmente porque no podemos verificar tu email.' }
+  }
+
   const hashedPassword = await bcrypt.hash(data.password, 12)
-  const shouldVerifyEmail = isEmailConfigured()
 
   try {
     const user = await prisma.$transaction(async tx => {
@@ -83,7 +94,7 @@ export async function registerUser(_previousState: { error: string } | null, for
           data: {
             name: data.businessName!,
             slug: `${baseSlug}-${randomUUID().slice(0, 8)}`,
-            plan: 'BASIC',
+            plan: data.plan,
           },
         })
         organizationId = organization.id
@@ -95,19 +106,17 @@ export async function registerUser(_previousState: { error: string } | null, for
           email: data.email,
           password: hashedPassword,
           role: data.role,
-          emailVerified: shouldVerifyEmail ? null : new Date(),
+          emailVerified: null,
           organizationId,
         },
       })
     })
 
-    if (shouldVerifyEmail) {
-      const identifier = authTokenIdentifier('email-verify', data.email)
-      const token = await createAuthToken(identifier, 60 * 24)
-      sendEmailVerification({ to: data.email, name: user.name, token }).catch(error => {
-        console.error('[auth] verification email failed', error)
-      })
-    }
+    const identifier = authTokenIdentifier('email-verify', data.email)
+    const token = await createAuthToken(identifier, 60 * 24)
+    sendEmailVerification({ to: data.email, name: user.name, token }).catch(error => {
+      console.error('[auth] verification email failed', error)
+    })
   } catch (error) {
     console.error('[auth] registration failed', error)
     return { error: 'No se pudo crear la cuenta con esos datos.' }

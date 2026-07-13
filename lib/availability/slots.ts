@@ -9,6 +9,10 @@ export interface Block {
   end: Date
 }
 
+export function bookingIntervalToBlock(booking: { startAt: Date; endAt: Date }): Block {
+  return { start: booking.startAt, end: booking.endAt }
+}
+
 export interface CandidateSlot {
   startAt: Date
   endAt: Date

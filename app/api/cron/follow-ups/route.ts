@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       channel: 'EMAIL',
       status: { in: ['SCHEDULED', 'READY'] },
       scheduledFor: { lte: new Date() },
+      OR: [{ processingAt: null }, { processingAt: { lt: new Date(Date.now() - 15 * 60 * 1000) } }],
     },
     include: {
       customer: { select: { name: true, email: true, marketingConsent: true } },
@@ -49,11 +50,20 @@ export async function GET(request: NextRequest) {
   let skipped = 0
 
   for (const message of due) {
+    const claimed = await prisma.followUpMessage.updateMany({
+      where: {
+        id: message.id,
+        status: { in: ['SCHEDULED', 'READY'] },
+        OR: [{ processingAt: null }, { processingAt: { lt: new Date(Date.now() - 15 * 60 * 1000) } }],
+      },
+      data: { processingAt: new Date(), attempts: { increment: 1 }, lastError: null },
+    })
+    if (claimed.count !== 1) continue
     // GDPR: si es marketing y la clienta revocó el consentimiento tras programarse, no se envía.
     if (message.purpose === 'MARKETING' && !message.customer.marketingConsent) {
       await prisma.followUpMessage.update({
         where: { id: message.id },
-        data: { status: 'CANCELLED' },
+        data: { status: 'CANCELLED', processingAt: null },
       })
       skipped += 1
       continue
@@ -62,7 +72,7 @@ export async function GET(request: NextRequest) {
     if (!message.customer.email) {
       await prisma.followUpMessage.update({
         where: { id: message.id },
-        data: { status: 'FAILED' },
+        data: { status: 'FAILED', processingAt: null, lastError: 'Customer email unavailable' },
       })
       failed += 1
       continue
@@ -79,13 +89,17 @@ export async function GET(request: NextRequest) {
 
       await prisma.followUpMessage.update({
         where: { id: message.id },
-        data: { status: 'SENT', sentAt: new Date() },
+        data: { status: 'SENT', sentAt: new Date(), processingAt: null, lastError: null },
       })
       sent += 1
     } catch (err) {
       await prisma.followUpMessage.update({
         where: { id: message.id },
-        data: { status: 'FAILED' },
+        data: {
+          status: message.attempts + 1 >= 5 ? 'FAILED' : 'READY',
+          processingAt: null,
+          lastError: err instanceof Error ? err.message.slice(0, 500) : 'Delivery failed',
+        },
       })
       failed += 1
       console.error('[cron/follow-ups] Failed to send message:', message.id, err)

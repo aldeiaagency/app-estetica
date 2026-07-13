@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { AlertCircle, ArrowRight, Calendar, CheckCircle2, Clock, Hourglass, MapPin, ShieldCheck, Sparkles, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { prisma } from '@/lib/db/client'
+import { verifyConfirmationToken } from '@/lib/security/confirmation-token'
 
 export const metadata: Metadata = {
   title: 'Estado de reserva',
@@ -12,12 +13,13 @@ export const metadata: Metadata = {
 
 interface Props {
   params: Promise<{ code: string }>
-  searchParams: Promise<{ paid?: string }>
+  searchParams: Promise<{ paid?: string; token?: string }>
 }
 
 export default async function ConfirmadaPage({ params, searchParams }: Props) {
   const { code } = await params
-  const paid = (await searchParams)?.paid === '1'
+  const query = await searchParams
+  const paid = query.paid === '1'
 
   const booking = await prisma.booking.findUnique({
     where: { confirmationCode: code },
@@ -29,7 +31,7 @@ export default async function ConfirmadaPage({ params, searchParams }: Props) {
     },
   })
 
-  if (!booking) notFound()
+  if (!booking || !verifyConfirmationToken('booking', code, booking.customer.email, query.token)) notFound()
 
   const fmtDate = (d: Date) =>
     d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -255,6 +257,6 @@ function getStatusMeta({
     description: 'Tu cita esta guardada y el centro ya tiene los datos necesarios para atenderte.',
     panelClass: 'border-[#cfe0ff] bg-[#edf3ff]',
     nextTitle: 'Que hacer ahora',
-    nextSteps: ['Recibiras un email de confirmacion con estos datos.', 'El centro puede enviarte recordatorio antes de tu cita.', 'Si necesitas cancelar, hazlo con al menos 24h de antelacion.'],
+    nextSteps: ['Recibiras un email de confirmacion con estos datos.', 'El centro puede enviarte recordatorio antes de tu cita.', 'Consulta la politica del centro antes de cancelar o modificar.'],
   }
 }

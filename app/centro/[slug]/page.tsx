@@ -53,7 +53,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: `${appUrl}/centro/${slug}`,
       images: center.coverImage ? [{ url: center.coverImage }] : [],
     },
-    robots: center.services.length === 0 ? { index: false } : { index: true },
+    robots: center.seoNoindex || center.services.length === 0
+      ? { index: false, follow: false }
+      : { index: true, follow: true },
   }
 }
 
@@ -82,16 +84,18 @@ export default async function CenterPage({ params }: Props) {
       bonos: { where: { active: true }, take: 4 },
       products: { where: { active: true }, take: 4 },
       organization: { select: { plan: true } },
-      _count: { select: { reviews: true } },
     },
   })
 
   if (!center || !center.published) notFound()
 
   const categoryLabel = CATEGORY_LABELS[center.category] ?? center.category
-  const avgRating = center.reviews.length > 0
-    ? center.reviews.reduce((sum, review) => sum + review.rating, 0) / center.reviews.length
-    : null
+  const reviewStats = await prisma.review.aggregate({
+    where: { centerId: center.id, approved: true },
+    _avg: { rating: true },
+    _count: { rating: true },
+  })
+  const avgRating = reviewStats._avg.rating
   const openingHours = center.scheduleRules.map(rule => `${SCHEMA_DAYS[rule.dayOfWeek]} ${rule.openTime}-${rule.closeTime}`)
   const [benefits, beautyPacks] = await Promise.all([
     getBenefitsForCenterIds([center.id]),
@@ -120,7 +124,7 @@ export default async function CenterPage({ params }: Props) {
     slug: center.slug,
     coverImage: center.coverImage,
     averageRating: avgRating ?? undefined,
-    reviewCount: center._count.reviews > 0 ? center._count.reviews : undefined,
+    reviewCount: reviewStats._count.rating > 0 ? reviewStats._count.rating : undefined,
     openingHours,
   })
 
@@ -161,7 +165,7 @@ export default async function CenterPage({ params }: Props) {
                   {avgRating && (
                     <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                      {avgRating.toFixed(1)} ({center._count.reviews} resenas)
+                      {avgRating.toFixed(1)} ({reviewStats._count.rating} resenas)
                     </span>
                   )}
                   {minPriceCents !== null && (
@@ -395,7 +399,7 @@ export default async function CenterPage({ params }: Props) {
                     <span className="flex items-center gap-1.5">
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                       <span className="font-black text-[#0c1324]">{avgRating.toFixed(1)}</span>
-                      <span className="text-sm text-[#647089]">({center._count.reviews})</span>
+                      <span className="text-sm text-[#647089]">({reviewStats._count.rating})</span>
                     </span>
                   ) : null}
                 >

@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db/client'
 import { z } from 'zod'
 import { isStripeConfigured } from '@/lib/billing/stripe'
 import { createBonoCheckoutSession } from '@/lib/billing/checkout'
+import { requireOrganization } from '@/lib/auth/authorization'
+import { redeemBonoSessionAtomic } from '@/lib/billing/bonos'
 
 const purchaseBonoSchema = z.object({
   bonoId:        z.string().cuid(),
@@ -100,29 +102,15 @@ export async function purchaseBonoAction(input: unknown): Promise<
 // Dashboard: decrement sessions on a BonoInstance (business-side redemption)
 export async function redeemBonoSessionAction(
   instanceId: string,
-  orgId: string
+  _legacyOrganizationId?: string,
 ): Promise<{ success: boolean; error?: string; sessionsRemaining?: number }> {
   try {
-    const instance = await prisma.bonoInstance.findUnique({
-      where: { id: instanceId },
-      include: { bono: { include: { center: { select: { organizationId: true } } } } },
-    })
-
-    if (!instance) return { success: false, error: 'Instancia no encontrada' }
-    if (instance.bono.center.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
-    if (instance.sessionsRemaining <= 0) return { success: false, error: 'El bono no tiene sesiones disponibles' }
-
-    const now = new Date()
-    if (instance.expiresAt && instance.expiresAt < now) {
-      return { success: false, error: 'El bono ha caducado' }
-    }
-
-    const updated = await prisma.bonoInstance.update({
-      where: { id: instanceId },
-      data: { sessionsRemaining: { decrement: 1 } },
-    })
-
-    return { success: true, sessionsRemaining: updated.sessionsRemaining }
+    const { organizationId } = await requireOrganization()
+    const result = await redeemBonoSessionAtomic(instanceId, organizationId)
+    if (result.success) return result
+    if (result.reason === 'EXPIRED') return { success: false, error: 'El bono ha caducado' }
+    if (result.reason === 'EMPTY') return { success: false, error: 'El bono no tiene sesiones disponibles' }
+    return { success: false, error: 'Instancia no encontrada' }
   } catch (err) {
     console.error('[bonos] Error redeeming session:', err)
     return { success: false, error: 'Error al redimir la sesión' }

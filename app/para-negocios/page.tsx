@@ -145,7 +145,7 @@ export default function ParaNegociosPage() {
               No es solo una agenda. Es una forma de convertir reservas, packs, productos y seguimiento en clientas que entienden por que volver.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/auth/signup?plan=growth" className="inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-black text-[#0c1324] transition hover:bg-[#e5edff]">
+              <Link href="/auth/signup?tipo=negocio&plan=growth" className="inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-black text-[#0c1324] transition hover:bg-[#e5edff]">
                 Empezar con Growth
                 <ArrowRight className="h-4 w-4" />
               </Link>
@@ -240,7 +240,7 @@ export default function ParaNegociosPage() {
                     ))}
                   </ul>
                   <Link
-                    href={marketing.contactSales ? '#contacto' : `/auth/signup?plan=${marketing.slug}`}
+                    href={marketing.contactSales ? '#contacto' : `/auth/signup?tipo=negocio&plan=${marketing.slug}`}
                     className={`mt-6 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-black transition ${
                       featured ? 'bg-white text-[#2355c8] hover:bg-[#e5edff]' : 'bg-[#0c1324] text-white hover:bg-[#1f2a44]'
                     }`}

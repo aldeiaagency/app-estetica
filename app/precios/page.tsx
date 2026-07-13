@@ -98,7 +98,7 @@ export default function PreciosPage() {
                   {marketing.description}
                 </p>
                 <Link
-                  href={marketing.contactSales ? '/para-negocios#contacto' : `/auth/signup?plan=${marketing.slug}`}
+                  href={marketing.contactSales ? '/para-negocios#contacto' : `/auth/signup?tipo=negocio&plan=${marketing.slug}`}
                   className={`mt-5 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition ${
                     featured ? 'bg-white text-[#2355c8] hover:bg-[#e5edff]' : 'bg-[#0c1324] text-white hover:bg-[#1f2a44]'
                   }`}

@@ -1,16 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { Eye, EyeOff, Loader2, Sparkles } from 'lucide-react'
 
-export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function SignInForm({ googleEnabled, callbackUrl }: { googleEnabled: boolean; callbackUrl: string }) {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -29,12 +34,12 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
       return
     }
 
-    router.push('/dashboard')
+    router.push(callbackUrl)
     router.refresh()
   }
 
   async function handleGoogle() {
-    await signIn('google', { callbackUrl: '/dashboard' })
+    await signIn('google', { callbackUrl })
   }
 
   return (
@@ -54,14 +59,14 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
         <div className="rounded-lg border border-[#d8dee9] bg-white p-8 shadow-[0_24px_70px_rgba(12,19,36,0.08)]">
           {error && <div className="mb-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form method="post" onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="label">Email</label>
-              <input type="email" name="email" required autoComplete="email" className="input-base py-3" placeholder="tu@email.com" />
+              <label htmlFor="signin-email" className="label">Email</label>
+              <input id="signin-email" type="email" name="email" required autoComplete="email" className="input-base py-3" placeholder="tu@email.com" />
             </div>
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-3">
-                <label className="text-sm font-semibold text-[#0c1324]">Contrasena</label>
+                <label htmlFor="signin-password" className="text-sm font-semibold text-[#0c1324]">Contrasena</label>
                 <Link href="/auth/forgot-password" className="text-xs font-bold text-[#2355c8] hover:text-[#2f6df6]">
                   La has olvidado?
                 </Link>
@@ -69,6 +74,7 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  id="signin-password"
                   name="password"
                   required
                   autoComplete="current-password"
@@ -78,13 +84,14 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8b96aa] hover:text-[#0c1324]"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full py-3">
+            <button type="submit" disabled={loading || !hydrated} className="btn-primary w-full py-3">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Entrar
             </button>
@@ -102,6 +109,7 @@ export function SignInForm({ googleEnabled }: { googleEnabled: boolean }) {
               </div>
 
               <button
+                type="button"
                 onClick={handleGoogle}
                 className="flex w-full items-center justify-center gap-3 rounded-md border border-[#d8dee9] py-3 text-sm font-bold text-[#0c1324] transition-colors hover:bg-[#f7f9fc]"
               >

@@ -3,7 +3,7 @@
 import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { auth } from '@/lib/auth/config'
+import { requireOrganization } from '@/lib/auth/authorization'
 import { prisma } from '@/lib/db/client'
 
 export type FollowUpTemplateCategory = 'GENERIC' | 'MANICURE' | 'FACIAL' | 'COLORATION' | 'BROWS_LASHES' | 'WELLNESS'
@@ -102,19 +102,22 @@ function scheduledDateFrom(start: Date, days: number) {
 }
 
 async function getCenterForCurrentUser() {
-  const session = await auth()
-  const orgId = session?.user?.organizationId
-  if (!orgId) return null
+  let organizationId: string
+  try {
+    organizationId = (await requireOrganization()).organizationId
+  } catch {
+    return null
+  }
 
   const center = await prisma.center.findFirst({
-    where: { organizationId: orgId },
+    where: { organizationId },
     select: { id: true, name: true, slug: true, organizationId: true },
   })
 
-  return center ? { ...center, orgId } : null
+  return center ? { ...center, orgId: organizationId } : null
 }
 
-export async function ensureStarterFollowUpTemplatesForCenter(centerId: string) {
+async function ensureStarterFollowUpTemplates(centerId: string) {
   try {
     const rows = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*)::bigint AS count
@@ -153,17 +156,34 @@ export async function ensureStarterFollowUpTemplatesForCenter(centerId: string) 
   }
 }
 
+export async function ensureStarterFollowUpTemplatesForCenter(centerId: string) {
+  try {
+    const { organizationId } = await requireOrganization()
+    const center = await prisma.center.findFirst({
+      where: { id: centerId, organizationId },
+      select: { id: true },
+    })
+    if (!center) return { success: false, error: 'Centro no encontrado' }
+
+    return ensureStarterFollowUpTemplates(center.id)
+  } catch {
+    return { success: false, error: 'Sin permisos' }
+  }
+}
+
 export async function ensureStarterFollowUpTemplatesAction() {
   const center = await getCenterForCurrentUser()
   if (!center) return { success: false, error: 'Centro no encontrado' }
 
-  const result = await ensureStarterFollowUpTemplatesForCenter(center.id)
+  const result = await ensureStarterFollowUpTemplates(center.id)
   revalidatePath('/dashboard/seguimientos')
   return result
 }
 
-export async function getFollowUpTemplatesForOrganization(orgId: string) {
+export async function getFollowUpTemplatesForOrganization(_legacyOrgId?: string) {
   try {
+    const { organizationId } = await requireOrganization()
+
     return await prisma.$queryRaw<FollowUpTemplateRecord[]>`
       SELECT
         t."id",
@@ -182,7 +202,7 @@ export async function getFollowUpTemplatesForOrganization(orgId: string) {
         t."updatedAt"
       FROM "FollowUpTemplate" t
       JOIN "Center" c ON c."id" = t."centerId"
-      WHERE c."organizationId" = ${orgId}
+      WHERE c."organizationId" = ${organizationId}
       ORDER BY t."active" DESC, t."category" ASC, t."createdAt" DESC
     `
   } catch {
@@ -190,8 +210,11 @@ export async function getFollowUpTemplatesForOrganization(orgId: string) {
   }
 }
 
-export async function getFollowUpMessagesForOrganization(orgId: string, limit = 80) {
+export async function getFollowUpMessagesForOrganization(_legacyOrgId?: string, limit = 80) {
   try {
+    const { organizationId } = await requireOrganization()
+    const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 200)
+
     return await prisma.$queryRaw<FollowUpMessageRecord[]>`
       SELECT
         m."id",
@@ -219,17 +242,20 @@ export async function getFollowUpMessagesForOrganization(orgId: string, limit = 
       JOIN "Customer" cst ON cst."id" = m."customerId"
       LEFT JOIN "Booking" b ON b."id" = m."bookingId"
       LEFT JOIN "Service" s ON s."id" = b."serviceId"
-      WHERE c."organizationId" = ${orgId}
+      WHERE c."organizationId" = ${organizationId}
       ORDER BY m."scheduledFor" ASC
-      LIMIT ${limit}
+      LIMIT ${safeLimit}
     `
   } catch {
     return []
   }
 }
 
-export async function getRebookingOpportunities(orgId: string, limit = 24) {
+export async function getRebookingOpportunities(_legacyOrgId?: string, limit = 24) {
   try {
+    const { organizationId } = await requireOrganization()
+    const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 100)
+
     return await prisma.$queryRaw<RebookingOpportunityRecord[]>`
       SELECT *
       FROM (
@@ -258,7 +284,7 @@ export async function getRebookingOpportunities(orgId: string, limit = 24) {
         JOIN "Center" c ON c."id" = b."centerId"
         JOIN "Customer" cst ON cst."id" = b."customerId"
         JOIN "Service" s ON s."id" = b."serviceId"
-        WHERE c."organizationId" = ${orgId}
+        WHERE c."organizationId" = ${organizationId}
           AND b."status" = 'COMPLETED'::"BookingStatus"
           AND b."startAt" <= CURRENT_TIMESTAMP
           AND NOT EXISTS (
@@ -271,7 +297,7 @@ export async function getRebookingOpportunities(orgId: string, limit = 24) {
         ORDER BY cst."id", b."startAt" DESC
       ) latest
       ORDER BY "hasScheduledFollowUp" ASC, "daysSince" DESC
-      LIMIT ${limit}
+      LIMIT ${safeLimit}
     `
   } catch {
     return []
@@ -361,8 +387,10 @@ export async function toggleFollowUpTemplateActiveAction(templateId: string): Pr
   }
 }
 
-export async function scheduleFollowUpsForCompletedBooking(bookingId: string, orgId?: string) {
+export async function scheduleFollowUpsForCompletedBooking(bookingId: string, _legacyOrgId?: string) {
   try {
+    const { organizationId } = await requireOrganization()
+
     const bookings = await prisma.$queryRaw<{
       id: string
       centerId: string
@@ -392,14 +420,14 @@ export async function scheduleFollowUpsForCompletedBooking(bookingId: string, or
       JOIN "Center" c ON c."id" = b."centerId"
       WHERE b."id" = ${bookingId}
         AND b."status" = 'COMPLETED'::"BookingStatus"
+        AND c."organizationId" = ${organizationId}
       LIMIT 1
     `
 
     const booking = bookings[0]
     if (!booking) return { success: false, error: 'Reserva completada no encontrada' }
-    if (orgId && booking.organizationId !== orgId) return { success: false, error: 'Sin permisos' }
 
-    await ensureStarterFollowUpTemplatesForCenter(booking.centerId)
+    await ensureStarterFollowUpTemplates(booking.centerId)
 
     const templates = await prisma.$queryRaw<FollowUpTemplateRecord[]>`
       SELECT

@@ -6,7 +6,16 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { scheduleFollowUpsForCompletedBooking } from '@/app/actions/follow-ups'
 import { requireOrganization } from '@/lib/auth/authorization'
+import {
+  cancelBookingWithPaymentSafety,
+  transitionBookingStatusForOrganization,
+} from '@/lib/billing/booking-payments'
 import { PLAN_FEATURES } from '@/lib/billing/plans'
+import {
+  advanceOrderStatus,
+  cancelOrderForOrganization,
+  markOrderPaidInStore,
+} from '@/lib/billing/payment-integrity'
 import { prisma } from '@/lib/db/client'
 import { sendBookingCancellation, sendBookingConfirmation } from '@/lib/email/templates'
 import { formatDate, formatTime, slugify } from '@/lib/utils'
@@ -56,11 +65,12 @@ export async function updateOrderStatusAction(
   if (!VALID_ORDER_STATUSES.includes(status)) return { success: false, error: 'Estado inválido' }
   try {
     const { organizationId } = await getBusinessContext()
-    const order = await prisma.order.findFirst({
-      where: { id: orderId, center: { organizationId } },
-    })
-    if (!order) return { success: false, error: 'Pedido no encontrado' }
-    await prisma.order.update({ where: { id: order.id }, data: { status } })
+    const result = status === 'CANCELLED'
+      ? await cancelOrderForOrganization(orderId, organizationId)
+      : status === 'PAID'
+        ? await markOrderPaidInStore(orderId, organizationId)
+        : await advanceOrderStatus(orderId, organizationId, status)
+    if (!result.success) return result
     revalidatePath('/dashboard/pedidos')
     return { success: true }
   } catch (error) {
@@ -88,23 +98,17 @@ export async function updateBookingStatusAction(
     })
     if (!booking) return { success: false, error: 'Reserva no encontrada' }
 
-    await prisma.$transaction(async tx => {
-      await tx.booking.update({
-        where: { id: booking.id },
-        data: {
-          status,
-          ...(status === 'CANCELLED' ? {
-            cancelledAt: new Date(),
-            cancelledBy: 'BUSINESS',
-            cancellationReason: reason?.trim().slice(0, 500) || null,
-          } : {}),
-          ...(status === 'NO_SHOW' ? { noShowAt: new Date() } : {}),
-        },
-      })
-      if (status === 'NO_SHOW' && booking.status !== 'NO_SHOW') {
-        await tx.customer.update({ where: { id: booking.customerId }, data: { noShowCount: { increment: 1 } } })
-      }
-    })
+    const transition = status === 'CANCELLED'
+      ? await cancelBookingWithPaymentSafety({
+          bookingId,
+          organizationId,
+          cancelledBy: 'BUSINESS',
+          reason,
+        })
+      : status === 'PENDING'
+        ? { success: false as const, error: 'No se puede devolver una reserva a pendiente' }
+        : await transitionBookingStatusForOrganization(bookingId, organizationId, status)
+    if (!transition.success) return transition
 
     const emailParams = {
       to: booking.customer.email,
@@ -117,9 +121,9 @@ export async function updateBookingStatusAction(
       staffName: booking.staff?.name ?? null,
     }
 
-    if (status === 'CONFIRMED') {
+    if (status === 'CONFIRMED' && transition.previousStatus !== 'CONFIRMED') {
       sendBookingConfirmation(emailParams).catch(() => undefined)
-    } else if (status === 'CANCELLED') {
+    } else if (status === 'CANCELLED' && transition.previousStatus !== 'CANCELLED') {
       sendBookingCancellation({ ...emailParams, reason }).catch(() => undefined)
       notifyWaitlistForBookingOpening({
         centerId: booking.centerId,
@@ -127,7 +131,7 @@ export async function updateBookingStatusAction(
         staffId: booking.staffId,
         startAt: booking.startAt,
       }).catch(() => undefined)
-    } else if (status === 'COMPLETED' && booking.status !== 'COMPLETED') {
+    } else if (status === 'COMPLETED' && transition.previousStatus !== 'COMPLETED') {
       scheduleFollowUpsForCompletedBooking(booking.id, organizationId).catch(() => undefined)
     }
 
@@ -421,6 +425,7 @@ const centerSchema = z.object({
   addressCity: z.string().trim().min(1, 'La ciudad es obligatoria').max(120),
   addressProvince: z.string().trim().min(1, 'La provincia es obligatoria').max(120),
   addressPostalCode: z.string().trim().max(15).optional(),
+  cancellationNoticeHours: z.number().int().min(0).max(168).default(24),
 })
 
 const bonoSchema = z.object({
@@ -603,6 +608,7 @@ export async function upsertCenterAction(
       addressCity: parsed.data.addressCity,
       addressProvince: parsed.data.addressProvince,
       addressPostalCode: parsed.data.addressPostalCode || '',
+      cancellationNoticeHours: parsed.data.cancellationNoticeHours,
     }
     if (existing) {
       await prisma.center.update({ where: { id: existing.id }, data: centerData })

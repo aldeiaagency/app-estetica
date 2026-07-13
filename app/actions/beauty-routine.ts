@@ -4,8 +4,8 @@ import { nanoid } from 'nanoid'
 import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth/config'
+import { getBeautyProfileByUserId } from '@/lib/beauty/profile-data'
 import { prisma } from '@/lib/db/client'
-import { getBeautyProfile } from '@/app/actions/beauty-profile'
 import type { BeautyArea, BeautyProfileWithGoals, HairType, SkinType } from '@/lib/beauty/recommendations'
 
 export type BeautyRoutineStepType =
@@ -160,7 +160,7 @@ function expectedEndFrom(days: number | null | undefined) {
 
 async function getProfileSafely(userId: string) {
   try {
-    return await getBeautyProfile(userId)
+    return await getBeautyProfileByUserId(userId)
   } catch {
     return null
   }
@@ -268,7 +268,11 @@ export async function getSmartProducts(productIds: string[]) {
   }
 }
 
-export async function getRoutineForUser(userId: string) {
+export async function getRoutineForUser(_legacyUserId?: string) {
+  const session = await auth()
+  const userId = session?.user?.id
+  if (!userId) return { profile: null, routineId: null, steps: [] as RoutineStepRecord[] }
+
   const profile = await getProfileSafely(userId)
   if (!profile) return { profile: null, routineId: null, steps: [] as RoutineStepRecord[] }
 
@@ -551,7 +555,11 @@ export async function markUsageFinishedAction(usageId: string): Promise<{ succes
   }
 }
 
-export async function getReplenishmentForUser(userId: string) {
+export async function getReplenishmentForUser(_legacyUserId?: string) {
+  const session = await auth()
+  const userId = session?.user?.id
+  if (!userId) return { profile: null, items: [] as ReplenishmentRecord[] }
+
   const profile = await getProfileSafely(userId)
   if (!profile) return { profile: null, items: [] as ReplenishmentRecord[] }
 

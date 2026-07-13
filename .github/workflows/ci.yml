@@ -84,11 +84,11 @@ jobs:
           set -o pipefail
           npm run type-check 2>&1 | tee typecheck.log
 
-      - name: Unit and integration tests
+      - name: Unit and integration tests with coverage
         shell: bash
         run: |
           set -o pipefail
-          npm test -- --run 2>&1 | tee tests.log
+          npm run test:coverage 2>&1 | tee tests.log
 
       - name: Production build
         shell: bash
@@ -107,9 +107,6 @@ jobs:
             build.log
           if-no-files-found: ignore
           retention-days: 3
-
-      - name: Install Playwright runner
-        run: npm install --no-save --no-package-lock @playwright/test@1.52.0
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

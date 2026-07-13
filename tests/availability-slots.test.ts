@@ -5,11 +5,20 @@ import {
   overlaps,
   hasConflict,
   buildCandidateSlots,
+  bookingIntervalToBlock,
   generateConfirmationCode,
   type Block,
 } from '@/lib/availability/slots'
 
 const D = (iso: string) => new Date(iso)
+
+describe('bookingIntervalToBlock', () => {
+  it('usa el intervalo persistido sin volver a expandir buffers', () => {
+    const startAt = D('2026-06-15T10:00:00Z')
+    const endAt = D('2026-06-15T11:20:00Z')
+    expect(bookingIntervalToBlock({ startAt, endAt })).toEqual({ start: startAt, end: endAt })
+  })
+})
 
 describe('computeTotalDuration', () => {
   it('suma buffers antes y después de la duración del servicio', () => {

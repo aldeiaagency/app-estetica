@@ -13,7 +13,7 @@ function formatPrice(cents: number) {
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, totalCents, clearCart } = useCart()
+  const { items, hydrated, totalCents } = useCart()
   const [isPending, startTransition] = useTransition()
 
   const [name,    setName]    = useState('')
@@ -21,6 +21,10 @@ export default function CheckoutPage() {
   const [phone,   setPhone]   = useState('')
   const [consent, setConsent] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
+
+  if (!hydrated) {
+    return <div className="flex min-h-screen items-center justify-center bg-[#f1f4f8]" role="status">Cargando pedido...</div>
+  }
 
   if (items.length === 0) {
     return (
@@ -62,13 +66,12 @@ export default function CheckoutPage() {
         })),
       })
       if (result.success) {
-        clearCart()
         if (result.checkoutUrl) {
           // Pago online con Stripe
           window.location.href = result.checkoutUrl
         } else {
           // Pago en el centro (click & collect)
-          router.push(`/pedido/confirmado/${result.orderId}`)
+          router.push(`/pedido/confirmado/${result.orderId}?token=${encodeURIComponent(result.confirmationToken)}`)
         }
       } else {
         setError(result.error)
@@ -103,24 +106,24 @@ export default function CheckoutPage() {
               <h2 className="mb-4 font-black text-[#0c1324]">Tus datos</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="label">Nombre completo <span className="text-[#2f6df6]">*</span></label>
+                  <label htmlFor="checkout-name" className="label">Nombre completo <span className="text-[#2f6df6]">*</span></label>
                   <input
-                    type="text" required value={name} onChange={e => setName(e.target.value)}
+                    id="checkout-name" type="text" required value={name} onChange={e => setName(e.target.value)}
                     className="input-base" placeholder="Tu nombre completo" autoComplete="name"
                   />
                 </div>
                 <div>
-                  <label className="label">Email <span className="text-[#2f6df6]">*</span></label>
+                  <label htmlFor="checkout-email" className="label">Email <span className="text-[#2f6df6]">*</span></label>
                   <input
-                    type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                    id="checkout-email" type="email" required value={email} onChange={e => setEmail(e.target.value)}
                     className="input-base" placeholder="tu@email.com" autoComplete="email"
                   />
                   <p className="mt-1 text-xs text-[#8b96aa]">Recibirás la confirmación del pedido aquí</p>
                 </div>
                 <div>
-                  <label className="label">Teléfono <span className="font-normal text-[#8b96aa]">(opcional)</span></label>
+                  <label htmlFor="checkout-phone" className="label">Teléfono <span className="font-normal text-[#8b96aa]">(opcional)</span></label>
                   <input
-                    type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                    id="checkout-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                     className="input-base" placeholder="+34 600 000 000" autoComplete="tel"
                   />
                 </div>

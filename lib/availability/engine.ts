@@ -1,12 +1,14 @@
 import { prisma } from '@/lib/db/client'
-import { addMinutes, endOfDay, format, parseISO, startOfDay } from 'date-fns'
+import { endOfDay, format, parseISO, startOfDay } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import {
   buildCandidateSlots,
+  bookingIntervalToBlock,
   computeTotalDuration,
   localDayOfWeekMondayZero,
   type Block,
 } from './slots'
+import { expireBookingPaymentHolds } from './holds'
 
 const TIMEZONE = 'Europe/Madrid'
 const SLOT_GRANULARITY_MINUTES = 15
@@ -28,6 +30,9 @@ export interface AvailabilityQuery {
 }
 
 export async function getAvailableSlots(query: AvailabilityQuery): Promise<TimeSlot[]> {
+  await expireBookingPaymentHolds(100).catch(error => {
+    console.error('[availability] opportunistic hold cleanup failed', error)
+  })
   const { centerId, serviceId, date } = query
   const service = await prisma.service.findFirst({
     where: {
@@ -63,7 +68,6 @@ export async function getAvailableSlots(query: AvailabilityQuery): Promise<TimeS
       dayOfWeek,
       localDate,
       totalDuration,
-      service,
       excludeBookingId: query.excludeBookingId,
     }))
   }
@@ -84,7 +88,6 @@ async function getSlotsForStaff({
   dayOfWeek,
   localDate,
   totalDuration,
-  service,
   excludeBookingId,
 }: {
   centerId: string
@@ -92,7 +95,6 @@ async function getSlotsForStaff({
   dayOfWeek: number
   localDate: Date
   totalDuration: number
-  service: { bufferMinutesBefore: number; durationMinutes: number }
   excludeBookingId?: string
 }): Promise<TimeSlot[]> {
   const localDayStart = startOfDay(localDate)
@@ -181,10 +183,7 @@ async function getSlotsForStaff({
   })
 
   const occupiedBlocks: Block[] = [
-    ...existingBookings.map(booking => ({
-      start: addMinutes(booking.startAt, -service.bufferMinutesBefore),
-      end: booking.endAt,
-    })),
+    ...existingBookings.map(bookingIntervalToBlock),
     ...manualBlocks.map(block => ({ start: block.startAt, end: block.endAt })),
   ]
 

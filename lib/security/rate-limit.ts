@@ -83,10 +83,21 @@ export async function getRequestFingerprint(extra = ''): Promise<string> {
 export async function checkRateLimit(scope: RateLimitScope, identifier: string): Promise<RateLimitResult> {
   const policy = POLICIES[scope]
   const key = `${scope}:${identifier}`
+  const distributedRequired = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
   try {
-    return (await upstashRateLimit(key, policy)) ?? localRateLimit(key, policy)
+    const distributedResult = await upstashRateLimit(key, policy)
+    if (distributedResult) return distributedResult
+    if (distributedRequired) {
+      console.error('[rate-limit] distributed backend is required but not configured')
+      return { success: false, remaining: 0, retryAfterSeconds: policy.windowSeconds }
+    }
+    return localRateLimit(key, policy)
   } catch (error) {
-    console.warn('[rate-limit] distributed backend unavailable; using local fallback', error)
+    if (distributedRequired) {
+      console.error('[rate-limit] distributed backend unavailable', error)
+      return { success: false, remaining: 0, retryAfterSeconds: policy.windowSeconds }
+    }
+    console.warn('[rate-limit] distributed backend unavailable; using development fallback', error)
     return localRateLimit(key, policy)
   }
 }

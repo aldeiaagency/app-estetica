@@ -24,9 +24,12 @@
 
 Todos los tenants comparten la misma base de datos y el mismo schema. El aislamiento se logra mediante:
 
-1. **`organizationId`** en todos los modelos de negocio.
-2. **Prisma middleware** que añade automáticamente el filtro de tenant en todas las queries.
-3. **Validación en API routes** antes de cualquier operación.
+1. **`organizationId` o `centerId`** en todos los modelos de negocio.
+2. **Identidad derivada de la sesión** mediante `requireOrganization()`; nunca se confía en un tenant recibido del cliente.
+3. **Filtros de pertenencia en la propia consulta Prisma/SQL** y pruebas negativas por rol y tenant.
+4. **Validación en Server Actions y API routes** antes de cualquier operación.
+
+No existe un middleware Prisma que aplique el tenant automáticamente ni se depende de RLS de Supabase. Por ello, cualquier nueva consulta privada debe usar los helpers tenant-aware y demostrar aislamiento mediante pruebas. El acceso REST anónimo de Supabase debe permanecer deshabilitado para estas tablas.
 
 ### Por qué shared schema (no schemas separados)
 

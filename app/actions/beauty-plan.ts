@@ -3,8 +3,8 @@
 import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth/config'
+import { getBeautyProfileByUserId } from '@/lib/beauty/profile-data'
 import { prisma } from '@/lib/db/client'
-import { getBeautyProfile } from '@/app/actions/beauty-profile'
 import { generateBeautyPlan, type BeautyPlanRecommendation, type GeneratedBeautyPlan } from '@/lib/beauty/recommendations'
 
 export type BeautyPlanItemStatus = 'PENDING' | 'DONE' | 'SKIPPED' | 'DISMISSED'
@@ -169,8 +169,12 @@ async function replacePlanItems(planId: string, generated: GeneratedBeautyPlan) 
   }
 }
 
-export async function getOrCreateMonthlyBeautyPlan(userId: string): Promise<PersistedBeautyPlan | null> {
-  const profile = await getBeautyProfile(userId)
+export async function getOrCreateMonthlyBeautyPlan(_legacyUserId?: string): Promise<PersistedBeautyPlan | null> {
+  const session = await auth()
+  const userId = session?.user?.id
+  if (!userId) return null
+
+  const profile = await getBeautyProfileByUserId(userId)
   if (!profile) return null
 
   const month = currentMonthKey()
@@ -224,7 +228,7 @@ export async function regenerateBeautyPlanAction(): Promise<{ success: boolean; 
   const userId = session?.user?.id
   if (!userId) return { success: false, error: 'Inicia sesion para regenerar tu plan.' }
 
-  const profile = await getBeautyProfile(userId)
+  const profile = await getBeautyProfileByUserId(userId)
   if (!profile) return { success: false, error: 'Completa primero tu Beauty Profile.' }
 
   const month = currentMonthKey()

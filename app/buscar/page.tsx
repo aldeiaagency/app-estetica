@@ -118,9 +118,6 @@ export default async function BuscarPage({
       },
       take: 60,
       orderBy: [{ updatedAt: 'desc' }],
-    }).catch(error => {
-      console.warn('Search page rendered without database results', error)
-      return []
     }),
     auth().catch(() => null),
   ])

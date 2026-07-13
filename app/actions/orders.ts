@@ -3,10 +3,14 @@
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { createOrderCheckoutSession } from '@/lib/billing/checkout'
-import { releaseOrderStockReservation } from '@/lib/billing/payment-integrity'
+import {
+  expireOrderStockReservations,
+  releaseOrderStockReservation,
+} from '@/lib/billing/payment-integrity'
 import { isStripeConfigured } from '@/lib/billing/stripe'
 import { prisma } from '@/lib/db/client'
 import { enforceRateLimit, getRequestFingerprint } from '@/lib/security/rate-limit'
+import { createConfirmationToken } from '@/lib/security/confirmation-token'
 
 const STRIPE_RESERVATION_MINUTES = 30
 const IN_STORE_RESERVATION_HOURS = 24
@@ -36,7 +40,7 @@ type ReservedLine = {
 }
 
 export async function createOrderAction(input: unknown): Promise<
-  { success: true; orderId: string; checkoutUrl?: string } | { success: false; error: string }
+  { success: true; orderId: string; confirmationToken: string; checkoutUrl?: string } | { success: false; error: string }
 > {
   const parsed = createOrderSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Datos inválidos' }
@@ -62,6 +66,9 @@ export async function createOrderAction(input: unknown): Promise<
   }
   const productIds = [...quantityByProduct.keys()]
   const onlinePayment = isStripeConfigured()
+  await expireOrderStockReservations(50).catch(error => {
+    console.error('[order] opportunistic reservation cleanup failed', error)
+  })
   const expiresAt = new Date(Date.now() + (
     onlinePayment ? STRIPE_RESERVATION_MINUTES * 60_000 : IN_STORE_RESERVATION_HOURS * 3_600_000
   ))
@@ -100,6 +107,7 @@ export async function createOrderAction(input: unknown): Promise<
           customerPhone: customerPhone || null,
           totalCents,
           status: 'PENDING',
+          paymentState: onlinePayment ? 'CHECKOUT_PENDING' : 'NOT_REQUIRED',
           notes: onlinePayment ? 'Stock reservado para pago online' : 'Stock reservado para pago en el centro',
           items: {
             create: lines.map(line => ({
@@ -116,10 +124,18 @@ export async function createOrderAction(input: unknown): Promise<
         INSERT INTO "OrderStockReservation" ("orderId", "expiresAt")
         VALUES (${order.id}, ${expiresAt})
       `
-      return { order, lines }
+      const checkoutIdempotencyKey = onlinePayment ? `order-checkout:${order.id}` : null
+      const persistedOrder = checkoutIdempotencyKey
+        ? await tx.order.update({
+            where: { id: order.id },
+            data: { checkoutIdempotencyKey },
+          })
+        : order
+      return { order: persistedOrder, lines, checkoutIdempotencyKey }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
-    if (!onlinePayment) return { success: true, orderId: result.order.id }
+    const confirmationToken = createConfirmationToken('order', result.order.id, customerEmail)
+    if (!onlinePayment) return { success: true, orderId: result.order.id, confirmationToken }
 
     try {
       const checkoutUrl = await createOrderCheckoutSession({
@@ -132,8 +148,9 @@ export async function createOrderAction(input: unknown): Promise<
         customerEmail,
         centerName: center.name,
         expiresAt,
+        idempotencyKey: result.checkoutIdempotencyKey!,
       })
-      return { success: true, orderId: result.order.id, checkoutUrl }
+      return { success: true, orderId: result.order.id, confirmationToken, checkoutUrl }
     } catch (error) {
       console.error('[order] Stripe checkout session failed', error)
       await releaseOrderStockReservation(result.order.id, 'checkout_creation_failed')

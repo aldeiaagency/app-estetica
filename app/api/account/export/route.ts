@@ -42,9 +42,8 @@ async function getRoutineSteps(routineIds: string[]) {
 export async function GET() {
   const session = await auth()
   const userId = session?.user?.id
-  const email = session?.user?.email?.toLowerCase()
 
-  if (!userId || !email) {
+  if (!userId) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
@@ -89,7 +88,7 @@ export async function GET() {
     getPlanItems(planIds),
     getRoutineSteps(routineIds),
     prisma.customer.findMany({
-      where: { OR: [{ email }, { userId }] },
+      where: { userId },
       select: {
         id: true,
         name: true,
@@ -105,7 +104,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     }),
     prisma.booking.findMany({
-      where: { customer: { OR: [{ email }, { userId }] } },
+      where: { customer: { userId } },
       select: {
         id: true,
         confirmationCode: true,
@@ -127,27 +126,10 @@ export async function GET() {
       orderBy: { startAt: 'desc' },
       take: 500,
     }),
-    prisma.order.findMany({
-      where: { customerEmail: email },
-      select: {
-        id: true,
-        customerName: true,
-        customerEmail: true,
-        customerPhone: true,
-        totalCents: true,
-        status: true,
-        notes: true,
-        paidAt: true,
-        createdAt: true,
-        updatedAt: true,
-        center: { select: { name: true, slug: true } },
-        items: { select: { name: true, priceCents: true, quantity: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-    }),
+    // Order has no verified account relation yet. Email equality is not ownership.
+    Promise.resolve([] as ExportRow[]),
     prisma.bonoInstance.findMany({
-      where: { customer: { OR: [{ email }, { userId }] } },
+      where: { customer: { userId } },
       select: {
         id: true,
         sessionsRemaining: true,

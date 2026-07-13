@@ -3,7 +3,7 @@
 import { nanoid } from 'nanoid'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/client'
-import { notifyBusinessLead } from '@/lib/integrations/n8n'
+import { businessLeadEvent } from '@/lib/integrations/n8n'
 import { enforceRateLimit, getRequestFingerprint } from '@/lib/security/rate-limit'
 
 export type LeadFormState = {
@@ -75,8 +75,9 @@ export async function submitBusinessLead(
       consentGivenAt: new Date().toISOString(),
     }
 
-    await prisma.$executeRaw`
-      INSERT INTO "Lead" (
+    await prisma.$transaction(async tx => {
+      await tx.$executeRaw`
+        INSERT INTO "Lead" (
         "id", "businessName", "contactName", "email", "phone", "city",
         "plan", "message", "source", "consentGivenAt", "createdAt", "updatedAt"
       )
@@ -85,9 +86,15 @@ export async function submitBusinessLead(
         ${normalized.phone}, ${normalized.city}, ${normalized.plan}, ${normalized.message},
         ${normalized.source}, NOW(), NOW(), NOW()
       )
-    `
-
-    await notifyBusinessLead({ id: leadId, ...normalized })
+      `
+      await tx.integrationOutbox.create({
+        data: {
+          eventType: 'lead.b2b.created',
+          destination: 'N8N_LEAD_B2B',
+          payload: businessLeadEvent({ id: leadId, ...normalized }),
+        },
+      })
+    })
     return {
       success: true,
       message: 'Solicitud recibida. Revisaremos tu caso y te contactaremos con el siguiente paso.',

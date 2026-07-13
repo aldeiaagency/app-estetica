@@ -1,118 +1,148 @@
 'use server'
 
-import { prisma } from '@/lib/db/client'
+import type { AddOnType, Plan } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import type { Plan } from '@prisma/client'
+import { z } from 'zod'
+import { requirePlatformAdmin } from '@/lib/auth/authorization'
+import { prisma } from '@/lib/db/client'
 
-const VALID_PLANS: Plan[] = ['BASIC', 'PRO', 'GROWTH', 'PREMIUM']
+const idSchema = z.string().trim().min(1).max(191)
+const planSchema = z.enum(['BASIC', 'PRO', 'GROWTH', 'PREMIUM'])
+const addOnTypeSchema = z.enum([
+  'WHATSAPP',
+  'SMS',
+  'AI_RECEPTIONIST',
+  'REBOOKING',
+  'FEATURED_LISTING',
+  'CUSTOM_DOMAIN',
+  'ADVANCED_ANALYTICS',
+  'PRIORITY_SUPPORT',
+  'DATA_MIGRATION',
+  'ASSISTED_ONBOARDING',
+])
+
+function errorMessage(error: unknown) {
+  if (error instanceof z.ZodError) return error.errors[0]?.message ?? 'Datos invalidos'
+  return error instanceof Error ? error.message : 'Error desconocido'
+}
 
 export async function publishCenterAction(
   centerId: string,
-  actorId: string,
+  _legacyActorId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const actor = await requirePlatformAdmin()
+    const parsedCenterId = idSchema.parse(centerId)
+
     await prisma.$transaction([
       prisma.center.update({
-        where: { id: centerId },
+        where: { id: parsedCenterId },
         data: { published: true, approvedAt: new Date() },
       }),
       prisma.adminAuditLog.create({
         data: {
-          actorId,
+          actorId: actor.id,
           action: 'PUBLISH_CENTER',
           targetType: 'Center',
-          targetId: centerId,
+          targetId: parsedCenterId,
         },
       }),
     ])
     revalidatePath('/admin/centros')
     return { success: true }
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Error desconocido' }
+  } catch (error) {
+    return { success: false, error: errorMessage(error) }
   }
 }
 
 export async function unpublishCenterAction(
   centerId: string,
-  actorId: string,
+  _legacyActorId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const actor = await requirePlatformAdmin()
+    const parsedCenterId = idSchema.parse(centerId)
+
     await prisma.$transaction([
       prisma.center.update({
-        where: { id: centerId },
+        where: { id: parsedCenterId },
         data: { published: false, approvedAt: null },
       }),
       prisma.adminAuditLog.create({
         data: {
-          actorId,
+          actorId: actor.id,
           action: 'UNPUBLISH_CENTER',
           targetType: 'Center',
-          targetId: centerId,
+          targetId: parsedCenterId,
         },
       }),
     ])
     revalidatePath('/admin/centros')
     return { success: true }
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Error desconocido' }
+  } catch (error) {
+    return { success: false, error: errorMessage(error) }
   }
 }
 
 export async function updateOrganizationPlanAction(
   orgId: string,
   plan: string,
-  actorId: string,
+  _legacyActorId?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!VALID_PLANS.includes(plan as Plan)) {
-    return { success: false, error: `Plan inválido: ${plan}` }
-  }
   try {
+    const actor = await requirePlatformAdmin()
+    const parsedOrgId = idSchema.parse(orgId)
+    const parsedPlan = planSchema.parse(plan) as Plan
+
     await prisma.$transaction([
       prisma.organization.update({
-        where: { id: orgId },
-        data: { plan: plan as Plan },
+        where: { id: parsedOrgId },
+        data: { plan: parsedPlan },
       }),
       prisma.adminAuditLog.create({
         data: {
-          actorId,
+          actorId: actor.id,
           action: 'CHANGE_PLAN',
           targetType: 'Organization',
-          targetId: orgId,
-          metadata: { plan },
+          targetId: parsedOrgId,
+          metadata: { plan: parsedPlan },
         },
       }),
     ])
     revalidatePath('/admin/organizaciones')
     return { success: true }
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Error desconocido' }
+  } catch (error) {
+    return { success: false, error: errorMessage(error) }
   }
 }
 
 export async function toggleCenterSeoNoindexAction(
   centerId: string,
   seoNoindex: boolean,
-  actorId: string,
+  _legacyActorId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const actor = await requirePlatformAdmin()
+    const parsed = z.object({ centerId: idSchema, seoNoindex: z.boolean() }).parse({ centerId, seoNoindex })
+
     await prisma.$transaction([
       prisma.center.update({
-        where: { id: centerId },
-        data: { seoNoindex },
+        where: { id: parsed.centerId },
+        data: { seoNoindex: parsed.seoNoindex },
       }),
       prisma.adminAuditLog.create({
         data: {
-          actorId,
-          action: seoNoindex ? 'SET_NOINDEX' : 'REMOVE_NOINDEX',
+          actorId: actor.id,
+          action: parsed.seoNoindex ? 'SET_NOINDEX' : 'REMOVE_NOINDEX',
           targetType: 'Center',
-          targetId: centerId,
+          targetId: parsed.centerId,
         },
       }),
     ])
     revalidatePath('/admin/seo')
     return { success: true }
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Error desconocido' }
+  } catch (error) {
+    return { success: false, error: errorMessage(error) }
   }
 }
 
@@ -120,52 +150,60 @@ export async function toggleAddOnAction(
   orgId: string,
   addOnType: string,
   active: boolean,
-  actorId: string,
+  _legacyActorId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const actor = await requirePlatformAdmin()
+    const parsed = z.object({
+      orgId: idSchema,
+      addOnType: addOnTypeSchema,
+      active: z.boolean(),
+    }).parse({ orgId, addOnType, active })
     const now = new Date()
 
-    if (active) {
-      const existing = await prisma.organizationAddOn.findFirst({
-        where: { organizationId: orgId, addOnType: addOnType as never },
-        select: { id: true },
-      })
-
-      if (existing) {
-        await prisma.organizationAddOn.update({
-          where: { id: existing.id },
-          data: { active: true, activeFrom: now, activeTo: null },
+    await prisma.$transaction(async tx => {
+      if (parsed.active) {
+        const existing = await tx.organizationAddOn.findFirst({
+          where: { organizationId: parsed.orgId, addOnType: parsed.addOnType as AddOnType },
+          select: { id: true },
         })
+
+        if (existing) {
+          await tx.organizationAddOn.update({
+            where: { id: existing.id },
+            data: { active: true, activeFrom: now, activeTo: null },
+          })
+        } else {
+          await tx.organizationAddOn.create({
+            data: {
+              organizationId: parsed.orgId,
+              addOnType: parsed.addOnType as AddOnType,
+              active: true,
+              activeFrom: now,
+            },
+          })
+        }
       } else {
-        await prisma.organizationAddOn.create({
-          data: {
-            organizationId: orgId,
-            addOnType: addOnType as never,
-            active: true,
-            activeFrom: now,
-          },
+        await tx.organizationAddOn.updateMany({
+          where: { organizationId: parsed.orgId, addOnType: parsed.addOnType as AddOnType },
+          data: { active: false, activeTo: now },
         })
       }
-    } else {
-      await prisma.organizationAddOn.updateMany({
-        where: { organizationId: orgId, addOnType: addOnType as never },
-        data: { active: false, activeTo: now },
-      })
-    }
 
-    await prisma.adminAuditLog.create({
-      data: {
-        actorId,
-        action: active ? 'ENABLE_ADDON' : 'DISABLE_ADDON',
-        targetType: 'OrganizationAddOn',
-        targetId: orgId,
-        metadata: { addOnType },
-      },
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: actor.id,
+          action: parsed.active ? 'ENABLE_ADDON' : 'DISABLE_ADDON',
+          targetType: 'OrganizationAddOn',
+          targetId: parsed.orgId,
+          metadata: { addOnType: parsed.addOnType },
+        },
+      })
     })
 
     revalidatePath('/admin/organizaciones')
     return { success: true }
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : 'Error desconocido' }
+  } catch (error) {
+    return { success: false, error: errorMessage(error) }
   }
 }

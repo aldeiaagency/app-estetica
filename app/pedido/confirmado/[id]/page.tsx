@@ -4,16 +4,18 @@ import Link from 'next/link'
 import { CheckCircle2, Sparkles, Package, MapPin, ShoppingBag } from 'lucide-react'
 import { prisma } from '@/lib/db/client'
 import { formatPrice } from '@/lib/utils'
+import { verifyConfirmationToken } from '@/lib/security/confirmation-token'
 
 export const metadata: Metadata = {
   title: 'Pedido confirmado — BellezaLocal',
   robots: { index: false },
 }
 
-interface Props { params: Promise<{ id: string }> }
+interface Props { params: Promise<{ id: string }>; searchParams: Promise<{ token?: string }> }
 
-export default async function PedidoConfirmadoPage({ params }: Props) {
+export default async function PedidoConfirmadoPage({ params, searchParams }: Props) {
   const { id } = await params
+  const { token } = await searchParams
 
   const order = await prisma.order.findUnique({
     where: { id },
@@ -23,7 +25,7 @@ export default async function PedidoConfirmadoPage({ params }: Props) {
     },
   })
 
-  if (!order) notFound()
+  if (!order || !verifyConfirmationToken('order', id, order.customerEmail, token)) notFound()
 
   const date = order.createdAt.toLocaleDateString('es-ES', {
     day: 'numeric', month: 'long', year: 'numeric',

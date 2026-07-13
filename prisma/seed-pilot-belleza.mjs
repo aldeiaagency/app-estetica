@@ -19,7 +19,14 @@ import { flattenTaxonomy } from './product-taxonomy.mjs'
 
 const prisma = new PrismaClient()
 const SHOULD_PUBLISH = process.argv.includes('--publish')
-const PASSWORD = 'Demo2026!'
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
+if (IS_PRODUCTION || process.env.ALLOW_DEMO_SEED !== 'true') {
+  throw new Error('Seed bloqueado. Usa un entorno no productivo y ALLOW_DEMO_SEED=true.')
+}
+const PASSWORD = process.env.SEED_DEMO_PASSWORD
+if (!PASSWORD || PASSWORD.length < 12) {
+  throw new Error('SEED_DEMO_PASSWORD debe tener al menos 12 caracteres.')
+}
 
 function img(seed, w = 900, h = 650) {
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/${w}/${h}`

@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { auth } from '@/lib/auth/config'
+import { getBeautyProfileByUserId } from '@/lib/beauty/profile-data'
 import { prisma } from '@/lib/db/client'
 import {
   BEAUTY_AREAS,
@@ -15,8 +16,6 @@ import {
   MAINTENANCE_LEVELS,
   PRICE_SENSITIVITIES,
   SKIN_TYPES,
-  type BeautyGoalRecord,
-  type BeautyProfileWithGoals,
 } from '@/lib/beauty/recommendations'
 
 const monthlyBudgetSchema = z.enum(['UNDER_40', 'BETWEEN_40_80', 'BETWEEN_80_150', 'OVER_150'])
@@ -154,39 +153,10 @@ export async function submitDiagnosisAction(input: unknown): Promise<DiagnosisAc
   }
 }
 
-export async function getBeautyProfile(userId: string) {
-  const profiles = await prisma.$queryRaw<BeautyProfileWithGoals[]>`
-    SELECT
-      "id",
-      "userId",
-      "skinType",
-      "hairType",
-      "beautyStyle",
-      "monthlyBudgetCents",
-      "maintenanceLevel",
-      "mainConcern",
-      "secondaryConcern",
-      "priceSensitivity",
-      "buyingMotivation",
-      "fear",
-      "consentPersonalizationAt",
-      "profileCompletedAt",
-      "createdAt",
-      "updatedAt"
-    FROM "BeautyProfile"
-    WHERE "userId" = ${userId}
-    LIMIT 1
-  `
+export async function getBeautyProfile(_legacyUserId?: string) {
+  const session = await auth()
+  const userId = session?.user?.id
+  if (!userId) return null
 
-  const profile = profiles[0]
-  if (!profile) return null
-
-  const goals = await prisma.$queryRaw<BeautyGoalRecord[]>`
-    SELECT "id", "profileId", "area", "objective", "priority", "active", "createdAt"
-    FROM "BeautyGoal"
-    WHERE "profileId" = ${profile.id} AND "active" = true
-    ORDER BY "priority" ASC
-  `
-
-  return { ...profile, goals }
+  return getBeautyProfileByUserId(userId)
 }
